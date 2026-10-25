@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sigil #4</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;1,300&family=Share+Tech+Mono&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --bg: #0a080e;
+    --surface: #110e18;
+    --border: #2a1f3d;
+    --dim: #3d2d5a;
+    --text: #b8a8d0;
+    --label: #5a4a72;
+    --accent: #9a7abf;
+    --bright: #c8a8f0;
+    --void: #1a0e2a;
+    --gold: #8a7040;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 12px 48px;
+  }
+
+  /* ── Header ── */
+  .top {
+    width: 100%; max-width: 680px;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px; margin-bottom: 16px;
+  }
+
+  .sig-title {
+    font-family: 'Crimson Pro', serif;
+    font-size: 28px; font-weight: 300; font-style: italic;
+    color: var(--bright);
+    letter-spacing: 3px;
+    line-height: 1;
+  }
+
+  .sig-meta {
+    font-size: 7.5px; color: var(--label);
+    letter-spacing: 1.5px; margin-top: 5px;
+  }
+
+  .mvt-label {
+    font-family: 'Crimson Pro', serif;
+    font-size: 13px; font-style: italic;
+    color: var(--label); letter-spacing: 2px;
+    text-align: right;
+  }
+
+  /* ── Canvas ── */
+  canvas {
+    display: block;
+    width: 100%; max-width: 680px;
+    height: auto;
+    border: 1px solid var(--border);
+    background: var(--void);
+  }
+
+  /* ── Section strip ── */
+  .section-strip {
+    width: 100%; max-width: 680px;
+    height: 22px; position: relative; margin-top: 4px;
+    display: flex;
+  }
+
+  .sec-block {
+    height: 100%; display: flex; align-items: center;
+    justify-content: center; font-size: 6.5px;
+    letter-spacing: 1.5px; color: var(--label);
+    border-right: 1px solid var(--border);
+    overflow: hidden; text-transform: uppercase;
+    transition: background 0.4s, color 0.4s;
+  }
+
+  .sec-block.active {
+    background: var(--dim); color: var(--bright);
+  }
+
+  /* ── Controls ── */
+  .controls {
+    display: flex; gap: 10px; align-items: center;
+    margin: 12px 0; width: 100%; max-width: 680px;
+  }
+
+  #playBtn {
+    background: var(--surface); color: var(--bright);
+    border: 1px solid var(--dim);
+    padding: 10px 24px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; letter-spacing: 3px;
+    cursor: pointer; text-transform: uppercase;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  #playBtn.active { border-color: var(--accent); color: var(--accent); }
+
+  #time-display {
+    font-size: 15px; color: var(--dim);
+    letter-spacing: 2px; width: 48px; font-variant-numeric: tabular-nums;
+  }
+
+  .vol-block { display:flex; align-items:center; gap:8px; margin-left:auto; }
+  .vol-block label { font-size:8px; color:var(--label); letter-spacing:2px; }
+  input[type=range] { width:68px; cursor:pointer; accent-color: var(--dim); }
+
+  /* ── Voice meters ── */
+  .voices-grid {
+    width: 100%; max-width: 680px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1px 18px; margin-top: 4px;
+  }
+
+  .voice-row { display:flex; align-items:center; gap:8px; height:19px; }
+  .v-label {
+    font-size: 7px; color: var(--label);
+    width: 78px; text-align:right;
+    letter-spacing: 0.8px; white-space:nowrap;
+  }
+  .v-bar { flex:1; height:1px; background:var(--border); position:relative; }
+  .v-level {
+    position:absolute; left:0; top:0; height:100%; width:0%;
+    transition: width 0.07s linear;
+  }
+
+  /* ── Density / status ── */
+  .density-bar {
+    width:100%; max-width:680px;
+    height:2px; background:var(--border); margin-top:10px;
+  }
+  .density-fill { height:100%; width:0%; background:var(--dim); transition:width 0.12s; }
+
+  #status-bar {
+    width:100%; max-width:680px; margin-top:10px;
+    font-size:8px; color:var(--label); letter-spacing:1.5px;
+    border-top:1px solid var(--border); padding-top:8px;
+    display:flex; justify-content:space-between;
+  }
+
+  /* ── Void overlay ── */
+  #void-flash {
+    position:fixed; top:0; left:0; right:0; bottom:0;
+    background: #000; opacity:0; pointer-events:none;
+    transition: opacity 0.05s;
+    z-index:10;
+  }
+</style>
+</head>
+<body>
+
+<div id="void-flash"></div>
+
+<div class="top">
+  <div>
+    <div class="sig-title">Sigil #4</div>
+    <div class="sig-meta">PAGE 19 + MAY 15 · 2:55AM / 4:52AM · 5 MIN · 11 VOICES</div>
+  </div>
+  <div class="mvt-label" id="mvt-label">I</div>
+</div>
+
+<canvas id="score-canvas" width="680" height="300"></canvas>
+
+<div class="section-strip" id="sec-strip"></div>
+
+<div class="controls">
+  <button id="playBtn" onclick="togglePlay()">PLAY</button>
+  <span id="time-display">0:00</span>
+  <div class="vol-block">
+    <label>VOL</label>
+    <input type="range" id="volControl" min="0" max="1" step="0.01" value="0.6"
+      oninput="if(masterGain) masterGain.gain.value = parseFloat(this.value)">
+  </div>
+</div>
+
+<div class="voices-grid" id="voices-panel"></div>
+<div class="density-bar"><div class="density-fill" id="density-fill"></div></div>
+<div id="status-bar">
+  <span id="status-left">READY · TAP PLAY</span>
+  <span>xik6</span>
+</div>
+
+<script>
+var DURATION = 300; // 5 minutes
+var NUM_VOICES = 11;
+var audioCtx = null;
+var masterGain = null;
+var isPlaying = false;
+var startTime = 0;
+var animFrame = null;
+var activeNodes = {};
+var nextFireTime = {};
+var smoothLevels = [];
+var voidFired = false;
+for (var _i = 0; _i < NUM_VOICES; _i++) smoothLevels.push(0);
+
+// ── 5-section structure from score text ───────────────────────────────────────
+// Each section: [startFrac, endFrac, label, annotation]
+var SECTIONS = [
+  { s:0,    e:0.2,  label:'BIG NOISES',        note:'2 soft squeaks',        color:'#3d2d5a' },
+  { s:0.2,  e:0.4,  label:'RANDOM / SUNSHINE', note:'Number X',              color:'#2d3d3a' },
+  { s:0.4,  e:0.6,  label:'SILO · VOID #58',   note:'enters the void',       color:'#1a0a2a' },
+  { s:0.6,  e:0.82, label:'BOUNDLESS NOISES',  note:'spirits of time',       color:'#2a1a1a' },
+  { s:0.82, e:1.0,  label:'LESS · FEELINGS',   note:'on the feelings',       color:'#1a1a2a' }
+];
+
+// ── Score text annotation markers (x=normalized time, y=row 0–1) ──────────────
+var ANNOTATIONS = [
+  { t:0.02, y:0.08, text:'Big Noises' },
+  { t:0.08, y:0.10, text:'2 soft squeaks' },
+  { t:0.22, y:0.35, text:'Random Effects' },
+  { t:0.27, y:0.42, text:'Sunshine' },
+  { t:0.31, y:0.25, text:'Number X' },
+  { t:0.42, y:0.55, text:'Silo enters' },
+  { t:0.50, y:0.62, text:'the void #58' },
+  { t:0.58, y:0.65, text:'spirits of time' },
+  { t:0.63, y:0.72, text:'Boundless noises being noisy' },
+  { t:0.78, y:0.80, text:'Less' },
+  { t:0.86, y:0.88, text:'On the Feelings' }
+];
+
+// ── Density by section ────────────────────────────────────────────────────────
+function scoreDensity(t) {
+  var n = t / DURATION;
+  // Arc: builds, spikes at void, then subsides
+  if (n < 0.2) return 0.2 + n * 1.5;
+  if (n < 0.4) return 0.5 + (n-0.2)*2;
+  if (n < 0.41) return 1.0; // void entry spike
+  if (n < 0.6) return 0.85 - (n-0.4)*0.8;
+  if (n < 0.82) return 0.6 + Math.abs(Math.sin(n*31))*0.25;
+  return Math.max(0.05, 1.0 - (n-0.82)*5);
+}
+
+function sectionFrac(t) { return t / DURATION; }
+
+function inSection(t, s, e) {
+  var n = sectionFrac(t);
+  return n >= s && n < e;
+}
+
+function secRamp(t, s, e) {
+  var n = sectionFrac(t);
+  if (n < s || n > e) return 0;
+  var p = (n - s) / (e - s);
+  return Math.sin(p * Math.PI);
+}
+
+// ── Voice definitions ─────────────────────────────────────────────────────────
+var VOICES = [
+  // 0: Big Noise Burst — loudest voice, low-freq rumbles
+  { id:0, label:'BIG NOISE', color:'#7a3a3a', type:'bigburst',
+    freqFn: function(t){ return 55 + Math.random()*80; },
+    probFn: function(t){
+      var n=sectionFrac(t);
+      if (n < 0.05) return 0.04;
+      if (n < 0.2)  return 0.06 + 0.08*scoreDensity(t);
+      if (n < 0.4)  return 0.02;
+      return 0.01;
+    }
+  },
+
+  // 1: Squeak A — high freq delicate chirp
+  { id:1, label:'SQUEAK A', color:'#9a6ab0', type:'squeak',
+    baseFreq: 2400,
+    probFn: function(t){
+      var n=sectionFrac(t);
+      if (n < 0.2) return 0.04;
+      if (n > 0.82) return 0.03 * secRamp(t,0.82,1.0);
+      return 0.008;
+    }
+  },
+
+  // 2: Squeak B — slightly different pitch
+  { id:2, label:'SQUEAK B', color:'#7a5a9a', type:'squeak',
+    baseFreq: 3100,
+    probFn: function(t){
+      var n=sectionFrac(t);
+      if (n < 0.2) return 0.035;
+      if (n > 0.82) return 0.025;
+      return 0.006;
+    }
+  },
+
+  // 3: Sunshine shimmer — bright chorused sine cluster
+  { id:3, label:'SUNSHINE', color:'#6a7a3a', type:'shimmer',
+    freqFn: function(t){ return 660 + Math.sin(t*0.31)*180; },
+    ampFn:  function(t){ return 0.035 * secRamp(t, 0.2, 0.5); }
+  },
+
+  // 4: Random Effects — stochastic FM bursts
+  { id:4, label:'RANDOM FX', color:'#4a6a7a', type:'randfm',
+    probFn: function(t){
+      var n=sectionFrac(t);
+      if (n < 0.2 || n > 0.82) return 0.005;
+      return 0.04 + 0.05 * Math.abs(Math.sin(t*0.7));
+    }
+  },
+
+  // 5: Silo drone — sub frequency, enters hard at void
+  { id:5, label:'SILO · SUB', color:'#3a2a5a', type:'silo',
+    freqFn: function(t){
+      var n=sectionFrac(t);
+      if (n < 0.4) return 0;
+      return 32 + Math.sin(t*0.04)*6;
+    },
+    ampFn: function(t){
+      var n=sectionFrac(t);
+      if (n < 0.4) return 0;
+      if (n < 0.42) return (n-0.4)*50 * 0.12; // fast attack
+      if (n < 0.6)  return 0.12;
+      return 0.12 * Math.max(0, (1.0-n)*5);
+    }
+  },
+
+  // 6: Void noise — opens at the silo entry
+  { id:6, label:'VOID NOISE', color:'#2a1a3a', type:'voidnoise',
+    cutoffFn: function(t){
+      var n=sectionFrac(t);
+      if (n < 0.4) return 80;
+      return 80 + 4000 * Math.min(1, (n-0.4)*8);
+    },
+    ampFn: function(t){
+      var n=sectionFrac(t);
+      if (n < 0.4) return 0;
+      if (n < 0.42) return (n-0.4)*50 * 0.05;
+      if (n < 0.8) return 0.045 * scoreDensity(t);
+      return 0.045 * Math.max(0, (1.0-n)*5);
+    }
+  },
+
+  // 7: Spirits of time — ghost harmonics (multiple detuned sine)
+  { id:7, label:'SPIRITS', color:'#5a3a6a', type:'spirits',
+    freqFn: function(t){ return 165 * Math.pow(2, Math.floor(t*0.08)%4 * 0.5833); },
+    ampFn:  function(t){
+      var n=sectionFrac(t);
+      return 0.03 * secRamp(t, 0.55, 0.9) * (0.4+0.6*Math.abs(Math.sin(t*0.19)));
+    }
+  },
+
+  // 8: Boundless noise — wideband expanding
+  { id:8, label:'BOUNDLESS', color:'#6a2a2a', type:'boundless',
+    ampFn: function(t){
+      var n=sectionFrac(t);
+      if (n < 0.6) return 0;
+      return 0.04 * secRamp(t,0.6,0.85) * (0.5+0.5*Math.abs(Math.sin(t*0.43)));
+    }
+  },
+
+  // 9: Feelings oscillator — slow lyrical, second half only
+  { id:9, label:'FEELINGS', color:'#4a3a6a', type:'feelings',
+    freqFn: function(t){ return 220 + Math.sin(t*0.07)*88 + Math.sin(t*0.023)*33; },
+    ampFn:  function(t){
+      var n=sectionFrac(t);
+      return 0.04 * secRamp(t,0.78,1.0) * Math.abs(Math.sin(t*0.09));
+    }
+  },
+
+  // 10: Purple loop (from today's page) — large looping FM swells
+  { id:10, label:'PURPLE LOOP', color:'#6a3a7a', type:'loop',
+    freqFn: function(t){ var ph=(t%37)/37; return 82*Math.pow(2, ph*2.5); },
+    ampFn:  function(t){
+      var n=sectionFrac(t);
+      return 0.038 * Math.abs(Math.sin(t*0.051)) * (n > 0.5 ? 1 : n*2);
+    },
+    modRatio: 1.618,
+    modIdxFn: function(t){ return 1.5 + 3.5*scoreDensity(t); }
+  }
+];
+
+// ── Audio init ────────────────────────────────────────────────────────────────
+function initAudio() {
+  if (audioCtx) return;
+  var AC = window.AudioContext || window.webkitAudioContext;
+  audioCtx = new AC();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = parseFloat(document.getElementById('volControl').value);
+  masterGain.connect(audioCtx.destination);
+}
+
+function makeNoiseBuf() {
+  var sr = audioCtx.sampleRate;
+  var buf = audioCtx.createBuffer(1, sr*2, sr);
+  var d = buf.getChannelData(0);
+  for (var i=0; i<d.length; i++) d[i] = Math.random()*2-1;
+  return buf;
+}
+
+// ── Big burst (low freq impact) ───────────────────────────────────────────────
+function fireBigBurst(v, t) {
+  if (Math.random() > v.probFn(t)) return;
+  var osc = audioCtx.createOscillator();
+  var filt = audioCtx.createBiquadFilter();
+  var gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.value = v.freqFn(t);
+  filt.type = 'lowpass'; filt.frequency.value = 300; filt.Q.value = 4;
+  var amp = 0.12 + Math.random()*0.1;
+  var dur = 0.18 + Math.random()*0.4;
+  gain.gain.setValueAtTime(amp, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+  osc.connect(filt); filt.connect(gain); gain.connect(masterGain);
+  osc.start(); osc.stop(audioCtx.currentTime + dur + 0.01);
+}
+
+// ── Squeak ─────────────────────────────────────────────────────────────────────
+function fireSqueak(v, t) {
+  if (Math.random() > v.probFn(t)) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = v.baseFreq * (0.92 + Math.random()*0.16);
+  var dur = 0.04 + Math.random()*0.09;
+  gain.gain.setValueAtTime(0, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.045, audioCtx.currentTime + dur*0.2);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+  osc.connect(gain); gain.connect(masterGain);
+  osc.start(); osc.stop(audioCtx.currentTime + dur + 0.01);
+}
+
+// ── Shimmer (3-voice chorus) ───────────────────────────────────────────────────
+function startShimmer(v, t) {
+  if (activeNodes[v.id]) return;
+  var gain = audioCtx.createGain();
+  gain.gain.value = v.ampFn(t);
+  var oscs = [];
+  var detunes = [-12, 0, 7];
+  for (var i=0; i<3; i++) {
+    var o = audioCtx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = v.freqFn(t) * Math.pow(2, detunes[i]/1200);
+    o.connect(gain);
+    o.start();
+    oscs.push(o);
+  }
+  gain.connect(masterGain);
+  activeNodes[v.id] = { oscs:oscs, gain:gain };
+}
+function updateShimmer(v, t) {
+  var n = activeNodes[v.id]; if (!n) return;
+  var amp = v.ampFn(t);
+  n.gain.gain.linearRampToValueAtTime(amp, audioCtx.currentTime + 0.12);
+  var f = v.freqFn(t);
+  var detunes = [-12, 0, 7];
+  for (var i=0; i<n.oscs.length; i++) {
+    n.oscs[i].frequency.linearRampToValueAtTime(f * Math.pow(2, detunes[i]/1200), audioCtx.currentTime+0.3);
+  }
+}
+function stopShimmer(v) {
+  var n = activeNodes[v.id]; if (!n) return;
+  for (var i=0; i<n.oscs.length; i++) { try { n.oscs[i].stop(); } catch(e){} }
+  delete activeNodes[v.id];
+}
+
+// ── Random FM burst ────────────────────────────────────────────────────────────
+function fireRandFM(v, t) {
+  if (Math.random() > v.probFn(t)) return;
+  var car = audioCtx.createOscillator();
+  var mod = audioCtx.createOscillator();
+  var modG = audioCtx.createGain();
+  var gain = audioCtx.createGain();
+  var f = 110 + Math.random()*880;
+  var ratio = 0.5 + Math.random()*6;
+  car.type = 'sine'; car.frequency.value = f;
+  mod.frequency.value = f*ratio;
+  modG.gain.value = f*(1+Math.random()*8);
+  var dur = 0.15 + Math.random()*0.6;
+  var amp = 0.04 + Math.random()*0.04;
+  gain.gain.setValueAtTime(amp, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+  mod.connect(modG); modG.connect(car.frequency);
+  car.connect(gain); gain.connect(masterGain);
+  car.start(); mod.start();
+  car.stop(audioCtx.currentTime + dur + 0.01);
+  mod.stop(audioCtx.currentTime + dur + 0.01);
+}
+
+// ── Silo sub drone ─────────────────────────────────────────────────────────────
+function startSilo(v, t) {
+  if (activeNodes[v.id]) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = v.freqFn(t);
+  gain.gain.value = v.ampFn(t);
+  osc.connect(gain); gain.connect(masterGain);
+  osc.start();
+  activeNodes[v.id] = { osc:osc, gain:gain };
+}
+function updateSilo(v, t) {
+  var n = activeNodes[v.id]; if (!n) return;
+  var f = v.freqFn(t);
+  if (f > 0) n.osc.frequency.linearRampToValueAtTime(f, audioCtx.currentTime+0.5);
+  n.gain.gain.linearRampToValueAtTime(v.ampFn(t), audioCtx.currentTime+0.15);
+}
+
+// ── Noise sources ──────────────────────────────────────────────────────────────
+function startNoiseSrc(v, t, ftype) {
+  if (activeNodes[v.id]) return;
+  var src = audioCtx.createBufferSource();
+  src.buffer = makeNoiseBuf(); src.loop = true;
+  var filt = audioCtx.createBiquadFilter();
+  filt.type = ftype || 'bandpass';
+  filt.frequency.value = v.cutoffFn ? v.cutoffFn(t) : 800;
+  filt.Q.value = 1.5;
+  var gain = audioCtx.createGain();
+  gain.gain.value = v.ampFn(t);
+  src.connect(filt); filt.connect(gain); gain.connect(masterGain);
+  src.start();
+  activeNodes[v.id] = { src:src, filt:filt, gain:gain };
+}
+function updateNoiseSrc(v, t) {
+  var n = activeNodes[v.id]; if (!n) return;
+  if (v.cutoffFn) n.filt.frequency.linearRampToValueAtTime(v.cutoffFn(t), audioCtx.currentTime+0.15);
+  n.gain.gain.linearRampToValueAtTime(v.ampFn(t), audioCtx.currentTime+0.12);
+}
+
+// ── Spirits (ghost harmonics) ──────────────────────────────────────────────────
+function startSpirits(v, t) {
+  if (activeNodes[v.id]) return;
+  var gain = audioCtx.createGain();
+  gain.gain.value = v.ampFn(t);
+  var oscs = [];
+  var f = v.freqFn(t);
+  var ratios = [1, 1.5, 2, 3, 4, 6];
+  for (var i=0; i<ratios.length; i++) {
+    var o = audioCtx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = f * ratios[i];
+    var gSub = audioCtx.createGain();
+    gSub.gain.value = 1/(i+1);
+    o.connect(gSub); gSub.connect(gain);
+    o.start();
+    oscs.push({ osc:o, g:gSub });
+  }
+  gain.connect(masterGain);
+  activeNodes[v.id] = { oscs:oscs, gain:gain };
+}
+function updateSpirits(v, t) {
+  var n = activeNodes[v.id]; if (!n) return;
+  n.gain.gain.linearRampToValueAtTime(v.ampFn(t), audioCtx.currentTime+0.2);
+  var f = v.freqFn(t);
+  var ratios = [1, 1.5, 2, 3, 4, 6];
+  for (var i=0; i<n.oscs.length; i++) {
+    n.oscs[i].osc.frequency.linearRampToValueAtTime(f*ratios[i], audioCtx.currentTime+0.5);
+  }
+}
+
+// ── Feelings (lyrical osc) ─────────────────────────────────────────────────────
+function startFeelings(v, t) {
+  if (activeNodes[v.id]) return;
+  var osc = audioCtx.createOscillator();
+  var lfo = audioCtx.createOscillator();
+  var lfoG = audioCtx.createGain();
+  var gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = v.freqFn(t);
+  lfo.frequency.value = 0.09;
+  lfoG.gain.value = 18;
+  gain.gain.value = v.ampFn(t);
+  lfo.connect(lfoG); lfoG.connect(osc.frequency);
+  osc.connect(gain); gain.connect(masterGain);
+  lfo.start(); osc.start();
+  activeNodes[v.id] = { osc:osc, lfo:lfo, gain:gain };
+}
+function updateFeelings(v, t) {
+  var n = activeNodes[v.id]; if (!n) return;
+  n.osc.frequency.linearRampToValueAtTime(v.freqFn(t), audioCtx.currentTime+0.8);
+  n.gain.gain.linearRampToValueAtTime(v.ampFn(t), audioCtx.currentTime+0.2);
+}
+
+// ── Purple loop (FM swell) ─────────────────────────────────────────────────────
+function startLoop(v, t) {
+  if (activeNodes[v.id]) return;
+  var car = audioCtx.createOscillator();
+  var mod = audioCtx.createOscillator();
+  var modG = audioCtx.createGain();
+  var gain = audioCtx.createGain();
+  var f = v.freqFn(t);
+  car.type = 'sine'; car.frequency.value = f;
+  mod.frequency.value = f*v.modRatio;
+  modG.gain.value = f*v.modIdxFn(t);
+  gain.gain.value = v.ampFn(t);
+  mod.connect(modG); modG.connect(car.frequency);
+  car.connect(gain); gain.connect(masterGain);
+  car.start(); mod.start();
+  activeNodes[v.id] = { car:car, mod:mod, modG:modG, gain:gain };
+}
+function updateLoop(v, t) {
+  var n = activeNodes[v.id]; if (!n) return;
+  var f = v.freqFn(t);
+  n.car.frequency.linearRampToValueAtTime(f, audioCtx.currentTime+0.3);
+  n.mod.frequency.linearRampToValueAtTime(f*v.modRatio, audioCtx.currentTime+0.3);
+  n.modG.gain.linearRampToValueAtTime(f*v.modIdxFn(t), audioCtx.currentTime+0.3);
+  n.gain.gain.linearRampToValueAtTime(v.ampFn(t), audioCtx.currentTime+0.15);
+}
+
+// ── Stop a continuous node ─────────────────────────────────────────────────────
+function stopNode(id) {
+  var n = activeNodes[id]; if (!n) return;
+  try { if (n.osc)  n.osc.stop();  } catch(e){}
+  try { if (n.car)  n.car.stop();  } catch(e){}
+  try { if (n.mod)  n.mod.stop();  } catch(e){}
+  try { if (n.lfo)  n.lfo.stop();  } catch(e){}
+  try { if (n.src)  n.src.stop();  } catch(e){}
+  if (n.oscs) {
+    for (var i=0; i<n.oscs.length; i++) {
+      try { if (n.oscs[i].osc) n.oscs[i].osc.stop(); else n.oscs[i].stop(); } catch(e){}
+    }
+  }
+  delete activeNodes[id];
+}
+
+// ── Void flash effect ──────────────────────────────────────────────────────────
+function triggerVoidFlash() {
+  var el = document.getElementById('void-flash');
+  el.style.opacity = '0.85';
+  setTimeout(function(){ el.style.opacity = '0'; }, 120);
+}
+
+// ── Main tick ──────────────────────────────────────────────────────────────────
+function tick() {
+  if (!isPlaying) return;
+  var t = audioCtx.currentTime - startTime;
+  if (t >= DURATION) { stopAll(); return; }
+
+  var n = t/DURATION;
+
+  // Void entry flash at t=0.40
+  if (!voidFired && n >= 0.40) {
+    voidFired = true;
+    triggerVoidFlash();
+  }
+
+  for (var i=0; i<VOICES.length; i++) {
+    var v = VOICES[i];
+    var lv = 0;
+    try {
+      switch(v.type) {
+        case 'bigburst':
+          fireBigBurst(v,t); lv = scoreDensity(t)*60*(n<0.2?1.5:0.3); break;
+        case 'squeak':
+          fireSqueak(v,t); lv = v.probFn(t)*200; break;
+        case 'shimmer':
+          startShimmer(v,t); updateShimmer(v,t); lv = v.ampFn(t)*2000; break;
+        case 'randfm':
+          fireRandFM(v,t); lv = v.probFn(t)*150; break;
+        case 'silo':
+          startSilo(v,t); updateSilo(v,t); lv = v.ampFn(t)*700; break;
+        case 'voidnoise':
+          startNoiseSrc(v,t,'lowpass'); updateNoiseSrc(v,t); lv = v.ampFn(t)*2000; break;
+        case 'spirits':
+          startSpirits(v,t); updateSpirits(v,t); lv = v.ampFn(t)*1500; break;
+        case 'boundless':
+          startNoiseSrc(v,t,'bandpass'); updateNoiseSrc(v,t); lv = v.ampFn(t)*2000; break;
+        case 'feelings':
+          startFeelings(v,t); updateFeelings(v,t); lv = v.ampFn(t)*1200; break;
+        case 'loop':
+          startLoop(v,t); updateLoop(v,t); lv = v.ampFn(t)*1000; break;
+      }
+    } catch(e) {}
+    var clamped = Math.min(100, Math.max(0, lv));
+    smoothLevels[v.id] += (clamped - smoothLevels[v.id]) * 0.08;
+  }
+
+  updateUI(t);
+  animFrame = requestAnimationFrame(tick);
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────────
+function togglePlay() {
+  if (isPlaying) { stopAll(); } else { startPlay(); }
+}
+
+function startPlay() {
+  initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  isPlaying = true;
+  voidFired = false;
+  activeNodes = {}; nextFireTime = {};
+  for (var i=0; i<NUM_VOICES; i++) smoothLevels[i] = 0;
+  startTime = audioCtx.currentTime;
+  document.getElementById('playBtn').textContent = 'STOP';
+  document.getElementById('playBtn').classList.add('active');
+  tick();
+}
+
+function stopAll() {
+  isPlaying = false;
+  if (animFrame) cancelAnimationFrame(animFrame);
+  for (var id in activeNodes) stopNode(parseInt(id));
+  activeNodes = {};
+  for (var j=0; j<NUM_VOICES; j++) {
+    smoothLevels[j] = 0;
+    var el = document.getElementById('lv-'+j);
+    if (el) el.style.width = '0%';
+  }
+  document.getElementById('playBtn').textContent = 'PLAY';
+  document.getElementById('playBtn').classList.remove('active');
+  document.getElementById('status-left').textContent = 'STOPPED · TAP PLAY TO RESTART';
+  document.getElementById('mvt-label').textContent = 'I';
+  document.getElementById('time-display').textContent = '0:00';
+  document.getElementById('density-fill').style.width = '0%';
+  updateSectionStrip(-1);
+  drawScore(-1);
+}
+
+// ── Canvas drawing ─────────────────────────────────────────────────────────────
+var CW=680, CH=300, LM=40, RW=680-40-6;
+
+function drawScore(t) {
+  var canvas = document.getElementById('score-canvas');
+  if (!canvas) return;
+  var c = canvas.getContext('2d');
+  c.fillStyle = '#0a0812';
+  c.fillRect(0, 0, CW, CH);
+
+  var progress = (t >= 0) ? t/DURATION : 0;
+  var playX = LM + progress * RW;
+  var rowH = CH / NUM_VOICES;
+
+  // Section color zones
+  for (var si=0; si<SECTIONS.length; si++) {
+    var sec = SECTIONS[si];
+    var sx = LM + sec.s * RW, sw = (sec.e - sec.s) * RW;
+    var active = (t >= 0 && progress >= sec.s && progress < sec.e);
+    c.fillStyle = sec.color + (active ? '60' : '28');
+    c.fillRect(sx, 0, sw, CH);
+  }
+
+  // Score marks per voice
+  for (var i=0; i<VOICES.length; i++) {
+    var v = VOICES[i];
+    var cy = i * rowH + rowH / 2;
+    var seed = i * 137.508 + 71;
+    var al  = t >= 0 ? 'cc' : '55';
+    var alF = t >= 0 ? '70' : '38';
+
+    // Active fill
+    if (t >= 0 && playX > LM) {
+      c.fillStyle = v.color + '20';
+      c.fillRect(LM, i*rowH, playX-LM, rowH);
+    }
+
+    // Circle identity
+    var cw2 = t >= 0 ? (smoothLevels[i]*0.02+0.6) : 0.7;
+    c.strokeStyle = v.color + al;
+    c.lineWidth = cw2;
+    c.beginPath(); c.arc(20, cy, 7, 0, Math.PI*2); c.stroke();
+    c.fillStyle = v.color + (t >= 0 ? '99' : '44');
+    c.beginPath(); c.arc(20, cy, 2, 0, Math.PI*2); c.fill();
+
+    c.strokeStyle = v.color + alF;
+    c.lineWidth = 0.65;
+
+    var x, k;
+    switch(v.type) {
+      case 'bigburst':
+        // Heavy impact marks — wide downstrokes
+        for (k=0; k<16; k++) {
+          var bx = LM + (k/16)*RW*0.4 + Math.sin(seed+k*1.9)*8;
+          var bh = 6 + Math.abs(Math.sin(seed+k*2.3)) * 10;
+          c.lineWidth = 0.8 + Math.abs(Math.sin(seed+k*1.1))*1.2;
+          c.beginPath(); c.moveTo(bx, cy-bh); c.lineTo(bx+3, cy+bh*0.5); c.stroke();
+        }
+        c.lineWidth = 0.65;
+        break;
+
+      case 'squeak':
+        // High tiny ticks, concentrated left
+        for (k=0; k<30; k++) {
+          var sqx = LM + (Math.abs(Math.sin(seed+k*1.3)))*RW*0.25;
+          var sqy = cy + Math.sin(seed+k*2.1)*5;
+          c.beginPath(); c.arc(sqx, sqy, 0.7, 0, Math.PI*2);
+          c.fillStyle = v.color + alF; c.fill();
+        }
+        // Also a few at end
+        for (k=0; k<8; k++) {
+          var sqx2 = LM + RW*(0.82+k*0.02);
+          c.beginPath(); c.arc(sqx2, cy+Math.sin(seed+k)*4, 0.7, 0, Math.PI*2); c.fill();
+        }
+        break;
+
+      case 'shimmer':
+        // Bright wavy lines in middle zone
+        c.beginPath();
+        for (x = LM + RW*0.2; x <= LM + RW*0.5; x += 1) {
+          var xn = (x - LM - RW*0.2) / (RW*0.3);
+          var wy = cy + Math.sin(xn*28+seed*0.2)*4 * Math.sin(xn*7+1);
+          if (x === LM + RW*0.2) c.moveTo(x, wy); else c.lineTo(x, wy);
+        }
+        c.stroke();
+        break;
+
+      case 'randfm':
+        // Scattered FM cross marks
+        for (k=0; k<20; k++) {
+          var rfx = LM + RW*0.2 + (k/20)*RW*0.6 + Math.sin(seed+k*2.7)*10;
+          var rfy = cy + Math.cos(seed+k*1.9)*7;
+          var rs = 3;
+          c.beginPath();
+          c.moveTo(rfx-rs, rfy-rs); c.lineTo(rfx+rs, rfy+rs);
+          c.moveTo(rfx+rs, rfy-rs); c.lineTo(rfx-rs, rfy+rs);
+          c.stroke();
+        }
+        break;
+
+      case 'silo':
+        // Heavy bar entering at 40% mark, diagonal arrow
+        var siloX = LM + RW*0.4;
+        c.strokeStyle = v.color + (t >= 0 ? 'cc' : '40');
+        c.lineWidth = 1.5;
+        c.beginPath(); c.moveTo(siloX, cy-8); c.lineTo(siloX, cy+8); c.stroke();
+        c.beginPath();
+        c.moveTo(siloX, cy-8);
+        for (x=siloX; x<=LM+RW*0.65; x+=2) {
+          c.lineTo(x, cy - 8 + (x-siloX)/(RW*0.25)*16);
+        }
+        c.stroke();
+        c.lineWidth = 0.65;
+        break;
+
+      case 'voidnoise': case 'boundless':
+        // Dense tangle opening at right
+        c.beginPath();
+        for (k=0; k<90; k++) {
+          var vx = LM + RW*0.4 + (k/90)*RW*0.6 + Math.sin(seed+k*3.1)*9;
+          var vy = cy + Math.sin(seed+k*2.3)*8 * Math.cos(k*0.3);
+          if (k===0) c.moveTo(vx,vy); else c.lineTo(vx,vy);
+        }
+        c.stroke();
+        break;
+
+      case 'spirits':
+        // Dashed ghost lines
+        c.setLineDash([2,4]);
+        c.beginPath();
+        for (x = LM+RW*0.55; x <= LM+RW*0.9; x+=2) {
+          var sp = (x-LM-RW*0.55)/(RW*0.35);
+          var shy = cy + Math.sin(sp*18+seed)*5;
+          if (x===LM+RW*0.55) c.moveTo(x,shy); else c.lineTo(x,shy);
+        }
+        c.stroke();
+        c.setLineDash([]);
+        break;
+
+      case 'feelings':
+        // Slow wide wave at right
+        c.beginPath();
+        for (x = LM+RW*0.78; x <= LM+RW; x+=2) {
+          var fp = (x-LM-RW*0.78)/(RW*0.22);
+          var fy = cy + Math.sin(fp*6+seed*0.1)*7;
+          if (x===LM+RW*0.78) c.moveTo(x,fy); else c.lineTo(x,fy);
+        }
+        c.stroke();
+        break;
+
+      case 'loop':
+        // Purple loop: repeated oval arcs across full range
+        for (k=0; k<7; k++) {
+          var lx = LM + (k/7)*RW + RW/14;
+          var lw2 = RW/7 * 0.7;
+          c.beginPath();
+          c.ellipse(lx, cy, lw2/2, 5, Math.sin(seed+k)*0.4, 0, Math.PI*2);
+          c.stroke();
+        }
+        break;
+    }
+  }
+
+  // Annotation text labels (float at their temporal positions)
+  c.font = '8px "Crimson Pro", serif';
+  for (var ai=0; ai<ANNOTATIONS.length; ai++) {
+    var ann = ANNOTATIONS[ai];
+    var ax = LM + ann.t * RW;
+    var ay = ann.y * CH;
+    // Fade based on proximity to playhead
+    var dist = Math.abs(progress - ann.t);
+    var alpha = t < 0 ? 0.18 : (dist < 0.08 ? 0.7 - dist*5 : 0.14);
+    if (alpha <= 0) alpha = 0.08;
+    c.fillStyle = 'rgba(160,128,200,' + alpha + ')';
+    c.fillText(ann.text, ax, ay);
+  }
+
+  // Playhead
+  if (t >= 0) {
+    c.save();
+    c.strokeStyle = 'rgba(160,128,200,0.22)';
+    c.lineWidth = 1;
+    c.setLineDash([2,5]);
+    c.beginPath(); c.moveTo(playX,0); c.lineTo(playX,CH); c.stroke();
+    // Silo entry marker
+    var voidX = LM + 0.4*RW;
+    c.strokeStyle = 'rgba(100,60,140,0.25)';
+    c.lineWidth = 0.5; c.setLineDash([]);
+    c.beginPath(); c.moveTo(voidX,0); c.lineTo(voidX,CH); c.stroke();
+    c.restore();
+  }
+}
+
+// ── Section strip ──────────────────────────────────────────────────────────────
+function buildSectionStrip() {
+  var strip = document.getElementById('sec-strip');
+  strip.innerHTML = '';
+  for (var i=0; i<SECTIONS.length; i++) {
+    var sec = SECTIONS[i];
+    var div = document.createElement('div');
+    div.className = 'sec-block';
+    div.id = 'sec-'+i;
+    div.style.width = ((sec.e-sec.s)*100)+'%';
+    div.textContent = sec.label;
+    strip.appendChild(div);
+  }
+}
+
+function updateSectionStrip(t) {
+  var n = (t >= 0) ? t/DURATION : -1;
+  for (var i=0; i<SECTIONS.length; i++) {
+    var el = document.getElementById('sec-'+i);
+    if (!el) continue;
+    var sec = SECTIONS[i];
+    if (n >= sec.s && n < sec.e) el.classList.add('active');
+    else el.classList.remove('active');
+  }
+}
+
+// ── UI update ──────────────────────────────────────────────────────────────────
+function updateUI(t) {
+  drawScore(t);
+  var n = t/DURATION;
+  var d = scoreDensity(t);
+
+  for (var i=0; i<NUM_VOICES; i++) {
+    var el = document.getElementById('lv-'+i);
+    if (el) el.style.width = Math.min(100,smoothLevels[i])+'%';
+  }
+
+  var m = Math.floor(t/60), s2 = Math.floor(t%60);
+  document.getElementById('time-display').textContent = m+':'+(s2<10?'0':'')+s2;
+  document.getElementById('density-fill').style.width = (d*100)+'%';
+
+  // Movement label
+  var mvt = 'I';
+  if (n >= 0.4) mvt = 'II';
+  if (n >= 0.82) mvt = 'III';
+  document.getElementById('mvt-label').textContent = mvt;
+
+  // Find current section
+  var curSec = SECTIONS[0];
+  for (var si=0; si<SECTIONS.length; si++) {
+    if (n >= SECTIONS[si].s && n < SECTIONS[si].e) { curSec=SECTIONS[si]; break; }
+  }
+  document.getElementById('status-left').textContent =
+    curSec.label + '  ·  ' + curSec.note.toUpperCase() + '  ·  ' + Math.round(d*100)+'%  ·  '+Math.round(n*100)+'%';
+
+  updateSectionStrip(t);
+}
+
+// ── Build voice panel ──────────────────────────────────────────────────────────
+function buildVoicePanel() {
+  var panel = document.getElementById('voices-panel');
+  for (var i=0; i<VOICES.length; i++) {
+    var v = VOICES[i];
+    var row = document.createElement('div');
+    row.className = 'voice-row';
+    row.innerHTML = '<span class="v-label">'+v.label+'</span>' +
+      '<div class="v-bar"><div class="v-level" id="lv-'+v.id+'" style="background:'+v.color+'"></div></div>';
+    panel.appendChild(row);
+  }
+}
+
+buildVoicePanel();
+buildSectionStrip();
+drawScore(-1);
+</script>
+</body>
+</html>

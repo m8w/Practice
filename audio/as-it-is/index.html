@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>AS IT IS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background: #000; overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    touch-action: none;
+  }
+  #c {
+    display: block; position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+  /* hidden probe to encourage the webfont to load before we build glyph sprites */
+  #probe {
+    position: absolute; left: -9999px; top: -9999px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<span id="probe">AS IT IS</span>
+<script>
+(function () {
+  "use strict";
+
+  var FF = "'IBM Plex Mono','Courier New',monospace";
+  var N = 3000;
+
+  var canvas = document.getElementById("c");
+  var ctx = canvas.getContext("2d");
+  var W = 0, H = 0, DPR = 1;
+
+  // ---- the liturgy: Bill's own stones, one breath-line each ----
+  // a: field aim in [0,1]  (0 = authentic wall / individuated, 1 = true light / converged)
+  var lines = [
+    { t: "the will of love is true",              a: 0.15 },
+    { t: "trust in love's will as true",          a: 0.22 },
+    { t: "know yourself as love",                 a: 0.28 },
+    { t: "turning toward the face of love",       a: 0.46 },
+    { t: "the stones of years",                   a: 0.10 },
+    { t: "breaking away in awareness",            a: 0.22 },
+    { t: "of the face of God's love",             a: 0.70 },
+    { t: "as it is  \u2014  I am",                  a: 0.86 },
+    { t: "I lean into the wind",                  a: 0.36 },
+    { t: "and free my soul in love's window",     a: 0.52 },
+    { t: "a gate within a stone wall",            a: 0.26 },
+    { t: "the door of love's light",              a: 0.94 },
+    { t: "serenity as now",                       a: 0.50 },
+    { t: "each stone a new now",                  a: 0.14 },
+    { t: "my wall of years",                      a: 0.10 },
+    { t: "a true life  \u2014  authentic to me",     a: 0.12 },
+    { t: "as I have been",                        a: 0.16 },
+    { t: "the Gita  \u2014  my home to become",       a: 0.42 },
+    { t: "as it is  /  as if",                     a: 0.58 },
+    { t: "the will to the power of love",         a: 0.90 },
+    { t: "I am  \u2014  as it is not me that I am",    a: 1.00, flash: true },
+    { t: "through life's soul",                   a: 0.62 },
+    { t: "serenity as now",                       a: 0.16, hold: true }
+  ];
+  var LINE_MS = 5200;
+  var FADE_MS = 950;
+
+  // Blogger (and some other CMSes) HTML-encode characters pasted into <script>;
+  // decode any entities at runtime so em-dashes / apostrophes render as themselves.
+  function decodeEntities(s) {
+    try { var el = document.createElement("textarea"); el.innerHTML = s; return el.value; }
+    catch (e) { return s; }
+  }
+  (function () { var i; for (i = 0; i < lines.length; i++) lines[i].t = decodeEntities(lines[i].t); })();
+
+  // build the character stream (his words become the substance of the wall)
+  var stream = "";
+  (function () {
+    var i, raw = "";
+    for (i = 0; i < lines.length; i++) raw += lines[i].t + " ";
+    raw = raw.toUpperCase();
+    var out = "";
+    for (i = 0; i < raw.length; i++) {
+      var ch = raw.charAt(i);
+      if ((ch >= "A" && ch <= "Z") || ch === "\u2014" || ch === "/" || ch === ".") out += ch;
+    }
+    stream = out.length ? out : "ASITIS";
+  })();
+  var uniqueChars = (function () {
+    var seen = {}, list = [], i, ch;
+    for (i = 0; i < stream.length; i++) {
+      ch = stream.charAt(i);
+      if (!seen[ch]) { seen[ch] = true; list.push(ch); }
+    }
+    return list;
+  })();
+
+  // ---- events ----
+  var ev = [];
+  function grand() { return (Math.random() + Math.random() + Math.random() - 1.5); } // ~normal
+  (function build() {
+    var i;
+    for (i = 0; i < N; i++) {
+      ev.push({
+        jx: (Math.random() - 0.5) * 0.62,   // wall jitter (fraction of cell)
+        jy: (Math.random() - 0.5) * 0.62,
+        txo: grand() * 0.05,                 // pillar horizontal spread (fraction of W)
+        tyf: Math.random(),                  // pillar vertical position (fraction of H)
+        ci: i % stream.length,               // which character
+        tw: Math.random() * 6.2832,          // twinkle phase
+        ax: 0, ay: 0, tx: 0, ty: 0,          // resolved targets
+        cx: 0, cy: 0                          // current position
+      });
+    }
+  })();
+
+  // ---- glyph atlas (pre-rendered white sprites, blitted additively) ----
+  var ATLAS = {};
+  var ATLAS_PX = 72;
+  function buildAtlas() {
+    var i, ch;
+    for (i = 0; i < uniqueChars.length; i++) {
+      ch = uniqueChars[i];
+      var oc = document.createElement("canvas");
+      oc.width = ATLAS_PX; oc.height = ATLAS_PX;
+      var octx = oc.getContext("2d");
+      octx.clearRect(0, 0, ATLAS_PX, ATLAS_PX);
+      octx.fillStyle = "#ffffff";
+      octx.textAlign = "center";
+      octx.textBaseline = "middle";
+      octx.font = "600 " + Math.floor(ATLAS_PX * 0.74) + "px " + FF;
+      octx.fillText(ch, ATLAS_PX / 2, ATLAS_PX * 0.54);
+      ATLAS[ch] = oc;
+    }
+  }
+  buildAtlas(); // fallback (monospace) now
+  if (document.fonts && document.fonts.ready) {
+    try { document.fonts.ready.then(function () { buildAtlas(); }); } catch (e) {}
+  }
+  setTimeout(buildAtlas, 650);
+  window.addEventListener("load", function () { setTimeout(buildAtlas, 60); });
+
+  // ---- layout ----
+  var cols = 1, rows = 1, cellW = 1, cellH = 1, glyph = 10, topM = 10;
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    layout();
+  }
+  function layout() {
+    cols = Math.max(1, Math.round(Math.sqrt(N * (W / H))));
+    rows = Math.ceil(N / cols);
+    cellW = W / cols;
+    cellH = H / rows;
+    glyph = Math.max(5, Math.min(Math.min(cellW, cellH) * 0.9, 46));
+    topM = H * 0.06;
+    var i, e, col, row;
+    for (i = 0; i < N; i++) {
+      e = ev[i];
+      col = i % cols; row = Math.floor(i / cols);
+      e.ax = (col + 0.5 + e.jx) * cellW;
+      e.ay = (row + 0.5 + e.jy) * cellH;
+      e.tx = W / 2 + e.txo * W;
+      e.ty = topM + e.tyf * (H - 2 * topM);
+    }
+  }
+
+  // ---- state ----
+  var f = 0.0;                 // field value (eased)
+  var hold = false;            // pointer / space held -> pull toward the light
+  var lineIndex = 0;
+  var lineElapsed = 0;
+  var isDone = false;
+  var flashPulse = 0;
+  var hudOn = true;
+  var introStart = 0;
+  var pdownT = 0;
+  var last = 0;
+
+  function restart() {
+    var i, e;
+    for (i = 0; i < N; i++) {
+      e = ev[i];
+      e.cx = Math.random() * W;
+      e.cy = Math.random() * H;
+    }
+    f = 0.0; hold = false;
+    lineIndex = 0; lineElapsed = 0;
+    isDone = false; flashPulse = 0;
+    introStart = now();
+    last = now();
+  }
+
+  function now() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
+
+  // ---- update ----
+  function update(dt) {
+    // advance the sequence
+    if (!isDone) {
+      lineElapsed += dt * 1000;
+      if (lineElapsed >= LINE_MS) {
+        if (lineIndex < lines.length - 1) {
+          lineIndex++;
+          lineElapsed = 0;
+          if (lines[lineIndex].flash) { flashPulse = 1.0; audioBloom(); }
+        } else {
+          isDone = true; // hold on the final stone
+        }
+      }
+    }
+
+    var t = now() / 1000;
+    var ln = lines[lineIndex];
+    var breath = 0.06 * Math.sin(t * 0.30);
+    var aim = ln.a + breath;
+    if (hold) aim = 0.92 + 0.08 * Math.sin(t * 0.9);
+    if (flashPulse > 0.01) aim = Math.max(aim, 0.85 + 0.15 * flashPulse);
+    if (aim < 0) aim = 0; if (aim > 1) aim = 1;
+
+    // ease field
+    var fs = 1 - Math.exp(-dt * 2.6);
+    f += (aim - f) * fs;
+
+    flashPulse *= Math.exp(-dt * 1.6);
+
+    // wind: a slow lean that only lives in the authentic (scattered) field
+    var windX = Math.sin(t * 0.13) * (W * 0.010) + Math.sin(t * 0.041) * (W * 0.006);
+    var windY = Math.cos(t * 0.11) * (H * 0.006);
+
+    // move events toward the interpolated target
+    var es = 1 - Math.exp(-dt * 5.5);
+    var i, e, gx, gy, aw;
+    for (i = 0; i < N; i++) {
+      e = ev[i];
+      aw = (1 - f);
+      gx = e.ax + (e.tx - e.ax) * f + windX * aw;
+      gy = e.ay + (e.ty - e.ay) * f + windY * aw;
+      e.cx += (gx - e.cx) * es;
+      e.cy += (gy - e.cy) * es;
+    }
+  }
+
+  // ---- render ----
+  function fitWordSize(text, base) {
+    var s = base;
+    ctx.font = "500 " + s + "px " + FF;
+    var maxW = W * 0.9;
+    while (ctx.measureText(text).width > maxW && s > 11) {
+      s -= 1;
+      ctx.font = "500 " + s + "px " + FF;
+    }
+    return s;
+  }
+
+  function spaced(str, gap) {
+    var out = "", i;
+    for (i = 0; i < str.length; i++) {
+      out += str.charAt(i);
+      if (i < str.length - 1) out += gap;
+    }
+    return out;
+  }
+
+  function render() {
+    var t = now() / 1000;
+
+    // clear to pure black
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, W, H);
+
+    // the body of the light — a vertical column that swells with the field
+    ctx.globalCompositeOperation = "lighter";
+    var bw = W * 0.16;
+    var peak = 0.42 * f + 0.35 * flashPulse;
+    if (peak > 0.001) {
+      var g = ctx.createLinearGradient(W / 2 - bw, 0, W / 2 + bw, 0);
+      g.addColorStop(0.0, "rgba(255,255,255,0)");
+      g.addColorStop(0.5, "rgba(255,255,255," + peak.toFixed(3) + ")");
+      g.addColorStop(1.0, "rgba(255,255,255,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(W / 2 - bw, 0, bw * 2, H);
+    }
+
+    // the 3000 events
+    var size = glyph * (1 - 0.16 * f);
+    var half = size / 2;
+    var baseA = 0.5 + 0.5 * f;
+    var i, e, ch, sp, a;
+    for (i = 0; i < N; i++) {
+      e = ev[i];
+      ch = stream.charAt(e.ci);
+      sp = ATLAS[ch];
+      if (!sp) continue;
+      a = baseA * (0.72 + 0.28 * Math.sin(t * 2.0 + e.tw));
+      if (a <= 0) continue;
+      if (a > 1) a = 1;
+      ctx.globalAlpha = a;
+      ctx.drawImage(sp, e.cx - half, e.cy - half, size, size);
+    }
+    ctx.globalAlpha = 1;
+
+    // paired letters — two stones lit together on each 3s breath
+    if (pairFx.length) {
+      var pf, pk, ea, eb, agep, pi;
+      for (pi = 0; pi < pairFx.length; pi++) {
+        pf = pairFx[pi];
+        agep = (now() - pf.born) / 3000;
+        if (agep < 0 || agep > 1) continue;
+        pk = Math.sin(agep * Math.PI); // 0 -> 1 -> 0
+        ea = ev[pf.a]; eb = ev[pf.b];
+        ctx.globalAlpha = pk * 0.16 * (1 - f);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(ea.cx, ea.cy); ctx.lineTo(eb.cx, eb.cy); ctx.stroke();
+        var ps = glyph * (1 - 0.16 * f) * (1 + 0.5 * pk);
+        var ph = ps / 2;
+        ctx.globalAlpha = pk * 0.9;
+        var sa = ATLAS[stream.charAt(ea.ci)], sb = ATLAS[stream.charAt(eb.ci)];
+        if (sa) ctx.drawImage(sa, ea.cx - ph, ea.cy - ph, ps, ps);
+        if (sb) ctx.drawImage(sb, eb.cx - ph, eb.cy - ph, ps, ps);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // ---- overlays (crisp, source-over) ----
+    ctx.globalCompositeOperation = "source-over";
+
+    // pole labels — so the difference between true and authentic is visible
+    var lblS = Math.max(10, Math.min(Math.min(W, H) * 0.02, 15));
+    ctx.font = "500 " + lblS + "px " + FF;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    var trueA = 0.55 * f;
+    var authA = 0.5 * (1 - f);
+    var hEst = Math.max(9, Math.min(W * 0.026, 12));
+    var hudBottom = Math.max(10, H * 0.03) + hEst * 1.55 * 6 + 8;
+    var topLY = hudOn ? Math.max(H * 0.10, hudBottom) : H * 0.085;
+    ctx.shadowColor = "rgba(0,0,0,0.8)";
+    ctx.shadowBlur = lblS * 1.3;
+    if (trueA > 0.02) {
+      ctx.globalAlpha = trueA;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(spaced("TRUE LOVE", "\u2009"), W / 2, topLY);
+    }
+    if (authA > 0.02) {
+      ctx.globalAlpha = authA;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(spaced("AUTHENTIC LOVE", "\u2009"), W / 2, H * 0.915);
+    }
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+
+    // the surfacing stone (the word)
+    var wordA;
+    if (isDone) {
+      wordA = 1;
+    } else if (lineElapsed < FADE_MS) {
+      wordA = lineElapsed / FADE_MS;
+    } else if (lineElapsed > LINE_MS - FADE_MS) {
+      wordA = Math.max(0, (LINE_MS - lineElapsed) / FADE_MS);
+    } else {
+      wordA = 1;
+    }
+    var txt = lines[lineIndex].t;
+    var ws = fitWordSize(txt, Math.max(16, Math.min(Math.min(W, H) * 0.052, 42)));
+    ctx.font = "500 " + ws + "px " + FF;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.globalAlpha = wordA;
+    ctx.shadowColor = "rgba(0,0,0,0.85)";
+    ctx.shadowBlur = ws * 0.55;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(txt, W / 2, H * 0.5);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+
+    // HUD — the terminal readout
+    if (hudOn) {
+      var hs = Math.max(9, Math.min(W * 0.026, 12));
+      ctx.font = "500 " + hs + "px " + FF;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.globalAlpha = 0.34;
+      ctx.fillStyle = "#ffffff";
+      var x = Math.max(10, W * 0.03), y = Math.max(10, H * 0.03), lh = hs * 1.55;
+      ctx.fillText("EVENTS   " + N, x, y);
+      ctx.fillText("FIELD    " + f.toFixed(2), x, y + lh);
+      ctx.fillText("AXIS     \u25C0" + bar(f) + "\u25B6", x, y + lh * 2);
+      ctx.fillText("STONE    " + pad2(lineIndex + 1) + " / " + pad2(lines.length), x, y + lh * 3);
+      ctx.fillText("VOICE    " + (audioStarted ? (muted ? "MUTED" : "ON") : "TAP TO SOUND"), x, y + lh * 4);
+      ctx.fillText("ENTROPY  crypto \u2295 xorshift", x, y + lh * 5);
+      ctx.globalAlpha = 1;
+    }
+
+    // intro title card
+    var elapsedIntro = (now() - introStart);
+    if (elapsedIntro < 3400) {
+      var ia = elapsedIntro < 400 ? (elapsedIntro / 400)
+             : elapsedIntro > 2600 ? Math.max(0, (3400 - elapsedIntro) / 800)
+             : 1;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      var ts = Math.max(28, Math.min(Math.min(W, H) * 0.11, 96));
+      ctx.font = "600 " + ts + "px " + FF;
+      ctx.globalAlpha = ia;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(spaced("AS IT IS", "\u2009"), W / 2, H * 0.44);
+      var ss = Math.max(10, Math.min(Math.min(W, H) * 0.022, 16));
+      ctx.font = "400 " + ss + "px " + FF;
+      ctx.globalAlpha = ia * 0.7;
+      ctx.fillText("true love  \u00B7  authentic love  \u00B7  3000 nows", W / 2, H * 0.53);
+      ctx.globalAlpha = 1;
+    }
+
+    // hint — fades away after it's been seen
+    var hintElapsed = (now() - introStart);
+    var ha = 0;
+    if (hintElapsed > 3400 && hintElapsed < 11000) {
+      ha = hintElapsed < 4400 ? (hintElapsed - 3400) / 1000
+         : hintElapsed > 9500 ? Math.max(0, (11000 - hintElapsed) / 1500)
+         : 1;
+      ha *= 0.4;
+    }
+    if (ha > 0.01) {
+      var xs = Math.max(9, Math.min(W * 0.024, 12));
+      ctx.font = "400 " + xs + "px " + FF;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.globalAlpha = ha;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText("hold \u2014 light      R \u2014 again      M \u2014 mute      H \u2014 hud", W / 2, H - Math.max(12, H * 0.03));
+      ctx.globalAlpha = 1;
+    }
+
+    // sound needs a gesture to begin (iOS)
+    if (!audioStarted) {
+      var zs2 = Math.max(10, Math.min(Math.min(W, H) * 0.02, 14));
+      ctx.font = "500 " + zs2 + "px " + FF;
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.globalAlpha = 0.45 + 0.30 * Math.sin(now() / 480);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText("\u25CE  tap to sound", W / 2, H * 0.5 + Math.max(40, Math.min(W, H) * 0.11));
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function bar(v) {
+    var n = Math.round(v * 6), s = "", i;
+    for (i = 0; i < 6; i++) s += (i < n ? "\u2588" : "\u2591");
+    return " " + s + " ";
+  }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+
+  // ---- loop ----
+  function frame() {
+    var t = now();
+    var dt = (t - last) / 1000;
+    if (dt > 0.1) dt = 0.1; // clamp after tab-away
+    last = t;
+    update(dt);
+    audioTick();
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  // ---- input ----
+  function down() { hold = true; pdownT = now(); ensureAudio(); }
+  function up() {
+    hold = false;
+    if (isDone && (now() - pdownT) < 240) restart();
+  }
+  canvas.addEventListener("mousedown", function (e) { down(); });
+  window.addEventListener("mouseup", function (e) { up(); });
+  canvas.addEventListener("mouseleave", function (e) { hold = false; });
+  canvas.addEventListener("touchstart", function (e) { e.preventDefault(); down(); }, { passive: false });
+  canvas.addEventListener("touchend", function (e) { e.preventDefault(); up(); }, { passive: false });
+  canvas.addEventListener("touchcancel", function (e) { hold = false; }, { passive: false });
+  window.addEventListener("keydown", function (e) {
+    if (e.code === "Space" || e.keyCode === 32) { e.preventDefault(); hold = true; ensureAudio(); }
+    else if (e.key === "r" || e.key === "R") { restart(); }
+    else if (e.key === "h" || e.key === "H") { hudOn = !hudOn; }
+    else if (e.key === "m" || e.key === "M") { muted = !muted; }
+  });
+  window.addEventListener("keyup", function (e) {
+    if (e.code === "Space" || e.keyCode === 32) { hold = false; }
+  });
+  window.addEventListener("resize", resize);
+  window.addEventListener("orientationchange", function () { setTimeout(resize, 120); });
+
+  // ============================================================
+  //  VOICE  —  long-held letter sounds, two paired every 3 seconds,
+  //  chosen by entropy, fading in and out, coupled to the field.
+  //  vowels: formant tones (the sung soul-colour, individuated)
+  //  consonants: nasal hums & filtered breath (continuant letters)
+  //  as f -> 1 (true love) the two pitches collapse toward one
+  //  fundamental while each letter keeps its colour: "not me that I am"
+  // ============================================================
+  var actx = null, master = null, lpM = null, dry = null, wet = null, verb = null, comp = null, noiseBuf = null;
+  var audioStarted = false, muted = false;
+  var voices = [];
+  var nextTime = 0;
+  var pickCount = 0;
+  var pairFx = [];
+  var FUND = 136.1; // Om / earth-year tuning — the one the pair returns to
+
+  // entropy: xorshift128 XOR-reseeded from the browser's crypto source,
+  // in the spirit of entropy.py (pipe the real quantum XOR in if you want it)
+  var _s0 = 0x9e3779b9, _s1 = 0x243f6a88, _s2 = 0xb7e15162, _s3 = 0xdeadbeef;
+  function reseedCrypto() {
+    try {
+      if (window.crypto && crypto.getRandomValues) {
+        var a = new Uint32Array(4); crypto.getRandomValues(a);
+        _s0 ^= a[0]; _s1 ^= a[1]; _s2 ^= a[2]; _s3 ^= a[3];
+      }
+    } catch (e) {}
+  }
+  function rnd() {
+    var t = _s1 << 9;
+    _s2 ^= _s0; _s3 ^= _s1; _s1 ^= _s2; _s0 ^= _s3; _s2 ^= t;
+    _s3 = (_s3 << 11) | (_s3 >>> 21);
+    return ((_s0 >>> 0) / 4294967296);
+  }
+
+  var RATIOS = [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2, 5 / 3, 15 / 8, 2, 9 / 4, 5 / 2];
+  function ratioFor(ch) { return RATIOS[ch.charCodeAt(0) % RATIOS.length]; }
+  function ffQ(fr) { var q = fr / 110; if (q < 3) q = 3; if (q > 14) q = 14; return q; }
+
+  // letter -> sound recipe.  t:'v' voiced/formant, t:'n' noise/breath.
+  // f: formant freqs.  vo: semitone offset (nasals/plosives sit lower).
+  // nz: added noise band for voiced fricatives.  nb/q: noise band for breath letters.
+  var LT = {
+    A: { t: 'v', f: [800, 1150, 2800] },
+    E: { t: 'v', f: [440, 1800, 2600] },
+    I: { t: 'v', f: [320, 2300, 3000] },
+    O: { t: 'v', f: [450, 800, 2600] },
+    U: { t: 'v', f: [325, 700, 2400] },
+    Y: { t: 'v', f: [300, 2100, 2900] },
+    M: { t: 'v', f: [250, 900, 2200], vo: -12 },
+    N: { t: 'v', f: [250, 1700, 2600], vo: -12 },
+    L: { t: 'v', f: [360, 1300, 2700], vo: -5 },
+    R: { t: 'v', f: [350, 1200, 1600], vo: -5 },
+    W: { t: 'v', f: [300, 700, 2200], vo: -7 },
+    V: { t: 'v', f: [300, 1000, 2400], vo: -3, nz: [900, 2200, 0.22] },
+    Z: { t: 'v', f: [300, 1500, 2600], nz: [4000, 7000, 0.45] },
+    J: { t: 'v', f: [300, 1600, 2400], vo: -2, nz: [2000, 3500, 0.35] },
+    B: { t: 'v', f: [300, 900, 2200], vo: -10 },
+    D: { t: 'v', f: [300, 1700, 2600], vo: -10 },
+    G: { t: 'v', f: [300, 1500, 2400], vo: -10 },
+    S: { t: 'n', nb: [5000, 9000], q: 1.4 },
+    F: { t: 'n', nb: [1500, 7000], q: 0.5 },
+    H: { t: 'n', nb: [300, 2500], q: 0.3 },
+    T: { t: 'n', nb: [3000, 6000], q: 0.8 },
+    K: { t: 'n', nb: [1200, 3500], q: 0.6 },
+    C: { t: 'n', nb: [3000, 6000], q: 0.8 },
+    P: { t: 'n', nb: [800, 3000], q: 0.5 },
+    Q: { t: 'n', nb: [1200, 3000], q: 0.6 },
+    X: { t: 'n', nb: [4000, 7000], q: 0.9 }
+  };
+
+  function makeNoiseBuf() {
+    var len = Math.floor(actx.sampleRate * 2), i;
+    noiseBuf = actx.createBuffer(1, len, actx.sampleRate);
+    var d = noiseBuf.getChannelData(0);
+    for (i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  }
+  function makeImpulse(dur, decay) {
+    var len = Math.floor(actx.sampleRate * dur), ch, i, d;
+    var buf = actx.createBuffer(2, len, actx.sampleRate);
+    for (ch = 0; ch < 2; ch++) {
+      d = buf.getChannelData(ch);
+      for (i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+    return buf;
+  }
+
+  function buildAudioGraph() {
+    master = actx.createGain(); master.gain.value = 0.0;
+    lpM = actx.createBiquadFilter(); lpM.type = 'lowpass'; lpM.frequency.value = 4600; lpM.Q.value = 0.4;
+    dry = actx.createGain(); dry.gain.value = 0.85;
+    wet = actx.createGain(); wet.gain.value = 0.22;
+    comp = actx.createDynamicsCompressor();
+    try { comp.threshold.value = -18; comp.knee.value = 20; comp.ratio.value = 4; comp.attack.value = 0.006; comp.release.value = 0.3; } catch (e) {}
+    master.connect(lpM);
+    lpM.connect(dry); dry.connect(comp);
+    try {
+      verb = actx.createConvolver(); verb.buffer = makeImpulse(2.6, 2.4);
+      lpM.connect(wet); wet.connect(verb); verb.connect(comp);
+    } catch (e) { verb = null; }
+    comp.connect(actx.destination);
+    makeNoiseBuf();
+  }
+
+  function ensureAudio() {
+    try {
+      if (!actx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        actx = new AC();
+        buildAudioGraph();
+      }
+      if (actx.state === "suspended") actx.resume();
+      if (!audioStarted) { audioStarted = true; reseedCrypto(); nextTime = actx.currentTime + 0.25; }
+    } catch (e) {}
+  }
+
+  function spawnLetter(ch, side, t) {
+    var cfg = LT[ch] || { t: 'n', nb: [300, 1800], q: 0.4 };
+    var vg = actx.createGain(); vg.gain.value = 0;
+    var panner = null;
+    if (actx.createStereoPanner) {
+      panner = actx.createStereoPanner();
+      panner.pan.value = side * 0.6;
+      vg.connect(panner); panner.connect(master);
+    } else {
+      vg.connect(master);
+    }
+    var v = { gain: vg, pan: panner, side: side, sources: [], oscs: null, mult: 1 };
+
+    if (cfg.t === 'v') {
+      var ratio = ratioFor(ch);
+      var r = rnd();
+      var oct = r < 0.15 ? 0.5 : (r > 0.9 ? 2 : 1);
+      var voff = cfg.vo ? Math.pow(2, cfg.vo / 12) : 1;
+      v.mult = ratio * oct * voff;
+      var base = FUND * v.mult;
+      var o1 = actx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = base;
+      var o2 = actx.createOscillator(); o2.type = 'square'; o2.frequency.value = base; o2.detune.value = -6;
+      var g1 = actx.createGain(); g1.gain.value = 0.6; o1.connect(g1);
+      var g2 = actx.createGain(); g2.gain.value = 0.25; o2.connect(g2);
+      var sum = actx.createGain(); sum.gain.value = 1.0;
+      var fi;
+      for (fi = 0; fi < cfg.f.length; fi++) {
+        var bp = actx.createBiquadFilter(); bp.type = 'bandpass';
+        bp.frequency.value = cfg.f[fi]; bp.Q.value = ffQ(cfg.f[fi]);
+        var fg = actx.createGain(); fg.gain.value = (fi === 0 ? 0.9 : (fi === 1 ? 0.6 : 0.35));
+        g1.connect(bp); g2.connect(bp); bp.connect(fg); fg.connect(sum);
+      }
+      sum.connect(vg);
+      if (cfg.nz) {
+        var ns = actx.createBufferSource(); ns.buffer = noiseBuf; ns.loop = true;
+        var nbp = actx.createBiquadFilter(); nbp.type = 'bandpass';
+        nbp.frequency.value = (cfg.nz[0] + cfg.nz[1]) / 2; nbp.Q.value = 1.0;
+        var ng = actx.createGain(); ng.gain.value = cfg.nz[2];
+        ns.connect(nbp); nbp.connect(ng); ng.connect(vg);
+        ns.start(t); v.sources.push(ns);
+      }
+      o1.start(t); o2.start(t);
+      v.sources.push(o1, o2); v.oscs = [o1, o2];
+    } else {
+      var nz = actx.createBufferSource(); nz.buffer = noiseBuf; nz.loop = true;
+      var hp = actx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = cfg.nb[0];
+      var lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = cfg.nb[1];
+      var band = actx.createBiquadFilter(); band.type = 'bandpass';
+      band.frequency.value = (cfg.nb[0] + cfg.nb[1]) / 2; band.Q.value = cfg.q || 0.6;
+      nz.connect(hp); hp.connect(lp); lp.connect(band); band.connect(vg);
+      nz.start(t); v.sources.push(nz);
+    }
+
+    // fade in — hold — fade out
+    var fin = 1.1, hld = 1.3, fout = 1.7;
+    var peak = (cfg.t === 'v') ? 0.16 : 0.085;
+    vg.gain.setValueAtTime(0, t);
+    vg.gain.linearRampToValueAtTime(peak, t + fin);
+    vg.gain.setValueAtTime(peak, t + fin + hld);
+    vg.gain.linearRampToValueAtTime(0, t + fin + hld + fout);
+    v.endAt = t + fin + hld + fout + 0.05;
+    voices.push(v);
+  }
+
+  function scheduleDyad(t) {
+    if (pickCount % 8 === 0) reseedCrypto();
+    pickCount++;
+    var a = stream.charAt(Math.floor(rnd() * stream.length));
+    var b = stream.charAt(Math.floor(rnd() * stream.length));
+    spawnLetter(a, -1, t);
+    spawnLetter(b, +1, t);
+    // and light two stones together on the same breath
+    pairFx.push({ a: Math.floor(rnd() * N), b: Math.floor(rnd() * N), born: now() });
+    if (pairFx.length > 6) pairFx.shift();
+  }
+
+  function audioBloom() {
+    if (!actx || !audioStarted) return;
+    var t = actx.currentTime;
+    var g = actx.createGain(); g.gain.value = 0; g.connect(master);
+    var o1 = actx.createOscillator(); o1.type = 'sine'; o1.frequency.value = FUND * 4;
+    var o2 = actx.createOscillator(); o2.type = 'sine'; o2.frequency.value = FUND * 6;
+    o1.connect(g); o2.connect(g);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.10, t + 0.6);
+    g.gain.linearRampToValueAtTime(0, t + 3.2);
+    o1.start(t); o2.start(t); o1.stop(t + 3.3); o2.stop(t + 3.3);
+  }
+
+  function stopVoice(v) {
+    var i;
+    if (v.sources) for (i = 0; i < v.sources.length; i++) { try { v.sources[i].stop(); } catch (e) {} }
+    try { v.gain.disconnect(); } catch (e) {}
+    try { if (v.pan) v.pan.disconnect(); } catch (e) {}
+  }
+
+  function audioTick() {
+    if (!actx || !audioStarted) return;
+    var ct = actx.currentTime, i, v, tf;
+
+    // schedule a new pair every 3 seconds
+    while (nextTime < ct + 0.15) {
+      scheduleDyad(nextTime);
+      nextTime += 3.0;
+    }
+
+    // field couples timbre and the collapse toward the one fundamental
+    var mt = (muted ? 0 : 1) * (0.6 + 0.3 * f);
+    master.gain.setTargetAtTime(mt, ct, 0.4);
+    if (lpM) lpM.frequency.setTargetAtTime(4600 + 3200 * f, ct, 0.3);
+    if (wet) wet.gain.setTargetAtTime(0.22 + 0.18 * f, ct, 0.5);
+
+    for (i = 0; i < voices.length; i++) {
+      v = voices[i];
+      if (v.oscs) {
+        tf = FUND * Math.pow(v.mult, (1 - f)); // ratio -> 1 as f -> 1 (unison)
+        v.oscs[0].frequency.setTargetAtTime(tf, ct, 0.15);
+        v.oscs[1].frequency.setTargetAtTime(tf, ct, 0.15);
+      }
+      if (v.pan) v.pan.pan.setTargetAtTime(v.side * 0.6 * (1 - f), ct, 0.3);
+    }
+
+    // reap finished voices
+    for (i = voices.length - 1; i >= 0; i--) {
+      if (voices[i].endAt < ct) { stopVoice(voices[i]); voices.splice(i, 1); }
+    }
+  }
+
+  // ---- go ----
+  resize();
+  restart();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

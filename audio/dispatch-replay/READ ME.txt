@@ -1,0 +1,53 @@
+DISPATCH REPLAY
+Makes finished recordings playable, and puts them back on the air.
+
+START
+  Double-click "Dispatch Replay.command". The control page opens in Chrome at http://localhost:8765
+  The first time, macOS may refuse to open it: right-click the file, choose Open, then Open again.
+  Leave the Terminal window open while it runs. Close it to stop.
+
+  Needs ffmpeg. If the page says it is missing:  brew install ffmpeg   (or: sudo port install ffmpeg)
+
+FIRST STEPS
+  1. Settings → Recordings: list the folders that hold your recordings, one per line.
+     For example the 8TB drive's recordings folder and SSD1's "down 1" folder. Subfolders count.
+  2. A recording becomes playable and airable once it has stopped growing for 90 seconds,
+     so a file OBS is still writing, or one still copying in, is never aired half-finished.
+     Files you drop on the page land in "Replay inbox" and are ready at once.
+  3. Press Play on any recording to watch or hear it on the page. Queue, Next and Air now line it up.
+
+TWO WAYS TO AIR
+  Through OBS (default)
+    In OBS: Tools → WebSocket Server Settings → Enable WebSocket server (port 4455).
+    Show Connect Info → copy the password into Settings → OBS.
+    Going on the air builds a "Dispatch Replay" scene in OBS. That scene holds a media source and,
+    behind audio-only recordings, Days on End as a browser source. Replay then switches OBS to that
+    scene and plays the queue one recording after another. OBS keeps streaming as it always does,
+    so Dispatch's 11:45 cycling carries on untouched. Going off the air puts your previous scene back.
+
+  On its own (direct)
+    Paste your stream URL with its key (rtmp://a.rtmp.youtube.com/live2/xxxx-xxxx-xxxx-xxxx) into
+    Settings → Direct. Add several to stream to more than one place, and/or a folder to save a copy.
+    Replay streams with ffmpeg: OBS can run the live show at the same time, or stay closed.
+    Every 11 h 45 min each output reconnects for a fresh archive, while the recording keeps playing.
+    Audio-only recordings get a spectrum, scope or waveform picture, or a video loop or image you choose.
+    With nothing queued it airs slow generated visuals, so the stream never drops.
+
+WHAT AIRS NEXT
+  Your queue first. Each recording that just finished joins the end of the queue (you can turn this off).
+  When the queue runs dry it picks a finished recording at random (OS entropy), skipping anything
+  aired in the last 48 hours.
+
+KEEPS GOING
+  If OBS quits or restarts, Replay reconnects and picks the recording up where it was.
+  If the computer or the program restarts, it goes back on the air where it left off.
+  While on the air it keeps the Mac awake.
+
+DAYS ON END
+  "Days On End.html" is the generative backdrop. It is the same piece as before, now with the broadcast
+  cycle built in: inside OBS it starts a new cycle (fresh tuning, tempo and odds) whenever OBS starts
+  streaming, and at least every 11:45. In a browser add ?cycle=11:45 to the address for the same.
+
+FILES
+  replay_data/   settings, the recordings index, the queue, thumbnails and replay.log
+  Settings → Other computers lets the MacBook open the page over your network with an access code.

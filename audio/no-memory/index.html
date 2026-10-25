@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>No Memory Just Conditionally Occurs</title><style>body{margin:0;padding:16px;background:#e8e1c8;font-family:"Courier New",monospace}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}</style></head><body>
+
+<h2 class="sr-only">Evolving generative score: No Memory Just Conditionally Occurs — grows from silence to noise</h2>
+<div style="background:#f0ead3;padding:18px 18px 14px;border-radius:3px;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+    <div style="font-family:'Courier New',monospace;">
+      <div style="font-size:9px;color:#a09880;letter-spacing:.1em;">PAGE 14–15 · APR 30–MAY 2 2026 · LATE 20'S = 2026+</div>
+      <div style="font-size:12px;font-weight:700;color:#1a1209;letter-spacing:.05em;margin-top:3px;">NO MEMORY JUST CONDITIONALLY OCCURS</div>
+      <div id="stage" style="font-size:9px;color:#8a8070;font-style:italic;margin-top:2px;font-family:'Courier New',monospace;">7 chairs · smoothly → noise</div>
+    </div>
+    <button id="btn" onclick="toggle()" style="background:#1a1209;color:#f0ead3;border:none;padding:8px 14px;font-size:10px;font-family:'Courier New',monospace;letter-spacing:.12em;cursor:pointer;border-radius:2px;flex-shrink:0;margin-left:10px;">▶ PLAY</button>
+  </div>
+  <div style="height:2px;background:#d4cbb0;margin-bottom:10px;overflow:hidden;">
+    <div id="dbar" style="height:100%;background:#1a1209;width:0%;"></div>
+  </div>
+  <canvas id="score" width="620" height="336" style="display:block;width:100%;"></canvas>
+  <div style="display:flex;justify-content:space-between;margin-top:6px;font-family:'Courier New',monospace;">
+    <div id="st" style="font-size:9px;color:#a09880;">— ready —</div>
+    <div id="evt" style="font-size:9px;color:#8a8070;"></div>
+  </div>
+</div>
+
+<script>
+const V=[
+  {n:'I',   f:55,  w:'sine',     a:2.2,r:4.0,g:.28,rt:1/14},
+  {n:'II',  f:165, w:'triangle', a:1.6,r:2.8,g:.20,rt:1/12},
+  {n:'III', f:null,w:'noise',    a:0.2,r:1.4,g:.16,rt:1/10},
+  {n:'IV',  f:440, w:'sine',     a:0.9,r:2.2,g:.13,rt:1/11},
+  {n:'V',   f:110, w:'sawtooth', a:1.1,r:1.8,g:.11,rt:1/9 },
+  {n:'VI',  f:330, w:'square',   a:0.6,r:1.1,g:.09,rt:1/16},
+  {n:'VII', f:660, w:'sine',     a:0.3,r:0.9,g:.12,rt:1/8 },
+];
+const STAGES=[[0,'late 20\'s = 2026+'],[.15,'may first'],[.32,'smoothly'],[.52,'hear / see'],[.70,'one'],[.86,'4 / 4'],[.94,'noise']];
+
+let ax=null,playing=false,t0=0,anim=null,oneT=null;
+const TM=[],MK=[];
+let bgSrc=null,bgGn=null;
+
+const cv=document.getElementById('score'),gx=cv.getContext('2d');
+const W=620,H=336,R=7,RH=H/R;
+
+const dens=()=>playing?1-Math.exp(-(performance.now()-t0)/1000/360):0;
+const stageName=d=>{let s=STAGES[0][1];for(const[t,n]of STAGES)if(d>=t)s=n;return s;};
+const bgAlpha=d=>{if(d<.28)return 1;const t=(d-.28)/.72;return Math.pow(1-t,3)*.998+.002;};
+
+function paintBg(d){
+  gx.fillStyle=`rgba(240,234,211,${bgAlpha(d)})`;gx.fillRect(0,0,W,H);
+  if(d<.72){
+    const ga=Math.max(0,1-d*1.38);
+    gx.save();gx.globalAlpha=ga*.6;gx.strokeStyle='#d4cbb0';gx.lineWidth=.5;
+    for(let r=0;r<R;r++){
+      gx.beginPath();gx.moveTo(0,r*RH);gx.lineTo(W,r*RH);gx.stroke();
+      for(let l=1;l<=3;l++){gx.beginPath();gx.moveTo(22,r*RH+l/4*RH);gx.lineTo(W,r*RH+l/4*RH);gx.stroke();}
+    }
+    gx.globalAlpha=ga*.5;gx.fillStyle='#c0b89a';gx.font='bold 9px monospace';
+    for(let r=0;r<R;r++)gx.fillText(V[r].n,5,r*RH+RH/2+3);
+    gx.restore();
+  }
+}
+
+function drawMark(m,alpha,d){
+  const y0=m.row*RH,ym=y0+RH/2,x=m.x,rd=m.rd;
+  const sc=Math.max(.18,1-d*.74);
+  gx.save();gx.globalAlpha=alpha;gx.strokeStyle='#1a1209';gx.fillStyle='#1a1209';
+  gx.lineWidth=Math.max(.3,1-d*.68);
+  gx.translate(x,ym);gx.scale(sc,sc);gx.translate(-x,-ym);
+  switch(m.row){
+    case 0:gx.beginPath();gx.moveTo(x-28,ym+2);gx.lineTo(x+28,ym-3);gx.stroke();gx.beginPath();gx.moveTo(x+28,ym-3);gx.lineTo(x+20,ym-8);gx.moveTo(x+28,ym-3);gx.lineTo(x+20,ym+1);gx.stroke();break;
+    case 1:gx.beginPath();gx.arc(x,ym,5,0,Math.PI*2);gx.stroke();gx.beginPath();gx.moveTo(x+5,ym);gx.lineTo(x+20,ym-5);gx.stroke();gx.beginPath();gx.arc(x+22,ym-6,2,0,Math.PI*2);gx.stroke();break;
+    case 2:for(let i=0;i<7;i++){const xi=x+(i-3)*6+rd*3,yi=ym+Math.sin(i*2.3+rd*8)*7;gx.beginPath();gx.moveTo(xi,yi-6);gx.lineTo(xi+1,yi+6);gx.stroke();}break;
+    case 3:gx.beginPath();gx.ellipse(x,ym+4,5,3.5,-.3,0,Math.PI*2);gx.fill();gx.beginPath();gx.moveTo(x+5,ym+4);gx.lineTo(x+5,ym-14);gx.stroke();gx.beginPath();gx.moveTo(x+5,ym-14);gx.lineTo(x+14,ym-10);gx.stroke();break;
+    case 4:gx.beginPath();gx.moveTo(x-22,ym);for(let i=0;i<6;i++)gx.lineTo(x-18+i*8,ym+(i%2===0?-8:8));gx.lineTo(x+22,ym);gx.stroke();break;
+    case 5:gx.strokeRect(x-14,ym-8,28,16);gx.beginPath();gx.moveTo(x+14,ym);gx.lineTo(x+24,ym);gx.moveTo(x-14,ym);gx.lineTo(x-24,ym);gx.stroke();break;
+    case 6:for(let i=-1;i<=1;i++){const xi=x+i*11,yi=ym+i*3;gx.beginPath();gx.moveTo(xi-7,yi);gx.lineTo(xi+7,yi);gx.moveTo(xi+7,yi);gx.lineTo(xi+3,yi-4);gx.moveTo(xi+7,yi);gx.lineTo(xi+3,yi+4);gx.stroke();}break;
+  }
+  gx.restore();
+}
+
+function playV(v,d){
+  if(!ax)return;
+  const now=ax.currentTime;
+  const atk=Math.max(.008,v.a*(1-d*.87)),rel=Math.max(.08,v.r*(1-d*.73));
+  const poly=1+Math.floor(Math.max(0,d-.25)/.75*6);
+  for(let p=0;p<poly;p++){
+    const gn=ax.createGain();gn.connect(ax.destination);
+    gn.gain.setValueAtTime(0,now);
+    gn.gain.linearRampToValueAtTime(v.g*(.72+d*.38)/poly,now+atk);
+    gn.gain.linearRampToValueAtTime(0,now+atk+rel);
+    if(v.w==='noise'){
+      const len=Math.ceil(ax.sampleRate*(atk+rel+.05));
+      const buf=ax.createBuffer(1,len,ax.sampleRate);
+      const da=buf.getChannelData(0);for(let i=0;i<len;i++)da[i]=Math.random()*2-1;
+      const src=ax.createBufferSource();src.buffer=buf;
+      const fl=ax.createBiquadFilter();fl.type='bandpass';
+      fl.frequency.value=150+Math.random()*(350+d*2400);fl.Q.value=.4+Math.random()*4;
+      src.connect(fl);fl.connect(gn);src.start(now);
+    } else {
+      const osc=ax.createOscillator();osc.type=v.w;
+      const sprd=d*.44;
+      osc.frequency.value=d>.80?35+Math.random()*1800:v.f*(1+(Math.random()-.5)*sprd);
+      osc.connect(gn);osc.start(now);osc.stop(now+atk+rel+.05);
+    }
+  }
+}
+
+function startBG(){
+  if(bgSrc||!ax)return;
+  const len=ax.sampleRate*4;const buf=ax.createBuffer(1,len,ax.sampleRate);
+  const da=buf.getChannelData(0);for(let i=0;i<len;i++)da[i]=Math.random()*2-1;
+  bgSrc=ax.createBufferSource();bgSrc.buffer=buf;bgSrc.loop=true;
+  bgGn=ax.createGain();bgGn.gain.value=0;
+  bgSrc.connect(bgGn);bgGn.connect(ax.destination);bgSrc.start();
+}
+
+function fireVoice(idx){
+  const d=dens();
+  playV(V[idx],d);
+  const el=(performance.now()-t0)/1000,x=((el*18)%(W-24))+24;
+  if(MK.length<380)MK.push({row:idx,x,born:performance.now(),rd:Math.random()});
+  document.getElementById('evt').textContent='chair '+V[idx].n+' · '+new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function sched(idx){
+  const d=dens(),rate=V[idx].rt*(1+d*26);
+  TM[idx]=setTimeout(()=>{if(!playing)return;fireVoice(idx);sched(idx);},-Math.log(Math.random())/rate*1000);
+}
+
+function schedOne(){
+  const d=dens(),base=Math.max(1.2,(1-d)*58+1.2);
+  oneT=setTimeout(()=>{
+    if(!playing)return;
+    V.forEach((_,i)=>fireVoice(i));
+    document.getElementById('st').textContent='— one —';
+    setTimeout(()=>{if(playing)document.getElementById('st').textContent='— playing —';},1200);
+    schedOne();
+  },(base*.65+Math.random()*base*.7)*1000);
+}
+
+function frame(){
+  const now=performance.now(),d=dens();
+  paintBg(d);
+
+  const ca=Math.max(0,.28-d*.28);
+  if(ca>.01){
+    const el=(now-t0)/1000,cx=((el*18)%(W-24))+24;
+    gx.save();gx.globalAlpha=ca;gx.strokeStyle='#6b5a3a';gx.lineWidth=1;
+    gx.setLineDash([2,5]);gx.beginPath();gx.moveTo(cx,0);gx.lineTo(cx,H);gx.stroke();
+    gx.setLineDash([]);gx.restore();
+  }
+
+  const maxAge=d>.58?Math.max(2,12*(1-d)+2):30;
+  for(let i=MK.length-1;i>=0;i--){
+    const m=MK[i],age=(now-m.born)/1000;
+    if(age>maxAge){MK.splice(i,1);continue;}
+    drawMark(m,Math.max(0,1-age/maxAge)*(.55+d*.55),d);
+  }
+
+  if(d>.76&&playing){
+    const n=Math.floor((d-.76)/.24*30);
+    gx.save();
+    for(let i=0;i<n;i++){
+      gx.globalAlpha=.03+Math.random()*.12;gx.fillStyle='#1a1209';
+      gx.fillRect(22+Math.random()*(W-22),Math.random()*H,1+Math.random()*14,.4+Math.random()*2.2);
+    }
+    gx.restore();
+  }
+
+  document.getElementById('dbar').style.width=(d*100).toFixed(1)+'%';
+  document.getElementById('stage').textContent=stageName(d);
+
+  if(d>.50&&!bgSrc)startBG();
+  if(bgGn&&ax){const tg=d<.50?0:((d-.50)/.50)*.80;bgGn.gain.setTargetAtTime(tg,ax.currentTime,2.5);}
+
+  anim=requestAnimationFrame(frame);
+}
+
+function toggle(){
+  if(!playing){
+    if(!ax)ax=new(window.AudioContext||window.webkitAudioContext)();
+    if(ax.state==='suspended')ax.resume();
+    playing=true;t0=performance.now();
+    V.forEach((_,i)=>sched(i));schedOne();
+    anim=requestAnimationFrame(frame);
+    document.getElementById('btn').textContent='■ STOP';
+    document.getElementById('st').textContent='— playing —';
+  } else {
+    playing=false;
+    TM.forEach(t=>clearTimeout(t));TM.length=0;
+    if(oneT)clearTimeout(oneT);
+    if(bgSrc){bgSrc.stop();bgSrc=null;bgGn=null;}
+    cancelAnimationFrame(anim);MK.length=0;
+    document.getElementById('btn').textContent='▶ PLAY';
+    document.getElementById('st').textContent='— stopped —';
+    document.getElementById('dbar').style.width='0%';
+    document.getElementById('stage').textContent='7 chairs · smoothly → noise';
+    document.getElementById('evt').textContent='';
+    gx.clearRect(0,0,W,H);paintBg(0);
+  }
+}
+
+paintBg(0);
+</script>
+
+</body></html>

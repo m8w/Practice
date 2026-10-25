@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dispatch Replay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@1,6..96,400..700&family=Martian+Mono:wght@300..500&display=swap">
+<style>
+/* Layout: a broadcast desk. Header strip with the on-air lamp; left rail = what's airing, what's next, what just finished; right = the recordings library with an inline player. Settings slide in from the right. */
+:root {
+  color-scheme: dark;
+  --bg: #070708;
+  --panel: #0e0e11;
+  --panel-2: #141418;
+  --line: rgba(235, 231, 223, 0.12);
+  --line-2: rgba(235, 231, 223, 0.22);
+  --fg: #ebe7df;
+  --dim: #8d8a84;
+  --dial: #f2b45a;
+  --dial-ink: #1a1206;
+  --rec: #ff5a4f;
+  --ok: #7bc8a4;
+  --display: "Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
+  --mono: "Martian Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 12px/1.55 var(--mono);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+  min-height: 100vh;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--dial); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* header */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding-block: 14px;
+  background: linear-gradient(to bottom, var(--bg) 70%, rgba(7, 7, 8, 0));
+}
+h1 {
+  margin: 0 auto 0 0;
+  font: italic 500 30px/1 var(--display);
+  letter-spacing: -0.01em;
+}
+h1 small { font: 400 10px var(--mono); color: var(--dim); letter-spacing: 0.14em; margin-left: 10px; text-transform: uppercase; }
+.lamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+.lamp i { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+.lamp.on { color: var(--rec); border-color: var(--rec); }
+.lamp.on i { background: var(--rec); box-shadow: 0 0 10px var(--rec); animation: pulse 1.6s ease-in-out infinite; }
+.lamp.warn { color: var(--dial); border-color: var(--dial); }
+.lamp.warn i { background: var(--dial); }
+@keyframes pulse { 50% { opacity: 0.45; } }
+.btn {
+  border: 1px solid var(--line-2);
+  background: var(--panel-2);
+  border-radius: 7px;
+  padding: 8px 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--fg); }
+.btn.primary { background: var(--dial); color: var(--dial-ink); border-color: var(--dial); font-weight: 500; }
+.btn.danger { border-color: var(--rec); color: var(--rec); background: transparent; }
+.btn.small { padding: 5px 8px; font-size: 9.5px; }
+.btn:disabled { opacity: 0.4; cursor: default; }
+
+/* grid */
+main { display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+.col { display: grid; gap: 20px; min-width: 0; }
+section { min-width: 0; }
+h2 {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+h2 .spacer { flex: 1; }
+
+/* on air card */
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.now-title { font: italic 500 21px/1.15 var(--display); overflow-wrap: anywhere; margin: 0 0 6px; text-wrap: balance; }
+.now-title.idle { color: var(--dim); }
+.meta { color: var(--dim); font-size: 10.5px; overflow-wrap: anywhere; }
+.bar { height: 4px; background: var(--line); border-radius: 2px; margin: 12px 0 6px; overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--dial); transition: width 0.9s linear; }
+.times { display: flex; justify-content: space-between; color: var(--dim); font-size: 10.5px; }
+.msg { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--fg); font-size: 11px; overflow-wrap: anywhere; }
+.outs { display: grid; gap: 4px; margin-top: 8px; }
+.out { display: flex; gap: 8px; align-items: baseline; font-size: 10.5px; color: var(--dim); overflow-wrap: anywhere; }
+.out i { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--rec); transform: translateY(-1px); }
+.out.live i { background: var(--ok); }
+
+/* lists */
+.list { display: grid; gap: 2px; }
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.row .name { overflow-wrap: anywhere; }
+.row .sub { color: var(--dim); font-size: 10px; }
+.row .acts { display: flex; gap: 4px; }
+.tag { display: inline-block; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; padding: 1px 5px; border-radius: 3px; border: 1px solid var(--line-2); color: var(--dim); margin-right: 6px; vertical-align: 1px; }
+.tag.new { color: var(--dial); border-color: var(--dial); }
+.tag.audio { color: var(--ok); border-color: rgba(123, 200, 164, 0.5); }
+.tag.off { color: var(--rec); border-color: rgba(255, 90, 79, 0.5); }
+.empty { color: var(--dim); padding: 10px 2px; font-size: 11px; max-width: 46ch; }
+.hist { font-size: 10.5px; color: var(--dim); display: grid; gap: 3px; }
+.hist div { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) auto; gap: 8px; }
+.hist .n { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* library */
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.tools input[type=search] {
+  flex: 1 1 220px;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  padding: 8px 10px;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 5px 10px; font-size: 10px; letter-spacing: 0.08em; color: var(--dim); }
+.chip[aria-pressed="true"] { color: var(--dial-ink); background: var(--dial); border-color: var(--dial); }
+select { background: var(--panel); border: 1px solid var(--line-2); border-radius: 7px; padding: 7px 8px; }
+.stats { color: var(--dim); font-size: 10.5px; margin-bottom: 10px; }
+.stats b { color: var(--fg); font-weight: 400; }
+.lib { display: grid; gap: 2px; }
+.item {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.item:hover { border-color: var(--line-2); }
+.thumb { width: 96px; aspect-ratio: 16 / 9; max-width: 100%; border-radius: 4px; background: var(--panel-2) center / cover no-repeat; display: grid; place-items: center; color: var(--dim); font-size: 9px; overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.item .name { overflow-wrap: anywhere; }
+.item .sub { color: var(--dim); font-size: 10px; overflow-wrap: anywhere; }
+.item .acts { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 560px) {
+  .item { grid-template-columns: 72px minmax(0, 1fr); }
+  .thumb { width: 72px; }
+  .item .acts { grid-column: 1 / -1; justify-content: flex-start; }
+}
+.more { margin-top: 10px; }
+
+/* player */
+.player { margin-bottom: 20px; }
+.player video { width: 100%; max-height: 62vh; background: #000; border-radius: 8px; display: block; }
+.player .head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.player .head .t { flex: 1; min-width: 0; font: italic 500 18px/1.2 var(--display); overflow-wrap: anywhere; }
+.seek { display: flex; align-items: center; gap: 10px; margin-top: 8px; color: var(--dim); font-size: 10.5px; }
+.seek input { flex: 1; accent-color: var(--dial); min-width: 0; }
+
+/* settings drawer */
+.scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 20; }
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(560px, 100%);
+  z-index: 21;
+  background: var(--panel);
+  border-left: 1px solid var(--line-2);
+  overflow-y: auto;
+  padding: 18px max(18px, env(safe-area-inset-right, 0px)) 80px 18px;
+}
+.drawer h3 { font: italic 500 24px/1 var(--display); margin: 0 0 16px; }
+fieldset { border: 1px solid var(--line); border-radius: 9px; margin: 0 0 14px; padding: 12px 14px 14px; display: grid; gap: 10px; min-width: 0; }
+legend { padding: 0 6px; color: var(--dial); letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; }
+label.f { display: grid; gap: 4px; color: var(--dim); font-size: 10.5px; min-width: 0; }
+label.f input, label.f select, label.f textarea {
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 7px 9px;
+  color: var(--fg);
+  width: 100%;
+  min-width: 0;
+}
+label.f textarea { min-height: 70px; resize: vertical; }
+label.c { display: flex; gap: 8px; align-items: flex-start; color: var(--fg); font-size: 11px; }
+label.c input { accent-color: var(--dial); margin-top: 2px; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.hint { color: var(--dim); font-size: 10.5px; max-width: 60ch; }
+.hint code { color: var(--fg); }
+.drawer .foot { position: sticky; bottom: -80px; display: flex; gap: 8px; padding: 12px 0; background: var(--panel); }
+ol.steps { margin: 0; padding-left: 18px; color: var(--fg); font-size: 11px; display: grid; gap: 4px; }
+.radio { display: flex; gap: 14px; flex-wrap: wrap; }
+
+/* drop + toast */
+.drop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(7, 7, 8, 0.86); border: 2px dashed var(--dial); font: italic 500 28px var(--display); color: var(--dial); pointer-events: none; }
+.uploads { display: grid; gap: 4px; margin-bottom: 10px; }
+.up { font-size: 10.5px; color: var(--dim); }
+.up .bar { margin: 4px 0 0; }
+.toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 40; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 999px; padding: 9px 16px; max-width: calc(100% - 32px); opacity: 0; transition: opacity 0.25s; pointer-events: none; text-align: center; }
+.toast.show { opacity: 1; }
+.gate { max-width: 420px; margin: 18vh auto; display: grid; gap: 12px; }
+.gate input { background: var(--panel); border: 1px solid var(--line-2); border-radius: 7px; padding: 10px; letter-spacing: 0.3em; font-size: 18px; }
+@media (prefers-reduced-motion: reduce) { .lamp.on i { animation: none; } .bar > i { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Dispatch Replay <small id="ver"></small></h1>
+  <span id="lamp" class="lamp"><i></i><span id="lampText">Off the air</span></span>
+  <button id="airBtn" class="btn primary" type="button">Go on the air</button>
+  <button id="skipBtn" class="btn" type="button" disabled>Skip</button>
+  <button id="setBtn" class="btn" type="button">Settings</button>
+</header>
+
+<main id="main">
+  <div class="col">
+    <section>
+      <h2>On the air</h2>
+      <div class="card">
+        <p id="nowTitle" class="now-title idle">Nothing airing</p>
+        <div id="nowMeta" class="meta"></div>
+        <div class="bar"><i id="nowBar"></i></div>
+        <div class="times num"><span id="nowPos">0:00:00</span><span id="nowLeft"></span></div>
+        <div id="nowMsg" class="msg">Off the air</div>
+        <div id="outs" class="outs"></div>
+      </div>
+    </section>
+    <section>
+      <h2>Up next <span class="spacer"></span><button id="clearQ" class="btn small" type="button">Clear</button></h2>
+      <div id="queue" class="list"></div>
+    </section>
+    <section>
+      <h2>Just finished recording</h2>
+      <div id="newList" class="list"></div>
+    </section>
+    <section>
+      <h2>Aired</h2>
+      <div id="hist" class="hist"></div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section id="playerSec" class="player" hidden>
+      <div class="head">
+        <span id="pTitle" class="t"></span>
+        <button id="pAir" class="btn small" type="button">Air now</button>
+        <button id="pQueue" class="btn small" type="button">Queue</button>
+        <button id="pClose" class="btn small" type="button">Close</button>
+      </div>
+      <video id="video" controls playsinline preload="metadata"></video>
+      <div id="seekRow" class="seek num" hidden>
+        <span id="seekPos">0:00:00</span>
+        <input id="seek" type="range" min="0" max="100" step="1" value="0" aria-label="Jump to a time">
+        <span id="seekDur">0:00:00</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Recordings</h2>
+      <div class="tools">
+        <input id="q" type="search" placeholder="Search names and folders" aria-label="Search recordings">
+        <select id="sort" aria-label="Sort">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="longest">Longest first</option>
+          <option value="name">By name</option>
+        </select>
+        <button id="addFiles" class="btn" type="button">Add files</button>
+        <input id="fileInput" type="file" multiple accept="video/*,audio/*,.mkv,.flv,.ts,.rf64,.w64,.caf" hidden>
+        <button id="rescan" class="btn" type="button">Check folders now</button>
+      </div>
+      <div class="tools chips" id="chips">
+        <button class="chip" data-f="all" aria-pressed="true" type="button">All</button>
+        <button class="chip" data-f="video" aria-pressed="false" type="button">Video</button>
+        <button class="chip" data-f="audio" aria-pressed="false" type="button">Audio</button>
+        <button class="chip" data-f="long" aria-pressed="false" type="button">1 hour +</button>
+        <button class="chip" data-f="clips" aria-pressed="false" type="button">Under 10 min</button>
+        <button class="chip" data-f="new" aria-pressed="false" type="button">New</button>
+        <button class="chip" data-f="waiting" aria-pressed="false" type="button">Still being written</button>
+      </div>
+      <div id="uploads" class="uploads"></div>
+      <div id="stats" class="stats num">Looking through your folders…</div>
+      <div id="lib" class="lib"></div>
+      <button id="more" class="btn more" type="button" hidden>Show more</button>
+    </section>
+  </div>
+</main>
+
+<div id="scrim" class="scrim" hidden></div>
+<aside id="drawer" class="drawer" hidden aria-label="Settings">
+  <h3>Settings</h3>
+  <form id="setForm" autocomplete="off">
+    <fieldset>
+      <legend>Recordings</legend>
+      <label class="f">Folders to watch, one per line
+        <textarea id="s_folders" rows="4" spellcheck="false"></textarea></label>
+      <p class="hint">Subfolders are included. Add your recording drives here, for example <code>/Volumes/Seagate 8TB/recordings</code>. If a drive is unplugged its recordings stay listed and are skipped until it is back.</p>
+      <label class="f">Files you add on this page go to
+        <input id="s_inbox" type="text" spellcheck="false"></label>
+      <div class="two">
+        <label class="f">Finished after no change for (seconds)
+          <input id="s_settle" type="number" min="5" step="1"></label>
+        <label class="f">Check folders every (seconds)
+          <input id="s_scan" type="number" min="5" step="1"></label>
+      </div>
+      <p class="hint">A recording becomes playable and airable once it has stopped growing for this long, so a file OBS is still writing, or one still copying in, is never aired half-finished.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>How it airs</legend>
+      <div class="radio">
+        <label class="c"><input type="radio" name="mode" value="obs" id="s_mode_obs"> Through OBS</label>
+        <label class="c"><input type="radio" name="mode" value="direct" id="s_mode_direct"> On its own (direct to RTMP)</label>
+      </div>
+      <p class="hint">Through OBS: this page scripts OBS. It builds a scene with a media source and plays each recording in it, while OBS keeps streaming as it always does. On its own: this program streams with ffmpeg, so OBS can carry on with the live show or stay closed.</p>
+    </fieldset>
+
+    <fieldset id="obsSet">
+      <legend>OBS</legend>
+      <ol class="steps">
+        <li>In OBS open Tools → WebSocket Server Settings.</li>
+        <li>Tick Enable WebSocket server. Keep port 4455.</li>
+        <li>Click Show Connect Info, copy the password and paste it below.</li>
+      </ol>
+      <div class="two">
+        <label class="f">Address <input id="o_host" type="text" spellcheck="false"></label>
+        <label class="f">Port <input id="o_port" type="number" min="1" max="65535"></label>
+      </div>
+      <label class="f">WebSocket password <input id="o_pass" type="password" autocomplete="new-password"></label>
+      <div class="two">
+        <label class="f">Scene name <input id="o_scene" type="text"></label>
+        <label class="f">Media source name <input id="o_media" type="text"></label>
+      </div>
+      <label class="c"><input id="o_take" type="checkbox"> Switch OBS to the replay scene while airing</label>
+      <label class="c"><input id="o_restore" type="checkbox"> Switch back to the previous scene when going off the air</label>
+      <label class="c"><input id="o_bd" type="checkbox"> Run Days on End behind audio-only recordings</label>
+      <label class="c"><input id="o_bdall" type="checkbox"> Keep Days on End behind video recordings too</label>
+      <label class="f">Backdrop page (leave empty for the built-in Days on End)
+        <input id="o_bdurl" type="text" spellcheck="false"></label>
+    </fieldset>
+
+    <fieldset id="dirSet">
+      <legend>Direct</legend>
+      <label class="f">Stream URLs, one per line (server and key together)
+        <textarea id="d_outs" rows="3" spellcheck="false" placeholder="rtmp://a.rtmp.youtube.com/live2/xxxx-xxxx-xxxx-xxxx"></textarea></label>
+      <p class="hint">Keys are hidden after saving. Each URL gets its own connection; if one drops, the others keep going and it reconnects on its own.</p>
+      <label class="f">Also save what airs to this folder (optional)
+        <input id="d_rec" type="text" spellcheck="false"></label>
+      <div class="two">
+        <label class="f">New cycle every (h:mm, or off) <input id="d_cycle" type="text"></label>
+        <label class="f">Seconds off the air between cycles <input id="d_gap" type="number" min="2"></label>
+      </div>
+      <p class="hint">At 11:45 each stream reconnects, so every YouTube archive stays under 12 hours. The recording keeps playing through the change.</p>
+      <div class="two">
+        <label class="f">Width <input id="d_w" type="number" min="320" step="2"></label>
+        <label class="f">Height <input id="d_h" type="number" min="180" step="2"></label>
+        <label class="f">Frames per second <input id="d_fps" type="number" min="10" max="60"></label>
+        <label class="f">Video kbps <input id="d_vk" type="number" min="500" step="100"></label>
+        <label class="f">Audio kbps <input id="d_ak" type="number" min="64" step="16"></label>
+        <label class="f">Encoder
+          <select id="d_enc"><option value="auto">Automatic</option><option value="h264_videotoolbox">VideoToolbox (Apple chip)</option><option value="libx264">x264 (processor)</option></select></label>
+      </div>
+      <div class="two">
+        <label class="f">Picture for audio-only recordings
+          <select id="d_vis"><option value="cqt">Spectrum (CQT)</option><option value="scope">Vectorscope</option><option value="waves">Waveform</option><option value="loop">Loop a video file</option><option value="still">A still image</option></select></label>
+        <label class="f">Video or image file for those <input id="d_vfile" type="text" spellcheck="false"></label>
+      </div>
+      <label class="c"><input id="d_filler" type="checkbox"> When nothing is queued, keep the stream alive with generated visuals</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>What airs next</legend>
+      <label class="c"><input id="s_autonew" type="checkbox"> Queue each recording as soon as it finishes</label>
+      <label class="c"><input id="s_autofill" type="checkbox"> When the queue runs dry, pick a finished recording at random</label>
+      <div class="two">
+        <label class="f">Pick from
+          <select id="s_fill"><option value="long">Recordings 1 hour +</option><option value="any">Anything</option><option value="video">Video only</option><option value="audio">Audio only</option><option value="clips">Under 10 minutes</option></select></label>
+        <label class="f">Don't repeat within (hours) <input id="s_avoid" type="number" min="0"></label>
+        <label class="f">Never auto-pick shorter than (seconds) <input id="s_min" type="number" min="0"></label>
+      </div>
+      <label class="c"><input id="s_resume" type="checkbox"> After a restart, go back on the air where it left off</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Other computers</legend>
+      <label class="c"><input id="s_lan" type="checkbox"> Let other computers on this network open this page (for example the MacBook)</label>
+      <p id="lanInfo" class="hint"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>ffmpeg</legend>
+      <div class="two">
+        <label class="f">ffmpeg <input id="s_ffmpeg" type="text" spellcheck="false"></label>
+        <label class="f">ffprobe <input id="s_ffprobe" type="text" spellcheck="false"></label>
+      </div>
+      <p id="ffInfo" class="hint"></p>
+    </fieldset>
+
+    <div class="foot">
+      <button class="btn primary" type="submit">Save</button>
+      <button id="setCancel" class="btn" type="button">Close</button>
+    </div>
+  </form>
+</aside>
+
+<div id="drop" class="drop" hidden>Drop recordings to add them</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+let CODE = '';
+try { CODE = localStorage.getItem('replay-code') || ''; } catch (e) { /* storage blocked */ }
+let ST = null;
+const LIB = { q: '', filter: 'all', sort: 'newest', offset: 0, items: [], total: 0, sig: '' };
+const PLAYER = { e: null, base: 0, stream: false };
+
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) el.append(k.nodeType ? k : String(k));
+  return el;
+}
+const fmt = (s) => {
+  s = Math.max(0, Math.floor(s || 0));
+  return `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+};
+const stamp = (t) => {
+  if (!t) return '';
+  const d = new Date(t * 1000), z = (x) => String(x).padStart(2, '0');
+  return `${z(d.getFullYear() % 100)} ${z(d.getMonth() + 1)} ${z(d.getDate())} · ${z(d.getHours())}.${z(d.getMinutes())}`;
+};
+const clock = (t) => { const d = new Date(t * 1000), z = (x) => String(x).padStart(2, '0'); return `${z(d.getMonth() + 1)}/${z(d.getDate())} ${z(d.getHours())}.${z(d.getMinutes())}`; };
+const size = (b) => b > 1e9 ? (b / 1e9).toFixed(1) + ' GB' : b > 1e6 ? Math.round(b / 1e6) + ' MB' : Math.round((b || 0) / 1e3) + ' KB';
+const ago = (t) => { const s = Date.now() / 1000 - t; return s < 60 ? `${Math.round(s)} s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`; };
+const withCode = (u) => CODE ? u + (u.includes('?') ? '&' : '?') + 'code=' + encodeURIComponent(CODE) : u;
+
+let toastT = 0;
+function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3200); }
+
+async function api(path, body) {
+  const opt = { headers: {} };
+  if (body !== undefined) { opt.method = 'POST'; opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+  if (CODE) opt.headers['X-Replay-Code'] = CODE;
+  const r = await fetch(path, opt);
+  if (r.status === 403) { gate(); throw new Error('This computer needs the access code'); }
+  let j = {};
+  try { j = await r.json(); } catch (e) { /* not json */ }
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+function gate() {
+  if ($('gate')) return;
+  $('main').hidden = true;
+  const inp = h('input', { id: 'codeIn', inputmode: 'numeric', autocomplete: 'off', 'aria-label': 'Access code' });
+  const box = h('form', { class: 'gate', id: 'gate', onsubmit: (e) => { e.preventDefault(); CODE = inp.value.trim(); try { localStorage.setItem('replay-code', CODE); } catch (x) { /* ignore */ } location.reload(); } },
+    h('p', { class: 'now-title' }, 'Enter the access code'),
+    h('p', { class: 'hint' }, 'It is shown in Settings → Other computers on the Mac running Dispatch Replay.'),
+    inp, h('button', { class: 'btn primary', type: 'submit' }, 'Open'));
+  document.body.append(box);
+}
+
+// ---------- state ----------
+async function poll() {
+  try { ST = await api('/api/state'); render(); } catch (e) { $('nowMsg').textContent = 'Lost contact with Dispatch Replay. Is it still running?'; }
+}
+function render() {
+  const a = ST.air, cur = a.current;
+  $('ver').textContent = 'v' + ST.version;
+  const lamp = $('lamp');
+  lamp.className = 'lamp' + (a.on_air ? (['offline', 'failed'].includes(a.state) ? ' warn' : ' on') : '');
+  $('lampText').textContent = a.on_air ? `On the air · ${a.mode === 'obs' ? 'OBS' : 'direct'}` : 'Off the air';
+  const air = $('airBtn');
+  air.textContent = a.on_air ? 'Go off the air' : 'Go on the air';
+  air.className = 'btn ' + (a.on_air ? 'danger' : 'primary');
+  $('skipBtn').disabled = !(a.on_air && cur);
+
+  const title = $('nowTitle');
+  if (cur) {
+    title.textContent = cur.name;
+    title.className = 'now-title';
+    const bits = [cur.kind === 'audio' ? 'audio' : (cur.width ? `${cur.width}×${cur.height}` : 'video'), fmt(cur.duration), cur.by === 'auto' ? 'picked at random' : cur.by === 'new' ? 'just finished' : cur.by === 'resume' ? 'resumed' : 'queued by you'];
+    $('nowMeta').textContent = bits.join(' · ') + (cur.folder ? ` · ${cur.folder}` : '');
+    const pos = cur.position ?? cur.start ?? 0, dur = cur.duration || 0;
+    $('nowBar').style.width = dur ? `${Math.min(100, (pos / dur) * 100)}%` : '0';
+    $('nowPos').textContent = fmt(pos);
+    $('nowLeft').textContent = dur ? `${fmt(dur - pos)} left` : '';
+  } else {
+    title.textContent = a.on_air ? (a.state === 'filling' ? 'Filler visuals' : 'Waiting for something to air') : 'Nothing airing';
+    title.className = 'now-title idle';
+    $('nowMeta').textContent = '';
+    $('nowBar').style.width = '0';
+    $('nowPos').textContent = '0:00:00';
+    $('nowLeft').textContent = '';
+  }
+  $('nowMsg').textContent = a.message || '';
+  const outs = $('outs');
+  outs.replaceChildren(...((a.backend && a.backend.outputs) || []).map((o) =>
+    h('div', { class: 'out' + (o.live ? ' live' : '') }, h('i'), h('span', {}, (o.kind === 'file' ? 'saving to ' : '') + o.label + (o.live ? '' : ` · retry in ${o.retry_in ?? '…'} s`) + (o.dropped ? ` · ${o.dropped} chunks dropped` : '')))));
+  if (a.backend && a.backend.connected === false && a.mode === 'obs') outs.replaceChildren(h('div', { class: 'out' }, h('i'), h('span', {}, 'OBS not connected')));
+
+  const q = $('queue');
+  if (!a.queue.length) {
+    q.replaceChildren(h('p', { class: 'empty' }, 'Nothing queued. With auto-fill on, a finished recording is picked at random when this runs dry.'));
+  } else {
+    q.replaceChildren(...a.queue.map((it, i) => h('div', { class: 'row' },
+      h('div', {}, h('div', { class: 'name' }, it.offline ? h('span', { class: 'tag off' }, 'offline') : null, it.by === 'new' ? h('span', { class: 'tag new' }, 'new') : null, it.name),
+        h('div', { class: 'sub num' }, fmt(it.duration) + (it.start ? ` · from ${fmt(it.start)}` : ''))),
+      h('div', { class: 'acts' },
+        h('button', { class: 'btn small', type: 'button', 'aria-label': 'Move up', disabled: i === 0, onclick: () => qAct({ action: 'move', qid: it.qid, dir: 'up' }) }, '↑'),
+        h('button', { class: 'btn small', type: 'button', 'aria-label': 'Move down', disabled: i === a.queue.length - 1, onclick: () => qAct({ action: 'move', qid: it.qid, dir: 'down' }) }, '↓'),
+        h('button', { class: 'btn small', type: 'button', onclick: () => qAct({ action: 'remove', qid: it.qid }) }, 'Remove')))));
+  }
+  const nl = $('newList');
+  nl.replaceChildren(...(ST.new.length ? ST.new.slice(0, 6).map((e) => h('div', { class: 'row' },
+    h('div', {}, h('div', { class: 'name' }, e.name), h('div', { class: 'sub num' }, `${fmt(e.duration)} · ready ${ago(e.ready_at)}`)),
+    h('div', { class: 'acts' }, h('button', { class: 'btn small', type: 'button', onclick: () => openPlayer(e) }, 'Play'),
+      h('button', { class: 'btn small', type: 'button', onclick: () => qAct({ action: 'add', id: e.id }) }, 'Queue')))) :
+    [h('p', { class: 'empty' }, 'Recordings show up here once they have stopped growing on disk.')]));
+  const hl = $('hist');
+  hl.replaceChildren(...(a.history.length ? a.history.slice(0, 14).map((x) => h('div', {}, h('span', { class: 'num' }, clock(x.aired_at)), h('span', { class: 'n', title: x.name }, x.name), h('span', { class: 'num' }, x.how === 'done' ? fmt(x.seconds) : x.how))) :
+    [h('p', { class: 'empty' }, 'Nothing aired yet.')]));
+
+  const L = ST.library;
+  const waiting = L.waiting ? ` · ${L.waiting} still being written` : '';
+  const off = L.offline ? ` · ${L.offline} on a drive that isn't connected` : '';
+  const missing = L.missing_folders.length ? ` · can't find ${L.missing_folders.join(', ')}` : '';
+  const total = L.seconds >= 3600 ? `${(L.seconds / 3600).toFixed(L.seconds >= 36000 ? 0 : 1)} hours` : `${Math.round((L.seconds || 0) / 60)} minutes`;
+  $('stats').replaceChildren(h('b', {}, `${L.ready} recordings`), ` · ${total}${waiting}${off}${missing} · checked ${L.last_scan ? ago(L.last_scan) : '…'}` + (L.probing ? ` · reading ${L.probing}` : ''));
+  if (!ST.tools.ok) $('stats').append(h('div', { class: 'msg' }, 'ffmpeg was not found. Install it with "brew install ffmpeg", or set its location in Settings, then restart.'));
+  const sig = `${L.count}|${L.ready}|${L.offline}|${ST.new.map((e) => e.id).join()}`;
+  if (sig !== LIB.sig) { LIB.sig = sig; loadLib(false); }
+}
+
+async function qAct(body) {
+  try { ST.air = await api('/api/queue', body); render(); if (body.action === 'add') toast('Queued'); } catch (e) { toast(e.message); }
+}
+async function airAct(body) {
+  try { ST.air = await api('/api/air', body); render(); } catch (e) { toast(e.message); }
+}
+
+// ---------- library ----------
+async function loadLib(append) {
+  if (!append) LIB.offset = 0;
+  const qs = new URLSearchParams({ q: LIB.q, filter: LIB.filter, sort: LIB.sort, offset: LIB.offset, limit: 100 });
+  try {
+    const r = await api('/api/library?' + qs);
+    LIB.total = r.total;
+    LIB.items = append ? LIB.items.concat(r.items) : r.items;
+    drawLib();
+  } catch (e) { /* shown by poll */ }
+}
+function drawLib() {
+  const box = $('lib');
+  if (!LIB.items.length) {
+    const msg = LIB.q || LIB.filter !== 'all' ? 'Nothing matches.' : 'No recordings yet. Add your recording folders in Settings, or drop files on this page.';
+    box.replaceChildren(h('p', { class: 'empty' }, msg));
+  } else {
+    box.replaceChildren(...LIB.items.map((e) => {
+      const th = h('div', { class: 'thumb' });
+      if (e.ready) {
+        const img = h('img', { loading: 'lazy', alt: '', src: withCode('/thumb/' + e.id) });
+        img.onerror = () => { img.remove(); th.textContent = e.kind === 'audio' ? 'audio' : 'video'; };
+        th.append(img);
+      } else th.textContent = 'writing';
+      const tags = [];
+      if (e.is_new) tags.push(h('span', { class: 'tag new' }, 'new'));
+      if (e.kind === 'audio') tags.push(h('span', { class: 'tag audio' }, 'audio'));
+      if (e.offline) tags.push(h('span', { class: 'tag off' }, 'drive offline'));
+      if (!e.ready && !e.offline) tags.push(h('span', { class: 'tag' }, e.error ? 'unreadable' : 'not finished'));
+      const sub = [fmt(e.duration), stamp(e.mtime), size(e.size)];
+      if (e.width) sub.push(`${e.width}×${e.height}`);
+      const ok = e.ready && !e.offline;
+      return h('div', { class: 'item' }, th,
+        h('div', {}, h('div', { class: 'name' }, ...tags, e.name), h('div', { class: 'sub num' }, sub.join(' · ')), h('div', { class: 'sub' }, e.error ? `Could not read it: ${e.error}` : e.folder)),
+        h('div', { class: 'acts' },
+          h('button', { class: 'btn small', type: 'button', disabled: !ok, onclick: () => openPlayer(e) }, 'Play'),
+          h('button', { class: 'btn small', type: 'button', disabled: !ok, onclick: () => qAct({ action: 'add', id: e.id }) }, 'Queue'),
+          h('button', { class: 'btn small', type: 'button', disabled: !ok, onclick: () => qAct({ action: 'add', id: e.id, where: 'next' }) }, 'Next'),
+          h('button', { class: 'btn small', type: 'button', disabled: !ok, onclick: () => airAct({ action: 'now', id: e.id }) }, 'Air now')));
+    }));
+  }
+  $('more').hidden = LIB.items.length >= LIB.total;
+}
+
+// ---------- player ----------
+function openPlayer(e, at) {
+  PLAYER.e = e;
+  PLAYER.stream = e.playable !== 'direct';
+  $('playerSec').hidden = false;
+  $('pTitle').textContent = e.name;
+  $('seekRow').hidden = !PLAYER.stream;
+  $('seek').max = Math.floor(e.duration || 0);
+  $('seekDur').textContent = fmt(e.duration);
+  setSrc(at || 0);
+  $('playerSec').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function setSrc(t) {
+  const v = $('video'), e = PLAYER.e;
+  PLAYER.base = PLAYER.stream ? t : 0;
+  v.src = withCode(PLAYER.stream ? `/stream/${e.id}?t=${Math.floor(t)}` : `/media/${e.id}`);
+  if (!PLAYER.stream && t) v.currentTime = t;
+  v.play().catch(() => {});
+}
+$('video').addEventListener('timeupdate', () => {
+  if (!PLAYER.stream) return;
+  const p = PLAYER.base + $('video').currentTime;
+  $('seekPos').textContent = fmt(p);
+  if (!SEEKING) $('seek').value = Math.floor(p);
+});
+let SEEKING = false;
+$('seek').addEventListener('input', () => { SEEKING = true; $('seekPos').textContent = fmt($('seek').value); });
+$('seek').addEventListener('change', () => { SEEKING = false; setSrc(+$('seek').value); });
+$('pClose').addEventListener('click', () => { const v = $('video'); v.pause(); v.removeAttribute('src'); v.load(); $('playerSec').hidden = true; PLAYER.e = null; });
+$('pQueue').addEventListener('click', () => PLAYER.e && qAct({ action: 'add', id: PLAYER.e.id }));
+$('pAir').addEventListener('click', () => PLAYER.e && airAct({ action: 'now', id: PLAYER.e.id }));
+
+// ---------- uploads ----------
+function upload(files) {
+  for (const f of files) {
+    const bar = h('i'), line = h('div', { class: 'up' }, h('span', {}, `Adding ${f.name}`), h('div', { class: 'bar' }, bar));
+    $('uploads').append(line);
+    const x = new XMLHttpRequest();
+    x.open('POST', '/api/upload');
+    x.setRequestHeader('X-Filename', encodeURIComponent(f.name));
+    if (CODE) x.setRequestHeader('X-Replay-Code', CODE);
+    x.upload.onprogress = (ev) => { if (ev.lengthComputable) bar.style.width = `${(ev.loaded / ev.total) * 100}%`; };
+    x.onload = () => {
+      let msg = '';
+      try { msg = JSON.parse(x.responseText).error || ''; } catch (e) { /* ignore */ }
+      if (x.status === 200) { toast(`Added ${f.name}`); line.remove(); poll(); }
+      else { line.firstChild.textContent = `${f.name}: ${msg || 'upload failed'}`; }
+    };
+    x.onerror = () => { line.firstChild.textContent = `${f.name}: upload failed`; };
+    x.send(f);
+  }
+}
+$('addFiles').addEventListener('click', () => $('fileInput').click());
+$('fileInput').addEventListener('change', (e) => { upload(e.target.files); e.target.value = ''; });
+let dragN = 0;
+window.addEventListener('dragenter', (e) => { if ([...e.dataTransfer.types].includes('Files')) { dragN++; $('drop').hidden = false; } });
+window.addEventListener('dragleave', () => { dragN = Math.max(0, dragN - 1); if (!dragN) $('drop').hidden = true; });
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => { e.preventDefault(); dragN = 0; $('drop').hidden = true; if (e.dataTransfer.files.length) upload(e.dataTransfer.files); });
+
+// ---------- settings ----------
+let SET = null;
+async function openSettings() {
+  try { SET = await api('/api/settings'); } catch (e) { toast(e.message); return; }
+  const c = SET, o = c.obs, d = c.direct;
+  $('s_folders').value = (c.folders || []).join('\n');
+  $('s_inbox').value = c.inbox || '';
+  $('s_inbox').placeholder = c.inbox_resolved;
+  $('s_settle').value = c.settle_seconds;
+  $('s_scan').value = c.scan_every;
+  $('s_mode_obs').checked = c.mode === 'obs';
+  $('s_mode_direct').checked = c.mode === 'direct';
+  $('o_host').value = o.host; $('o_port').value = o.port; $('o_pass').value = o.password;
+  $('o_scene').value = o.scene; $('o_media').value = o.media;
+  $('o_take').checked = !!o.take_program; $('o_restore').checked = !!o.restore_scene;
+  $('o_bd').checked = !!o.backdrop_on; $('o_bdall').checked = !!o.backdrop_always;
+  $('o_bdurl').value = o.backdrop_url || ''; $('o_bdurl').placeholder = c.backdrop_default;
+  $('d_outs').value = (d.outputs || []).join('\n');
+  $('d_rec').value = d.record_folder || '';
+  $('d_cycle').value = d.cycle; $('d_gap').value = d.cycle_gap;
+  $('d_w').value = d.width; $('d_h').value = d.height; $('d_fps').value = d.fps;
+  $('d_vk').value = d.video_kbps; $('d_ak').value = d.audio_kbps; $('d_enc').value = d.encoder;
+  $('d_vis').value = d.audio_visual; $('d_vfile').value = d.visual_file || ''; $('d_filler').checked = d.filler !== false;
+  $('s_autonew').checked = !!c.auto_queue_new; $('s_autofill').checked = !!c.auto_fill;
+  $('s_fill').value = c.fill_from; $('s_avoid').value = c.avoid_repeat_hours; $('s_min').value = c.min_seconds;
+  $('s_resume').checked = !!c.resume_on_launch;
+  $('s_lan').checked = !!c.allow_lan;
+  const lan = ST && ST.lan;
+  $('lanInfo').textContent = lan && lan.code ? `Access code ${lan.code}. ${lan.addresses.length ? 'Open http://' + lan.addresses[0] + ':' + ST.port + '/ on the other computer. ' : ''}Changing this takes effect the next time Dispatch Replay starts.` : 'Changing this takes effect the next time Dispatch Replay starts.';
+  $('s_ffmpeg').value = c.ffmpeg || ''; $('s_ffmpeg').placeholder = (ST && ST.tools.ffmpeg) || 'not found';
+  $('s_ffprobe').value = c.ffprobe || ''; $('s_ffprobe').placeholder = (ST && ST.tools.ffprobe) || 'not found';
+  $('ffInfo').textContent = ST && ST.tools.ok ? `Found ffmpeg at ${ST.tools.ffmpeg}. Video encoder: ${ST.tools.h264 || 'none found'}. Leave these empty to keep using it.` : 'ffmpeg was not found automatically. Install it with "brew install ffmpeg", or give its full path here and restart.';
+  showMode();
+  $('scrim').hidden = false; $('drawer').hidden = false;
+  $('s_folders').focus();
+}
+function showMode() {
+  const direct = $('s_mode_direct').checked;
+  $('obsSet').hidden = direct;
+  $('dirSet').hidden = !direct;
+}
+function closeSettings() { $('scrim').hidden = true; $('drawer').hidden = true; }
+$('s_mode_obs').addEventListener('change', showMode);
+$('s_mode_direct').addEventListener('change', showMode);
+$('setForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const num = (id) => +$(id).value;
+  const lines = (id) => $(id).value.split('\n').map((s) => s.trim()).filter(Boolean);
+  const body = {
+    folders: lines('s_folders'), inbox: $('s_inbox').value.trim(),
+    settle_seconds: num('s_settle'), scan_every: num('s_scan'),
+    mode: $('s_mode_direct').checked ? 'direct' : 'obs',
+    auto_queue_new: $('s_autonew').checked, auto_fill: $('s_autofill').checked, fill_from: $('s_fill').value,
+    avoid_repeat_hours: num('s_avoid'), min_seconds: num('s_min'), resume_on_launch: $('s_resume').checked,
+    allow_lan: $('s_lan').checked, ffmpeg: $('s_ffmpeg').value.trim(), ffprobe: $('s_ffprobe').value.trim(),
+    obs: { host: $('o_host').value.trim(), port: num('o_port'), password: $('o_pass').value, scene: $('o_scene').value.trim(), media: $('o_media').value.trim(),
+      take_program: $('o_take').checked, restore_scene: $('o_restore').checked, backdrop_on: $('o_bd').checked, backdrop_always: $('o_bdall').checked, backdrop_url: $('o_bdurl').value.trim() },
+    direct: { outputs: lines('d_outs'), record_folder: $('d_rec').value.trim(), cycle: $('d_cycle').value.trim() || 'off', cycle_gap: num('d_gap'),
+      width: num('d_w'), height: num('d_h'), fps: num('d_fps'), video_kbps: num('d_vk'), audio_kbps: num('d_ak'), encoder: $('d_enc').value,
+      audio_visual: $('d_vis').value, visual_file: $('d_vfile').value.trim(), filler: $('d_filler').checked },
+  };
+  try { await api('/api/settings', body); toast('Saved'); closeSettings(); poll(); } catch (e) { toast(e.message); }
+});
+$('setBtn').addEventListener('click', openSettings);
+$('setCancel').addEventListener('click', closeSettings);
+$('scrim').addEventListener('click', closeSettings);
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('drawer').hidden) closeSettings(); });
+
+// ---------- controls ----------
+$('airBtn').addEventListener('click', () => airAct({ action: ST && ST.air.on_air ? 'stop' : 'start' }));
+$('skipBtn').addEventListener('click', () => airAct({ action: 'skip' }));
+$('clearQ').addEventListener('click', () => qAct({ action: 'clear' }));
+$('rescan').addEventListener('click', async () => { try { await api('/api/scan', {}); toast('Checking folders'); } catch (e) { toast(e.message); } });
+$('more').addEventListener('click', () => { LIB.offset = LIB.items.length; loadLib(true); });
+let qT = 0;
+$('q').addEventListener('input', (e) => { clearTimeout(qT); qT = setTimeout(() => { LIB.q = e.target.value; loadLib(false); }, 250); });
+$('sort').addEventListener('change', (e) => { LIB.sort = e.target.value; loadLib(false); });
+$('chips').addEventListener('click', (e) => {
+  const b = e.target.closest('.chip');
+  if (!b) return;
+  for (const c of $('chips').children) c.setAttribute('aria-pressed', c === b ? 'true' : 'false');
+  LIB.filter = b.dataset.f;
+  loadLib(false);
+});
+
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>

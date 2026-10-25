@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ALL COLORS — opening score · Sound In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gloria+Hallelujah&family=Kalam:wght@300;400;700&family=Caveat:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1f2a44;
+    --paper:#f6efdc;
+    --paper-shade:#ebe2c8;
+    --stage:#14131a;
+    --stage-2:#0c0b11;
+    --rule:rgba(60,90,120,0.10);
+    --tape:#a8c9a0;
+    --brass:#caa24a;
+    --mono:'JetBrains Mono', ui-monospace, 'Courier New', monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; margin:0;}
+  body{
+    background:
+      radial-gradient(120% 90% at 50% 12%, #1c1b24 0%, var(--stage) 45%, var(--stage-2) 100%);
+    color:var(--paper);
+    font-family:var(--mono);
+    overflow:hidden;
+    -webkit-user-select:none; user-select:none;
+    touch-action:manipulation;
+  }
+  /* faint film grain over the whole stage */
+  body::after{
+    content:""; position:fixed; inset:0; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  /* ---------- the page ---------- */
+  #wrap{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:3.2vmin;}
+  #page{
+    position:relative; width:min(96vw, 1180px); height:min(92vh, 760px);
+    background:linear-gradient(180deg, var(--paper), var(--paper-shade));
+    border-radius:6px;
+    box-shadow:0 40px 90px rgba(0,0,0,.6), 0 6px 18px rgba(0,0,0,.4), inset 0 0 60px rgba(120,90,40,.08);
+    overflow:hidden;
+    transition:filter .8s ease;
+  }
+  /* ruled notebook lines */
+  #page::before{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:repeating-linear-gradient(transparent 0 38px, var(--rule) 38px 39px);
+    opacity:.7;
+  }
+  /* spiral binding + green tape on the left */
+  #bind{position:absolute; top:0; left:0; bottom:0; width:58px; z-index:3; pointer-events:none;}
+  #bind .tape{position:absolute; top:0; bottom:0; left:30px; width:14px;
+    background:repeating-linear-gradient(180deg, var(--tape) 0 12px, #2c3a4a 12px 18px); opacity:.5;}
+  #bind .ring{position:absolute; left:6px; width:40px; height:16px; border:3px solid var(--brass);
+    border-radius:50%; transform:rotate(-12deg); box-shadow:0 1px 0 rgba(0,0,0,.25);
+    background:linear-gradient(180deg, rgba(255,240,200,.5), rgba(120,90,30,.15));}
+
+  /* header plate */
+  #plate{position:absolute; top:14px; left:74px; right:18px; z-index:4;
+    display:flex; justify-content:space-between; align-items:baseline; color:#5a6b52;
+    font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;}
+  #plate .t{font-family:'Caveat',cursive; font-size:26px; letter-spacing:0; color:#6b3f2a; text-transform:none; font-weight:700;}
+  #plate .meta{opacity:.75; text-align:right; line-height:1.5;}
+
+  /* the stage where lines appear */
+  #stage{position:absolute; inset:64px 40px 70px 84px; z-index:4;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;}
+
+  /* faint memory of prior lines */
+  #echo{position:absolute; top:60px; left:84px; right:40px; z-index:4;
+    font-family:'Kalam',cursive; color:rgba(40,55,80,.28); font-size:15px; line-height:1.9;
+    text-align:left; max-height:120px; overflow:hidden;}
+  #echo .e-bill{color:rgba(40,55,80,.30);}
+  #echo .e-billy{color:rgba(150,90,40,.34); font-family:'Gloria Hallelujah',cursive; font-size:13px;}
+
+  .line{opacity:0; transform:translateY(14px); transition:opacity .7s ease, transform .7s ease; width:100%;}
+  .line.show{opacity:1; transform:none;}
+
+  /* BILL — dominant hand: neat, inky, calm */
+  .bill{font-family:'Kalam',cursive; font-weight:300; color:var(--ink);
+    font-size:clamp(26px, 5.2vw, 58px); line-height:1.22; letter-spacing:.01em;}
+
+  /* BILLY — wrong hand: huge, wobbling, all colors */
+  .billy{font-family:'Gloria Hallelujah',cursive; line-height:1.05;
+    font-size:clamp(40px, 10vw, 130px);}
+  .billy .gl{display:inline-block; transform-origin:center; text-shadow:0 2px 0 rgba(0,0,0,.06);}
+  .billy.bloom .gl{animation:pop .5s ease both;}
+  @keyframes pop{0%{transform:scale(.4) rotate(0);}60%{transform:scale(1.14);}100%{}}
+  .sp{display:inline-block; width:.34em;}
+
+  /* the hanging question gets a slow pulse */
+  .billy.hang .gl{animation:hang 3.4s ease-in-out infinite both;}
+  @keyframes hang{0%,100%{transform:translateY(0) rotate(var(--r));}50%{transform:translateY(-7px) rotate(var(--r));}}
+
+  /* ---------- chrome: controls ---------- */
+  #bar{position:fixed; left:0; right:0; bottom:0; z-index:6; display:flex; align-items:center;
+    gap:14px; padding:12px 18px; font-family:var(--mono); font-size:12px;
+    background:linear-gradient(0deg, rgba(0,0,0,.55), transparent); color:#cfc7b2;
+    transition:opacity .5s ease;}
+  #bar.dim{opacity:0; pointer-events:none;}
+  button.ctl{font-family:var(--mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+    color:#e7dfc8; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.18);
+    padding:9px 14px; border-radius:4px; cursor:pointer; transition:.15s;}
+  button.ctl:hover{background:rgba(255,255,255,.14);}
+  button.ctl.on{background:var(--brass); color:#1a160a; border-color:var(--brass); font-weight:600;}
+  #status{opacity:.7; letter-spacing:.1em;}
+  #vol{width:120px;}
+  .spacer{flex:1;}
+  .hint{opacity:.55; letter-spacing:.08em;}
+
+  /* L/R width meters */
+  #meters{position:fixed; bottom:54px; left:0; right:0; z-index:5; display:flex; justify-content:space-between;
+    padding:0 22px; pointer-events:none; font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:#8a8270;}
+  .mtr{display:flex; align-items:center; gap:8px; opacity:.8;}
+  .mtr .track{width:110px; height:4px; background:rgba(255,255,255,.1); border-radius:2px; overflow:hidden;}
+  .mtr .fill{height:100%; width:0%; background:linear-gradient(90deg,#3aa757,#f4c531,#e23b3b); transition:width .06s linear;}
+  .mtr.r{flex-direction:row-reverse;}
+  .mtr.r .fill{background:linear-gradient(270deg,#3aa757,#f4c531,#e23b3b);}
+
+  /* ---------- begin overlay ---------- */
+  #gate{position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(120% 90% at 50% 30%, #1c1b24, #0a0910); text-align:center; padding:8vw;}
+  #gate h1{font-family:'Gloria Hallelujah',cursive; font-size:clamp(40px,11vw,108px); margin:0; line-height:1;}
+  #gate h1 span{display:inline-block;}
+  #gate .sub{font-family:'Kalam',cursive; font-weight:300; color:#cdc4ac; font-size:clamp(16px,3vw,24px); margin:18px 0 4px;}
+  #gate .src{font-family:var(--mono); font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:#7e7660; margin-bottom:40px;}
+  #begin{font-family:var(--mono); letter-spacing:.24em; text-transform:uppercase; font-size:15px;
+    color:#1a160a; background:var(--brass); border:none; padding:18px 40px; border-radius:5px; cursor:pointer;
+    box-shadow:0 8px 30px rgba(202,162,74,.35); transition:.18s;}
+  #begin:hover{transform:translateY(-2px); box-shadow:0 12px 40px rgba(202,162,74,.5);}
+  #gate .keys{font-family:var(--mono); font-size:11px; letter-spacing:.14em; color:#6a6452; margin-top:26px; line-height:1.8;}
+</style>
+</head>
+<body>
+
+<div id="wrap">
+  <div id="page">
+    <div id="bind"><div class="tape"></div></div>
+    <div id="plate">
+      <span class="t">All Colors</span>
+      <span class="meta">opening score &middot; scenes i&ndash;ii<br><span id="datelabel"></span> &middot; sound in</span>
+    </div>
+    <div id="echo"></div>
+    <div id="stage"><div id="lineHost"></div></div>
+  </div>
+</div>
+
+<div id="meters">
+  <div class="mtr l"><span>L</span><div class="track"><div class="fill" id="mL"></div></div></div>
+  <div class="mtr r"><span>R</span><div class="track"><div class="fill" id="mR"></div></div></div>
+</div>
+
+<div id="bar" class="dim">
+  <button class="ctl" id="nextBtn">Advance &rsaquo;</button>
+  <button class="ctl" id="perfBtn">Perform</button>
+  <button class="ctl" id="resetBtn">Reset</button>
+  <span class="spacer"></span>
+  <span id="status">held</span>
+  <input id="vol" type="range" min="0" max="100" value="72">
+  <span class="hint">tap page / space = advance</span>
+</div>
+
+<div id="gate">
+  <h1 id="gateTitle"></h1>
+  <div class="sub">a found-text opening for two voices and one hand</div>
+  <div class="src">from the inner-child journals &middot; w. v. newbold &middot; 2020</div>
+  <button id="begin">Begin &mdash; tap to wake the sound</button>
+  <div class="keys">use wide speakers or headphones &mdash; the stereo is the point<br>tap the page or press SPACE to turn each line &middot; PERFORM = hands-free</div>
+</div>
+
+<script>
+/* =====================================================================
+   ALL COLORS — opening score for Sound In
+   Found-text Web Audio piece. Scenes 1 & 2 of the chamber musical.
+   Two synthesized voices:
+     BILL  — dominant hand: centered, even, soft FM bell. calm.
+     BILLY — wrong hand: wide stereo, hard-panned detuned pairs, bright.
+   A living drone bed runs underneath so there is never dead air.
+   iOS-Safari aware: AudioContext built + resumed inside the BEGIN gesture,
+   webkit fallback, pointer + touch advance, no media elements.
+   Tweak freely — this is yours.
+   ===================================================================== */
+
+var AC = window.AudioContext || window.webkitAudioContext;
+var ctx = null;
+var master, comp, outBus, convolver, wetGain;
+var splitter, anL, anR, meterBufL, meterBufR;
+var droneNodes = [];
+var started = false;
+
+/* ---- the score: every line is verbatim from the journal ---- */
+var score = [
+  { who:'bill',  text:'What are you going to paint?' },
+  { who:'billy', text:'I WANT to Paint FLOWERS', kind:'flowers' },
+  { who:'bill',  text:'What color are the flowers?' },
+  { who:'billy', text:'ALL COLORS', kind:'allcolors' },
+  { who:'bill',  text:'CAN I get to know you?' },
+  { who:'billy', text:'What do you want to know?', kind:'open' },
+  { who:'bill',  text:'Are you \u2192 Billy?' },
+  { who:'billy', text:'Who is Billy?', kind:'hang' }
+];
+var idx = -1;
+var performing = false;
+var performTimer = null;
+
+var COLORS = ['#e23b3b','#f08a24','#f4c531','#3aa757','#2f7fd1','#7b4fb5','#e84393','#16a3a3'];
+
+/* ---------------- audio graph ---------------- */
+function buildAudio(){
+  ctx = new AC();
+  master = ctx.createGain();  master.gain.value = 0.72 * 0.9;
+  comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -16; comp.knee.value = 24; comp.ratio.value = 3;
+  comp.attack.value = 0.006; comp.release.value = 0.25;
+
+  outBus = ctx.createGain(); outBus.gain.value = 1.0;
+
+  // reverb for space
+  convolver = ctx.createConvolver();
+  convolver.buffer = makeImpulse(3.6, 2.4);
+  wetGain = ctx.createGain(); wetGain.gain.value = 0.32;
+
+  // metering (split master into L / R)
+  splitter = ctx.createChannelSplitter(2);
+  anL = ctx.createAnalyser(); anR = ctx.createAnalyser();
+  anL.fftSize = 256; anR.fftSize = 256;
+  meterBufL = new Uint8Array(anL.fftSize);
+  meterBufR = new Uint8Array(anR.fftSize);
+
+  // wiring: outBus -> master (dry) ; outBus -> convolver -> wet -> master
+  outBus.connect(master);
+  outBus.connect(convolver); convolver.connect(wetGain); wetGain.connect(master);
+  master.connect(comp); comp.connect(ctx.destination);
+  comp.connect(splitter); splitter.connect(anL, 0); splitter.connect(anR, 1);
+
+  startDrone();
+  meterLoop();
+}
+
+function makeImpulse(seconds, decay){
+  var rate = ctx.sampleRate, len = Math.floor(rate * seconds);
+  var imp = ctx.createBuffer(2, len, rate);
+  for (var ch = 0; ch < 2; ch++){
+    var d = imp.getChannelData(ch);
+    for (var i = 0; i < len; i++){
+      d[i] = (Math.random()*2 - 1) * Math.pow(1 - i/len, decay);
+    }
+  }
+  return imp;
+}
+
+/* a hard-panned, slightly-detuned pair = wide stereo.
+   prime-cent detune offsets keep the two sides from phase-locking. */
+function widePair(freq, type, spreadCents, dest){
+  var g = ctx.createGain(); g.gain.value = 0;
+  g.connect(dest || outBus);
+  var oL = ctx.createOscillator(), oR = ctx.createOscillator();
+  oL.type = type; oR.type = type;
+  oL.frequency.value = freq; oR.frequency.value = freq;
+  oL.detune.value = -spreadCents; oR.detune.value = spreadCents;
+  var pL = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  var pR = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  if (pL){ pL.pan.value = -1; pR.pan.value = 1; oL.connect(pL); pL.connect(g); oR.connect(pR); pR.connect(g); }
+  else { oL.connect(g); oR.connect(g); } // graceful fallback
+  return { g:g, oL:oL, oR:oR };
+}
+
+function env(param, peak, t, a, d, s, r, dur){
+  param.cancelScheduledValues(t);
+  param.setValueAtTime(0.0001, t);
+  param.linearRampToValueAtTime(peak, t + a);
+  param.linearRampToValueAtTime(peak * s, t + a + d);
+  param.setValueAtTime(peak * s, t + dur);
+  param.linearRampToValueAtTime(0.0001, t + dur + r);
+}
+
+/* ---- drone bed: low, wide, always breathing ---- */
+function startDrone(){
+  var bases = [55, 82.5, 110];      // A1, ~E2, A2 — open fifth/octave field
+  var cents = [7, 11, 13];          // prime-ish detune per layer
+  for (var i = 0; i < bases.length; i++){
+    var lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 420; lp.Q.value = 0.6;
+    lp.connect(outBus);
+    var pair = widePair(bases[i], 'triangle', cents[i], lp);
+    pair.g.gain.value = 0.045;
+    // slow drift LFO on detune
+    var lfo = ctx.createOscillator(); lfo.frequency.value = 0.03 + i*0.017;
+    var lg = ctx.createGain(); lg.gain.value = 5 + i*3;
+    lfo.connect(lg); lg.connect(pair.oL.detune); lg.connect(pair.oR.detune);
+    pair.oL.start(); pair.oR.start(); lfo.start();
+    droneNodes.push(pair, lfo);
+  }
+}
+
+/* ---- BILL: careful, centered, soft FM bell ---- */
+function voiceBill(){
+  var t = ctx.currentTime + 0.02;
+  var f = 146.83; // D3 — low, even
+  var carrier = ctx.createOscillator(); carrier.type='sine'; carrier.frequency.value = f;
+  var mod = ctx.createOscillator(); mod.type='sine'; mod.frequency.value = f*2.0;
+  var modGain = ctx.createGain(); modGain.gain.value = 120;
+  mod.connect(modGain); modGain.connect(carrier.frequency);
+  var lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 1500; lp.Q.value=0.4;
+  var pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  var g = ctx.createGain(); g.gain.value = 0;
+  carrier.connect(lp);
+  if (pan){ pan.pan.value = 0; lp.connect(pan); pan.connect(g); } else { lp.connect(g); }
+  g.connect(outBus);
+  // also a faint upper octave for clarity, still centered
+  var up = ctx.createOscillator(); up.type='triangle'; up.frequency.value=f*2; var ug=ctx.createGain(); ug.gain.value=0;
+  up.connect(ug); ug.connect(g);
+  var dur = 1.1;
+  env(g.gain, 0.28, t, 0.05, 0.25, 0.7, 0.9, dur);
+  env(ug.gain, 0.05, t, 0.06, 0.3, 0.5, 0.8, dur);
+  carrier.start(t); mod.start(t); up.start(t);
+  var stop = t + dur + 1.2;
+  carrier.stop(stop); mod.stop(stop); up.stop(stop);
+}
+
+/* ---- BILLY: wide, bright, all colors ---- */
+function voiceBilly(kind){
+  var t = ctx.currentTime + 0.02;
+  if (kind === 'allcolors'){
+    // a wide spectral bloom — the colors as partials
+    var fund = 220;
+    var ratios = [1, 9/8, 5/4, 3/2, 7/4, 2, 9/4, 5/2];
+    for (var i=0;i<ratios.length;i++){
+      var lp = ctx.createBiquadFilter(); lp.type='lowpass';
+      lp.frequency.setValueAtTime(600, t); lp.frequency.linearRampToValueAtTime(4200, t+0.4); lp.Q.value=0.7;
+      lp.connect(outBus);
+      var pr = widePair(fund*ratios[i], i<4?'sawtooth':'triangle', 6 + (i%4)*3, lp);
+      var peak = 0.12 / (1 + i*0.35);
+      env(pr.g.gain, peak, t + i*0.012, 0.04, 0.5, 0.55, 1.6, 1.9);
+      pr.oL.start(t); pr.oR.start(t);
+      pr.oL.stop(t+3.8); pr.oR.stop(t+3.8);
+    }
+    return;
+  }
+  if (kind === 'hang'){
+    // "Who is Billy?" — a single wide tone that rises into a question and hangs
+    var f0 = 330;
+    var lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2200; lp.Q.value=1.1; lp.connect(outBus);
+    var pr = widePair(f0, 'triangle', 9, lp);
+    pr.oL.frequency.setValueAtTime(f0, t); pr.oR.frequency.setValueAtTime(f0, t);
+    // gentle upward question glide at the end
+    pr.oL.frequency.setValueAtTime(f0, t+1.6); pr.oR.frequency.setValueAtTime(f0, t+1.6);
+    pr.oL.frequency.linearRampToValueAtTime(f0*1.12, t+2.6);
+    pr.oR.frequency.linearRampToValueAtTime(f0*1.12, t+2.6);
+    env(pr.g.gain, 0.22, t, 0.12, 0.4, 0.8, 1.8, 2.7);
+    pr.oL.start(t); pr.oR.start(t); pr.oL.stop(t+5); pr.oR.stop(t+5);
+    return;
+  }
+  // default BILLY (flowers / open question): a bright wide triad, eager
+  var base = kind==='flowers' ? 262 : 294; // C4 / D4
+  var triad = [1, 5/4, 3/2];
+  for (var j=0;j<triad.length;j++){
+    var lp2 = ctx.createBiquadFilter(); lp2.type='lowpass'; lp2.frequency.value=3000; lp2.Q.value=0.6; lp2.connect(outBus);
+    var pr2 = widePair(base*triad[j], 'sawtooth', 5 + j*4, lp2);
+    env(pr2.g.gain, 0.13/(1+j*0.3), t + j*0.02, 0.03, 0.35, 0.5, 1.1, 1.4);
+    pr2.oL.start(t); pr2.oR.start(t); pr2.oL.stop(t+2.9); pr2.oR.stop(t+2.9);
+  }
+}
+
+/* ---------------- text rendering ---------------- */
+function renderBilly(text, host, kind){
+  var div = document.createElement('div');
+  div.className = 'line billy' + (kind==='allcolors'?' bloom':'') + (kind==='hang'?' hang':'');
+  var html = '';
+  for (var i=0;i<text.length;i++){
+    var ch = text[i];
+    if (ch === ' '){ html += '<span class="sp"></span>'; continue; }
+    var c = COLORS[Math.floor(Math.random()*COLORS.length)];
+    var rot = (Math.random()*16 - 8).toFixed(1);
+    var dy = (Math.random()*12 - 6).toFixed(1);
+    html += '<span class="gl" style="--r:'+rot+'deg; color:'+c+'; transform:rotate('+rot+'deg) translateY('+dy+'px)">'
+          + escapeHtml(ch) + '</span>';
+  }
+  div.innerHTML = html;
+  host.appendChild(div);
+  requestAnimationFrame(function(){ div.classList.add('show'); });
+}
+function renderBill(text, host){
+  var div = document.createElement('div');
+  div.className = 'line bill';
+  div.textContent = text;
+  host.appendChild(div);
+  requestAnimationFrame(function(){ div.classList.add('show'); });
+}
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function pushEcho(item){
+  var echo = document.getElementById('echo');
+  var span = document.createElement('div');
+  span.className = item.who==='bill' ? 'e-bill' : 'e-billy';
+  span.textContent = (item.who==='bill'?'\u2014 ':'') + item.text;
+  echo.appendChild(span);
+  while (echo.childNodes.length > 6) echo.removeChild(echo.firstChild);
+}
+
+/* ---------------- transport ---------------- */
+function doAdvance(){
+  var host = document.getElementById('lineHost');
+  // fade out current line into the echo log
+  var cur = host.querySelector('.line');
+  if (cur && idx >= 0 && idx < score.length){ pushEcho(score[idx]); }
+  host.innerHTML = '';
+
+  idx++;
+  if (idx >= score.length){
+    // open ending — the field continues; invite the set to begin
+    idx = score.length;
+    var end = document.createElement('div');
+    end.className = 'line bill show';
+    end.style.opacity = '.6';
+    end.innerHTML = '<span style="font-family:\'Caveat\',cursive; font-size:.8em; color:#6b3f2a;">( the field continues &mdash; begin the set )</span>';
+    host.appendChild(end);
+    setStatus('open — drone holding');
+    return;
+  }
+  var item = score[idx];
+  if (item.who === 'bill'){ renderBill(item.text, host); voiceBill(); }
+  else { renderBilly(item.text, host, item.kind); voiceBilly(item.kind); }
+  setStatus((idx+1) + ' / ' + score.length + '  ·  ' + (item.who==='bill'?'BILL':'BILLY'));
+}
+
+function manualAdvance(){
+  if (!started) return;
+  clearTimeout(performTimer);
+  doAdvance();
+  if (performing && idx < score.length) scheduleNext();
+}
+
+function nextDelay(){
+  // indeterminate Cagean-ish spacing keyed to what was just shown
+  var item = (idx>=0 && idx<score.length) ? score[idx] : null;
+  var base, span;
+  if (!item){ base = 3000; span = 1500; }
+  else if (item.kind === 'allcolors'){ base = 6500; span = 3500; }
+  else if (item.kind === 'hang'){ base = 7000; span = 4000; }
+  else if (item.who === 'bill'){ base = 2600; span = 1600; }   // answer comes fairly soon
+  else { base = 4200; span = 2600; }                            // longer breath after BILLY
+  return base + Math.random()*span;
+}
+function scheduleNext(){
+  clearTimeout(performTimer);
+  if (idx >= score.length) { performing=false; updatePerfBtn(); return; }
+  performTimer = setTimeout(function(){ doAdvance(); scheduleNext(); }, nextDelay());
+}
+
+function setStatus(s){ document.getElementById('status').textContent = s; }
+function updatePerfBtn(){
+  var b = document.getElementById('perfBtn');
+  if (performing){ b.classList.add('on'); b.textContent='Performing'; }
+  else { b.classList.remove('on'); b.textContent='Perform'; }
+}
+
+/* ---------------- meters ---------------- */
+function meterLoop(){
+  function tick(){
+    if (anL && anR){
+      anL.getByteTimeDomainData(meterBufL);
+      anR.getByteTimeDomainData(meterBufR);
+      document.getElementById('mL').style.width = (rms(meterBufL)*180).toFixed(1) + '%';
+      document.getElementById('mR').style.width = (rms(meterBufR)*180).toFixed(1) + '%';
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+function rms(buf){
+  var s=0; for (var i=0;i<buf.length;i++){ var v=(buf[i]-128)/128; s+=v*v; }
+  return Math.sqrt(s/buf.length);
+}
+
+/* ---------------- start / gesture (iOS) ---------------- */
+function begin(){
+  if (started) return;
+  try { buildAudio(); } catch(e){ alert('Audio could not start: ' + e.message); return; }
+  if (ctx.state === 'suspended') ctx.resume();
+  started = true;
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('bar').classList.remove('dim');
+  setStatus('ready');
+  // first line after a short held breath
+  setTimeout(function(){ doAdvance(); }, 900);
+}
+
+function resetAll(){
+  clearTimeout(performTimer);
+  performing = false; updatePerfBtn();
+  idx = -1;
+  document.getElementById('lineHost').innerHTML = '';
+  document.getElementById('echo').innerHTML = '';
+  setStatus('reset');
+  setTimeout(function(){ doAdvance(); }, 500);
+}
+
+/* ---------------- wiring ---------------- */
+document.getElementById('begin').addEventListener('click', begin);
+document.getElementById('begin').addEventListener('touchend', function(e){ e.preventDefault(); begin(); }, {passive:false});
+
+document.getElementById('nextBtn').addEventListener('click', function(e){ e.stopPropagation(); manualAdvance(); });
+document.getElementById('resetBtn').addEventListener('click', function(e){ e.stopPropagation(); resetAll(); });
+document.getElementById('perfBtn').addEventListener('click', function(e){
+  e.stopPropagation();
+  performing = !performing; updatePerfBtn();
+  if (performing) scheduleNext(); else clearTimeout(performTimer);
+});
+document.getElementById('vol').addEventListener('input', function(){
+  if (master) master.gain.value = (this.value/100) * 0.9;
+});
+
+/* advance by tapping the page (not the control bar) */
+function pageTap(e){
+  if (!started) return;
+  if (e.target.closest && e.target.closest('#bar')) return;
+  manualAdvance();
+}
+document.getElementById('wrap').addEventListener('pointerup', pageTap);
+
+/* SPACE = advance, P = perform toggle */
+window.addEventListener('keydown', function(e){
+  if (e.code === 'Space'){ e.preventDefault(); if(started) manualAdvance(); }
+  else if (e.key === 'p' || e.key === 'P'){ document.getElementById('perfBtn').click(); }
+});
+
+/* auto-dim the control bar during performance, wake on move */
+var dimT;
+function wakeBar(){
+  document.getElementById('bar').classList.remove('dim');
+  clearTimeout(dimT);
+  dimT = setTimeout(function(){ if (started && performing) document.getElementById('bar').classList.add('dim'); }, 3500);
+}
+window.addEventListener('pointermove', wakeBar);
+
+/* labels */
+(function(){
+  var d = new Date();
+  var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var p = function(n){ return (n<10?'0':'')+n; };
+  document.getElementById('datelabel').textContent =
+    days[d.getDay()] + ' ' + p(d.getMonth()+1) + '\u00b7' + p(d.getDate()) + '\u00b7' + String(d.getFullYear()).slice(2);
+  // animate the gate title letters in color
+  var title = 'ALL COLORS';
+  var host = document.getElementById('gateTitle');
+  for (var i=0;i<title.length;i++){
+    var ch = title[i];
+    var s = document.createElement('span');
+    if (ch===' '){ s.style.width='.4em'; s.style.display='inline-block'; }
+    else { s.textContent = ch; s.style.color = COLORS[i % COLORS.length];
+           s.style.transform = 'rotate('+(Math.random()*14-7).toFixed(1)+'deg)'; }
+    host.appendChild(s);
+  }
+})();
+</script>
+</body>
+</html>

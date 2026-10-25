@@ -1,0 +1,6 @@
+# morph_engine.py dependencies
+# (ffmpeg must also be installed and on PATH: `brew install ffmpeg`)
+numpy>=1.23
+opencv-python>=4.6
+scipy>=1.9
+librosa>=0.10   # only needed for --audio-react modes
