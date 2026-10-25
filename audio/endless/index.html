@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Endless Station</title><style>
+:root{--paper:#f4f1ea;--ink:#1d1b17;--muted:#6b665c;--rule:#d8d2c4}@media (prefers-color-scheme:dark){:root{--paper:#16150f;--ink:#efe9dc;--muted:#a39d90;--rule:#38352d}}
+body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.5 Georgia,serif;padding:40px 16px}main{max-width:640px;margin:0 auto}
+h1{font-weight:400;font-size:2rem;margin:0 0 4px}p{color:var(--muted)}a.card{display:block;border:1px solid var(--rule);border-radius:10px;padding:16px 18px;margin:12px 0;color:inherit;text-decoration:none}
+a.card:hover{border-color:var(--ink)}a.card b{font-size:1.25rem;font-weight:400}a.card span{display:block;color:var(--muted);font-size:.92rem}code{font-size:.85em}</style></head><body><main>
+<h1>Endless Station</h1><p id="mode">Three endless, generative pages built from public-domain music. Everything they need is in this folder.</p>
+<a class="card" href="aggregate/index.html"><b>Aggregate Field</b><span>Modern methods after Cage, Feldman, Babbitt, Eno, Roach, Glass, Riley, Adams, Pärt, Reich, Fripp and the public-domain modernists, layered on their own clocks, with a counting chorus.</span></a>
+<a class="card" href="symphony/index.html"><b>Endless Symphony</b><span>New symphonies planned after the public-domain catalog, with polytonality, microtones and abstract rhythm.</span></a>
+<a class="card" href="sonata/index.html"><b>Endless Sonata</b><span>New piano pieces grown from 400 works and your Beethoven favorites, on piano, harpsichord, organ and more.</span></a>
+<p>Opened from disk, the pages play with every instrument. Run <code>Endless Station.command</code> to add spoken announcements in Dispatch and a now-playing file for OBS.</p>
+<script>if(location.protocol!=='file:')fetch('/api/status').then(r=>r.json()).then(s=>{document.getElementById('mode').textContent='Station running on this Mac. Announcements: '+(s.mode==='dispatch'?'Dispatch':s.mode==='say'?'Mac voice':'off')+'.';}).catch(()=>{});</script>
+</main></body></html>
