@@ -1,0 +1,64 @@
+{
+  "instrument": "DUDLEY",
+  "version": "1.0",
+  "rendered": "2026-09-26T04:15:39-0400",
+  "seconds_to_render": 0.88,
+  "entropy": "os.urandom",
+  "path": "breakpoints 0:1,1:2",
+  "grains_scheduled": 480,
+  "grains_sounded": 480,
+  "duration_s": 8.0,
+  "sr": 44100,
+  "args": {
+    "carrier": [
+      "white.wav"
+    ],
+    "donor": [
+      "res500.wav",
+      "res3000.wav"
+    ],
+    "output": "peak_cepstral.wav",
+    "morph": "cepstral",
+    "path": "0:1,1:2",
+    "texture": 0.0,
+    "dynamics": "donor",
+    "grain_ms": 80.0,
+    "grain_jitter": 0.3,
+    "density": 60.0,
+    "onset_jitter": 1.0,
+    "scan": "stretch",
+    "spray_ms": 30.0,
+    "pitch": 0.0,
+    "pitch_spread": 0.0,
+    "width": 0.8,
+    "lifter_ms": 1.2,
+    "max_gain_db": 36.0,
+    "grid": 384,
+    "duration": null,
+    "sr": 44100,
+    "peak_db": -1.0,
+    "fps": 30.0,
+    "seed": null
+  },
+  "carriers": [
+    {
+      "path": "white.wav",
+      "sha1": "da75a59c06922a109b0d2343e7cf753e660ce0cd"
+    }
+  ],
+  "donors": [
+    {
+      "path": "res500.wav",
+      "sha1": "b62f58bc5d0faeb4eb800c607a655a1e598993a4"
+    },
+    {
+      "path": "res3000.wav",
+      "sha1": "f0a9678ab510f0f917faacd02f414c1c895bfbc1"
+    }
+  ],
+  "output": {
+    "path": "peak_cepstral.wav",
+    "sha1": "73bb13d6c8a0cc3bc5be6eb6ee99cc3d8edbfcc1"
+  },
+  "schedule": "peak_cepstral.schedule.json"
+}

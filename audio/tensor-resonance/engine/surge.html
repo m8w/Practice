@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Surge Patch Changer</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#090a0e;--panel:#10131b;--panel2:#161a25;--line:#252c3d;--txt:#dde2ec;--dim:#7d879c;--acc:#f0a63a;--acc2:#4fc3c3;--bad:#ff4d5e;--ok:#8be36b}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#090a0e}}
+:root[data-theme="dark"]{--bg:#090a0e}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:12px/1.5 'IBM Plex Mono',ui-monospace,monospace}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:14px;letter-spacing:.2em} h1 b{color:var(--acc)}
+.badge{padding:3px 9px;border-radius:10px;border:1px solid var(--line);font-size:11px}
+.badge.ok{border-color:var(--ok);color:var(--ok)} .badge.no{border-color:var(--dim);color:var(--dim)}
+main{display:grid;gap:14px;padding:14px 16px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;min-width:0}
+.card h3{margin:0 0 10px;font-size:11px;letter-spacing:.16em;color:var(--dim)}
+button,select,input{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:5px 9px}
+button{cursor:pointer} button:hover{border-color:var(--dim)} button.go{border-color:var(--acc);color:var(--acc);font-weight:600}
+button.on{background:#2b1d07;border-color:var(--acc);color:#ffd28a}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.row{display:grid;grid-template-columns:100px 1fr;gap:8px;align-items:center;margin:5px 0}
+.row>*{min-width:0}
+.list{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:6px;background:#07080b}
+.list div{padding:3px 8px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list div:hover{background:#1a2030} .list div.cur{background:#2b1d07;color:#ffd28a}
+.note{color:var(--dim);font-size:11px;margin:6px 0}
+.log{height:150px;overflow:auto;font-size:11px;background:#07080b;border:1px solid var(--line);border-radius:6px;padding:6px}
+.log .er{color:var(--bad)} .log .ok{color:var(--ok)}
+table{border-collapse:collapse;width:100%;font-size:11px} td{padding:2px 6px;border-bottom:1px solid #1a2030}
+.now{font-size:15px;color:var(--acc);margin:4px 0 8px;min-height:22px;overflow-wrap:anywhere}
+code{color:var(--acc2)}
+</style>
+</head>
+<body>
+<header>
+  <h1><b>SURGE XT</b> PATCH CHANGER</h1>
+  <span id="engBadge" class="badge no">helper: looking…</span>
+  <span id="midiBadge" class="badge no">MIDI: off</span>
+</header>
+<main>
+  <section class="card">
+    <h3>OSC · LOAD ANY PATCH BY NAME</h3>
+    <div class="now" id="now">—</div>
+    <div class="row"><span>SURGE ON</span><input id="oscHost" value="127.0.0.1" title="127.0.0.1 = this Mac; or the IP of the Mac running Surge"></div>
+    <div class="row"><span>SURGE PORT</span><input id="oscPort" type="number" value="53280"></div>
+    <div class="btns"><button id="oRandom" class="go">RANDOM PATCH</button><button id="oDecr">◀ PREV</button><button id="oIncr">NEXT ▶</button>
+      <button id="oDecrCat">◀ CATEGORY</button><button id="oIncrCat">CATEGORY ▶</button></div>
+    <div class="row"><span>CATEGORY</span><select id="cat"></select></div>
+    <div class="row"><span>FILTER</span><input id="filter" placeholder="type to search all patches"></div>
+    <div class="btns"><button id="oRandCat">RANDOM IN CATEGORY</button><button id="libRefresh">RESCAN LIBRARY</button></div>
+    <div class="list" id="plist"></div>
+    <p class="note"><b>Setup, once:</b> in Surge XT's menu, open the OSC settings and switch <b>OSC input</b> on (port 53280).
+      A web page can't send OSC by itself, so keep <code>./surge.sh</code> running (or the engine, <code>./run.sh</code>); either one does it.
+      OSC never touches MIDI, so it can't collide with IAC Bus 1. To change Surge on <b>another Mac</b>, put that Mac's IP in SURGE ON (Surge there needs OSC input on too).</p>
+  </section>
+
+  <section class="card">
+    <h3>MIDI · BANK SELECT + PROGRAM CHANGE</h3>
+    <div class="btns"><button id="mEnable">ENABLE MIDI</button></div>
+    <div class="row"><span>PORT</span><select id="mPort"><option value="">— enable MIDI first —</option></select></div>
+    <div class="row"><span>CHANNEL</span><select id="mCh"></select></div>
+    <div class="row"><span>BANK (CC0)</span><select id="mBank"></select></div>
+    <div class="row"><span>PROGRAM</span><input id="mProg" type="number" min="0" max="127" value="0"></div>
+    <div class="btns"><button id="mSend" class="go">SEND</button><button id="mPrev">◀</button><button id="mNext">▶</button><button id="mRandom">RANDOM</button><button id="mRandAny">RANDOM ANY BANK</button></div>
+    <p class="note" id="mapNote"></p>
+    <div class="btns"><button id="fill">FILL SURGE'S MIDI PROGRAMS FOLDER</button></div>
+    <div id="fillOut" class="note"></div>
+    <p class="note">How Surge actually does it (from its source): a program change only loads a patch from
+      <code>Surge XT/Patches/MIDI Programs/</code> in Surge's user folder (yours is in ~/Music). <b>Bank 0</b> = the patches loose in that folder, <b>bank 1, 2, …</b> = its subfolders in name order, 128 patches each at most.
+      The folder starts empty, so program changes do nothing until it is filled; an empty slot is ignored.
+      <b>FILL</b> (or <code>python surge.py --midi-programs</code>) copies the factory patches in, one category per bank. <b>Restart Surge afterwards.</b>
+      Use the <b>standalone</b> Surge XT app: the VST3 build doesn't receive program changes, and inside Logic program changes may not reach it.
+      Give this its <b>own MIDI lane</b> (an IAC bus named <b>Tensor</b>), not IAC Bus 1.</p>
+  </section>
+
+  <section class="card">
+    <h3>AUTO CHANGE</h3>
+    <div class="row"><span>ROUTE</span><select id="aRoute"><option value="osc">OSC (any patch)</option><option value="midi">MIDI (current bank)</option><option value="midiany">MIDI (any bank)</option></select></div>
+    <div class="row"><span>SCOPE (OSC)</span><select id="aScope"><option value="all">whole library</option><option value="cat">selected category</option></select></div>
+    <div class="row"><span>EVERY ~ s</span><input id="aSecs" type="number" min="0.5" step="0.5" value="8"></div>
+    <div class="row"><span>TIMING</span><select id="aTiming"><option value="arr">arrhythmic (random gaps around that)</option><option value="reg">regular</option></select></div>
+    <label class="note"><input type="checkbox" id="aSigma"> also on tensor σ surges (when the engine is running)</label>
+    <div class="row"><span>SURGE AT</span><input id="aThr" type="number" step="0.05" value="0.9"></div>
+    <div class="btns"><button id="aStart" class="go">▶ START</button><button id="aStop">■ STOP</button></div>
+    <h3 style="margin-top:12px">LOG</h3><div class="log" id="log"></div>
+  </section>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+let sock = null, LIB = null, MAP = null, midi = null, auto = null, lastSurge = 0;
+const log = (m, c = '') => { const d = document.createElement('div'); d.className = c; d.textContent = new Date().toTimeString().slice(0, 8) + '  ' + m; $('log').prepend(d); while ($('log').children.length > 100) $('log').lastChild.remove(); };
+
+// ------------------------------------------------------------ helper (OSC route)
+// The page needs a helper to send OSC: ./surge.sh (port 5057) or the engine ./run.sh (5055).
+// Served by one of them, it uses that; opened as a file, it looks for either on this Mac.
+let API = null;
+function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+async function probe(base) {
+  try { const r = await fetch(base + 'health', { cache: 'no-store' }); return r.ok ? await r.json() : null; } catch (e) { return null; }
+}
+async function findHelper() {
+  const bases = /^https?:/.test(location.protocol) ? [new URL('./', location.href).href] : [];
+  bases.push('http://127.0.0.1:5057/', 'http://127.0.0.1:5058/', 'http://127.0.0.1:5055/', 'http://127.0.0.1:5056/');
+  for (const b of bases) { const h = await probe(b); if (h) return [b, h]; }
+  return [null, null];
+}
+async function call(action, body) {
+  if (!API) { log('OSC needs the helper: run ./surge.sh (or ./run.sh), then press RESCAN LIBRARY', 'er'); return null; }
+  try {
+    const r = await fetch(API + 'api/surge/' + action, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+    return await r.json();
+  } catch (e) { log('helper stopped answering: ' + e.message, 'er'); setBadge(false); API = null; return null; }
+}
+function setBadge(ok, text) { $('engBadge').textContent = ok ? text : 'helper: not running (OSC off) · start ./surge.sh'; $('engBadge').className = 'badge ' + (ok ? 'ok' : 'no'); }
+async function connect() {
+  const [base, h] = await findHelper();
+  if (!base) { setBadge(false); log('no helper found: run ./surge.sh in Terminal, then press RESCAN LIBRARY', 'er'); return; }
+  API = base; setBadge(true, `helper: ${h.surge_helper ? 'surge.sh' : 'engine'} · OSC on`);
+  refreshLib(false);
+  if (h.tensorly !== undefined) {           // the engine: also listen for σ surges
+    try {
+      if (!window.io) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js');
+      const sock = io(base, { transports: ['websocket', 'polling'] });
+      sock.on('state', st => {
+        if (!auto || !$('aSigma').checked || !st.vel) return;
+        const v = Math.max(...st.vel.map(Math.abs)), now = performance.now();
+        if (v > +$('aThr').value && now - lastSurge > 2500) { lastSurge = now; log(`σ surge ${v.toFixed(2)}`); change(); }
+      });
+    } catch (e) {}
+  }
+}
+async function refreshLib(rescan) {
+  if (!API) { await connect(); if (!API) return; if (!rescan) return; }
+  const lib = await call('library' + (rescan ? '?refresh=1' : ''));
+  if (!lib) return;
+  LIB = lib; $('oscPort').value = lib.port || 53280; if (lib.host) $('oscHost').value = lib.host;
+  $('cat').innerHTML = lib.categories.map(c => `<option value="${c.id}">${c.label} (${c.patches.length})</option>`).join('');
+  renderList();
+  log(lib.factory ? `library: ${lib.count} patches · ${lib.factory}` : 'Surge XT factory patches not found on this computer', lib.factory ? 'ok' : 'er');
+  if (lib.bank_map) setMap(lib.bank_map);
+}
+function renderList() {
+  if (!LIB) return;
+  const q = $('filter').value.trim().toLowerCase();
+  let items;
+  if (q) items = LIB.categories.flatMap(c => c.patches.filter(p => p.name.toLowerCase().includes(q)).map(p => [p, c]));
+  else { const c = LIB.categories[+$('cat').value || 0]; items = c ? c.patches.map(p => [p, c]) : []; }
+  $('plist').innerHTML = '';
+  items.slice(0, 800).forEach(([p, c]) => {
+    const d = document.createElement('div'); d.textContent = q ? `${p.name}  ·  ${c.label}` : p.name; d.dataset.id = p.id;
+    d.onclick = () => oscLoad(p.id); $('plist').appendChild(d);
+  });
+}
+async function osc(action, extra = {}) {
+  const r = await call('osc', { action, port: +$('oscPort').value, host: $('oscHost').value.trim(), ...extra });
+  if (!r) return null;
+  if (r.ok) { log(`OSC ${r.address}${r.arg ? ' ' + r.arg : ''} → ${r.to}`, 'ok'); $('now').textContent = r.name || r.address; }
+  else log('OSC: ' + r.error, 'er');
+  return r;
+}
+function oscLoad(id) { [...$('plist').children].forEach(d => d.classList.toggle('cur', d.dataset.id === id)); return osc('load', { id }); }
+function randomId(scope) {
+  if (!LIB || !LIB.categories.length) return null;
+  const cats = scope === 'cat' ? [LIB.categories[+$('cat').value || 0]] : LIB.categories;
+  const all = cats.flatMap(c => c.patches); if (!all.length) return null;
+  return all[Math.floor(Math.random() * all.length)].id;
+}
+$('oRandom').onclick = () => { const id = randomId('all'); id ? oscLoad(id) : osc('random'); };
+$('oRandCat').onclick = () => { const id = randomId('cat'); if (id) oscLoad(id); };
+$('oIncr').onclick = () => osc('incr'); $('oDecr').onclick = () => osc('decr');
+$('oIncrCat').onclick = () => osc('incr_category'); $('oDecrCat').onclick = () => osc('decr_category');
+$('cat').onchange = renderList; $('filter').oninput = renderList; $('libRefresh').onclick = () => refreshLib(true);
+
+// ------------------------------------------------------------ MIDI route
+for (let c = 1; c <= 16; c++) $('mCh').insertAdjacentHTML('beforeend', `<option value="${c - 1}">ch ${c}</option>`);
+function setMap(banks) {
+  MAP = banks;
+  $('mBank').innerHTML = banks.map(b => `<option value="${b.bank}">${b.bank} · ${b.label} (${b.programs ? b.programs.length : b.count})</option>`).join('');
+  $('mapNote').textContent = `Bank map loaded: ${banks.length} banks. Random stays inside each bank's real patch count.`;
+}
+function defaultBanks() {
+  $('mBank').innerHTML = [...Array(128).keys()].map(b => `<option value="${b}">${b}${b === 0 ? ' · loose patches in MIDI Programs' : ' · subfolder ' + b}</option>`).join('');
+  $('mapNote').textContent = 'No bank map yet: FILL the folder (or run python surge.py --midi-programs) so each bank\'s size is known.';
+}
+defaultBanks();
+
+async function midiEnable() {
+  if (!navigator.requestMIDIAccess) { log('this browser has no Web MIDI (use Chrome or Edge)', 'er'); return; }
+  try {
+    midi = await navigator.requestMIDIAccess();
+    const fill = () => { const prev = $('mPort').value; $('mPort').innerHTML = '<option value="">— port —</option>' + [...midi.outputs.values()].map(o => `<option value="${o.id}">${o.name}</option>`).join(''); $('mPort').value = prev; };
+    fill(); midi.onstatechange = fill;
+    const own = [...midi.outputs.values()].find(o => /tensor/i.test(o.name)); if (own && !$('mPort').value) $('mPort').value = own.id; $('midiBadge').textContent = 'MIDI: on'; $('midiBadge').className = 'badge ok'; log('MIDI ready', 'ok');
+  } catch (e) { log('MIDI denied: ' + e.message, 'er'); }
+}
+$('mEnable').onclick = midiEnable;
+const out = () => midi && $('mPort').value ? midi.outputs.get($('mPort').value) : null;
+const bankCount = b => { const m = MAP && MAP.find(x => x.bank === b); return m ? (m.programs ? m.programs.length : m.count) : 128; };
+function midiSend(bank, prog) {
+  const o = out(); if (!o) { log('pick a MIDI port (ENABLE MIDI, then PORT): use its own lane, e.g. an IAC bus named Tensor, not Bus 1', 'er'); return; }
+  const ch = +$('mCh').value;
+  o.send([0xB0 | ch, 0, bank]);           // Bank Select MSB: Surge only reads CC0
+  setTimeout(() => o.send([0xC0 | ch, prog]), 15);
+  $('mBank').value = bank; $('mProg').value = prog;
+  const m = MAP && MAP.find(x => x.bank === bank), name = m && m.programs ? m.programs[prog] : null;
+  $('now').textContent = name ? `${name}  (bank ${bank}, program ${prog})` : `bank ${bank} · program ${prog}`;
+  log(`MIDI CC0=${bank} PC=${prog}${name ? ' · ' + name : ''} → ${o.name} ch ${ch + 1}`, 'ok');
+}
+$('mSend').onclick = () => midiSend(+$('mBank').value, clamp(+$('mProg').value, 0, 127));
+$('mPrev').onclick = () => { const b = +$('mBank').value, n = bankCount(b); midiSend(b, (+$('mProg').value - 1 + n) % n); };
+$('mNext').onclick = () => { const b = +$('mBank').value, n = bankCount(b); midiSend(b, (+$('mProg').value + 1) % n); };
+function midiRandom(anyBank) {
+  let b = +$('mBank').value;
+  if (anyBank) { const banks = MAP ? MAP.map(x => x.bank) : [0]; b = banks[Math.floor(Math.random() * banks.length)]; }
+  midiSend(b, Math.floor(Math.random() * bankCount(b)));
+}
+$('mRandom').onclick = () => midiRandom(false); $('mRandAny').onclick = () => midiRandom(true);
+$('fill').onclick = async () => {
+  if (!API) { log('FILL needs the helper (./surge.sh); or run: python3 surge.py --midi-programs', 'er'); return; }
+  $('fillOut').textContent = 'copying factory patches…';
+  const r = await call('fill', {});
+  if (!r || r.error) { $('fillOut').textContent = 'failed: ' + (r && r.error); log('fill failed', 'er'); return; }
+  setMap(r.banks);
+  $('fillOut').innerHTML = `Filled ${r.dests.map(d => `<code>${d}</code>`).join(' and ')}. <b>Quit and reopen Surge XT now</b>: it builds its program table only at start. Its patch browser should then show a MIDI Programs category.<table>${r.banks.map(b => `<tr><td>bank ${b.bank}</td><td>${b.count}</td><td>${b.label}</td></tr>`).join('')}</table>`;
+  log(`MIDI Programs filled: ${r.banks.length} banks`, 'ok');
+};
+
+// ------------------------------------------------------------ auto
+function change() {
+  const r = $('aRoute').value;
+  if (r === 'osc') { const id = randomId($('aScope').value); id ? oscLoad(id) : osc('random'); }
+  else midiRandom(r === 'midiany');
+}
+function schedule() {
+  if (!auto) return;
+  const m = Math.max(0.5, +$('aSecs').value), arr = $('aTiming').value === 'arr';
+  const wait = arr ? -Math.log(1 - Math.random()) * m : m;     // exponential gaps: no pulse
+  auto = setTimeout(() => { change(); schedule(); }, wait * 1000);
+}
+$('aStart').onclick = () => { if (auto) return; auto = true; schedule(); $('aStart').classList.add('on'); log('auto change on'); };
+$('aStop').onclick = () => { if (auto && auto !== true) clearTimeout(auto); auto = null; $('aStart').classList.remove('on'); log('auto change off'); };
+
+connect();
+log('ready');
+</script>
+</body>
+</html>

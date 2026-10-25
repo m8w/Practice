@@ -1,0 +1,2008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tensor Resonance Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07080c; --panel:#0e1118; --panel2:#141824; --line:#232a3b; --txt:#d8deea; --dim:#7c869c;
+  --acc:#ff3b5c; --acc2:#3b8cff; --acc3:#9be22d; --warn:#ffd23b;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){ --bg:#07080c; } }
+:root[data-theme="dark"]{ --bg:#07080c; }
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:12px/1.45 'IBM Plex Mono',ui-monospace,monospace}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,#120a10,#0a0f1c 50%,#0d140a)}
+h1{font-size:14px;letter-spacing:.18em;margin:0 12px 0 0;white-space:nowrap}
+h1 b{color:var(--acc)} h1 i{color:var(--acc2);font-style:normal} h1 u{color:var(--acc3);text-decoration:none}
+button,select,input[type=text],input[type=number]{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:5px 9px}
+button{cursor:pointer;letter-spacing:.06em} button:hover{border-color:var(--dim)}
+button.on{background:#2a0d15;border-color:var(--acc);color:#fff}
+button.big{padding:7px 16px;font-weight:600}
+.badge{padding:3px 8px;border-radius:10px;border:1px solid var(--line);font-size:11px;letter-spacing:.08em}
+.badge.server{border-color:var(--acc3);color:var(--acc3)} .badge.local{border-color:var(--acc2);color:var(--acc2)}
+.sp{flex:1}
+label.inl{display:flex;gap:6px;align-items:center;color:var(--dim)}
+nav{display:flex;overflow-x:auto;border-bottom:1px solid var(--line);background:var(--panel)}
+nav button{border:0;border-radius:0;background:none;padding:10px 14px;color:var(--dim);white-space:nowrap;border-bottom:2px solid transparent}
+nav button.act{color:#fff;border-bottom-color:var(--acc)}
+main{padding:14px 16px}
+.tab{display:none} .tab.act{display:block}
+.grid{display:grid;gap:14px;grid-template-columns:minmax(260px,340px) 1fr}
+@media(max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+.card h3{margin:0 0 10px;font-size:11px;letter-spacing:.16em;color:var(--dim);font-weight:600}
+.row{display:grid;grid-template-columns:118px minmax(0,1fr) 58px;gap:8px;align-items:center;margin:5px 0}
+.row select,.row input[type=text]{min-width:0;width:100%}
+.row span:last-child{text-align:right;color:var(--warn)}
+input[type=range]{width:100%;accent-color:var(--acc)}
+canvas{display:block;width:100%;background:#05060a;border:1px solid var(--line);border-radius:6px}
+.cv-tall{height:min(68vh,620px)} .cv-mid{height:360px} .cv-small{height:200px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+td,th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{color:var(--dim);font-weight:400} td:first-child,th:first-child{text-align:left}
+.tbl{overflow-x:auto}
+.note{color:var(--dim);font-size:11px;margin:8px 0 0}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+iframe{width:100%;height:min(78vh,820px);border:1px solid var(--line);border-radius:6px;background:#000}
+.empty{display:flex;align-items:center;justify-content:center;height:300px;border:1px dashed var(--line);border-radius:6px;color:var(--dim);text-align:center;padding:20px}
+.log{height:220px;overflow:auto;font-size:11px;background:#05060a;border:1px solid var(--line);border-radius:6px;padding:6px}
+.log div{white-space:nowrap} .log .ev{color:var(--acc3)} .log .er{color:var(--acc)}
+.chk{display:flex;gap:6px;align-items:center;margin:4px 0;color:var(--txt)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.warnbox{border-color:#5a4a10;background:#141006;color:#e9d58a}
+button.rec{border-color:#6b1020;color:#ff5a6e} button.rec.on{background:#ff1f3d;color:#fff;border-color:#ff1f3d;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.6}}
+#recTime{font-variant-numeric:tabular-nums;color:#ff5a6e;min-width:52px}
+.bar{height:8px;background:#05060a;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:8px 0 4px}
+.bar>div{height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--warn));transition:width .2s}
+.src{display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;padding:3px 0;border-bottom:1px solid #161b27}
+.src span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.src button{padding:2px 7px;font-size:11px}
+.src button.c.on{background:#3a2a08;border-color:#e8a33d;color:#ffd38a} .src button.d.on{background:#0a2d2d;border-color:#5fb3b3;color:#aef0f0}
+.grp{color:var(--dim);font-size:10px;letter-spacing:.14em;margin:10px 0 2px}
+.srclist{max-height:52vh;overflow:auto}
+.radio{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0}
+.radio label{display:flex;gap:4px;align-items:center}
+audio{width:100%;margin-top:6px}
+.takes a{color:var(--acc2)}
+</style>
+</head>
+<body>
+<header>
+  <h1><b>TENSOR</b> <i>RESONANCE</i> <u>ENGINE</u></h1>
+  <button id="btnRun" class="big">▶ START</button>
+  <button id="btnAudio">♪ AUDIO OFF</button>
+  <button id="btnRec" class="big rec" title="record every engine as separate tracks">● REC</button><span id="recTime"></span>
+  <label class="inl">VOL <input id="vol" type="range" min="0" max="1" step="0.01" value="0.22" style="width:110px"></label>
+  <span class="sp"></span>
+  <span id="srcBadge" class="badge local">LOCAL ENGINE</span>
+  <input id="srvUrl" type="text" value="http://127.0.0.1:5055" style="width:170px" aria-label="Python server URL">
+  <button id="btnSrv">CONNECT PY</button>
+</header>
+<nav id="tabs"></nav>
+<main>
+
+<!-- 1 TENSOR EDITOR -->
+<section class="tab" data-name="1 · TENSOR">
+  <div class="grid">
+    <div>
+      <div class="card"><h3>SLICE WEIGHTS — T × w<sub>color</sub> × w<sub>loud</sub> × w<sub>freq</sub></h3><div id="wSliders"></div></div>
+      <div class="card" style="margin-top:14px"><h3>IN-BETWEEN SLOTS — where each sits between its neighbours</h3>
+        <label class="chk"><input type="checkbox" id="blFollow"> follow the tensor (each leans toward its stronger neighbour)</label>
+        <div id="blSliders"></div>
+        <p class="note">0 = like the left neighbour, 1 = like the right. PURPLE blends RED's saw into BLUE's sine; GREEN blends BLUE's sine into YELLOW's triangle;
+          LOUD~SOFT and SOFT~MID blend level and attack; F₁·₂ and F₂·₃ set drift scales between 0.5 · 1 · 2.</p>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>TENSOR FLOW</h3>
+        <div class="row"><span>FLOW</span><select id="flowSel"><option value="relax">v2 · relax + attention</option><option value="classic">classic · coupling</option></select><span></span></div>
+        <div id="fSliders"></div>
+        <div class="btns"><button id="bEpoch">NEW EPOCH</button></div>
+        <p class="note" id="flowNote"></p>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>ENGINE</h3><div id="pSliders"></div>
+        <div class="btns"><button id="bReset">RESET TENSOR</button><button id="bReroll">RE-ROLL ALL</button><button id="bKick">KICK</button></div>
+      </div>
+    </div>
+    <div>
+    <div class="card">
+      <h3>TENSOR SLICES 5×5×5 — T[color][loudness][frequency] · click +kick · shift-click −kick</h3>
+      <canvas id="cvSlices" class="cv-mid"></canvas>
+      <p class="note">Each slice is one COLOR (RED · PURPLE · BLUE · GREEN · YELLOW). Rows = LOUD · LOUD~SOFT · SOFT · SOFT~MID · MIDDLE, columns = frequency bands F₁ · F₁·₂ · F₂ · F₂·₃ · F₃.
+        The in-between slots (purple, green, and the two in-between rows and columns) are variable blends of their neighbours: set them on the left, or let them follow the tensor.
+        Tucker/HOSVD splits the tensor into 3 modes × 5 singular values = 15 σ. Each σ owns one triad of three unaligned microtonal frequencies.
+        In the classic flow, timbre comes from the COLOR factor, envelope from the LOUDNESS factor, drift scale from the FREQUENCY factor.
+        In the v2 flow, each triad's query attends over all 125 cells, and they come from where its attention lands.</p>
+    </div>
+    <div class="card" id="flowCard" style="margin-top:14px">
+      <h3>FLOW READOUT — relaxation clock · cross-attention between modes · where each triad listens · aspects</h3>
+      <canvas id="cvFlow" style="height:480px"></canvas>
+      <p class="note">Top left: the six cross-attention maps (rows = the querying mode's slices, columns = the other mode's slices).
+        Right: each triad's attention over the 125 cells, grouped by COLOR slice (no fixed alignment); its source is its own σ, another σ (←) or a free query (∗), redrawn every epoch.
+        Bottom: brightness opens the high end (and sends CC74), fluency scales the drift, prosody scales how often triads re-roll;
+        w is each σ's equation of state, and a triad re-rolls when w rises through −1 (phantom crossing, flashes white).</p>
+    </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2 SIGMA TRAJECTORIES -->
+<section class="tab" data-name="2 · σ TRAJECTORIES">
+  <div class="card"><h3>15 SINGULAR VALUES · last 20 s · arrows = dσ/dt</h3><canvas id="cvTraj" class="cv-mid"></canvas></div>
+  <div class="card tbl" style="margin-top:14px"><h3>LIVE STATE</h3><table id="tblState"></table></div>
+</section>
+
+<!-- 3 FREQUENCY MANIFOLD (helix) -->
+<section class="tab" data-name="3 · FREQ HELIX">
+  <div class="card"><h3>FREQUENCY MANIFOLD · 20 Hz → 20 kHz log helix · 45 live frequencies · triangles = triads</h3>
+  <canvas id="cvHelix" class="cv-tall"></canvas></div>
+</section>
+
+<!-- 4 CAYLEY XI -->
+<section class="tab" data-name="4 · CAYLEY XI">
+  <div class="grid">
+    <div>
+      <div class="card"><h3>EMBEDDED CONTROL (direct)</h3>
+        <div class="btns"><button id="cayLoad">LOAD cayleyXI.html</button></div>
+        <input type="file" id="cayFile" accept=".html,.htm" hidden>
+        <p class="note" id="cayStatus">Not loaded. Loads from the server folder if present, otherwise pick the file.</p>
+        <label class="chk"><input type="checkbox" id="cayOn" checked> drive sliders from σ</label>
+        <label class="chk"><input type="checkbox" id="cSpin" checked> SPIN ← σ dominance, COLOR mode</label>
+        <label class="chk"><input type="checkbox" id="cShift" checked> SHIFT Δ ← σ dominance, LOUDNESS mode</label>
+        <label class="chk"><input type="checkbox" id="cDepth" checked> DEPTH ← σ dominance, FREQUENCY mode</label>
+        <div class="row"><span>AMOUNT</span><input type="range" id="cayAmt" min="0" max="1" step="0.01" value="1"><span id="cayAmtV">1.00</span></div>
+        <div class="row"><span>SMOOTH</span><input type="range" id="cayS" min="0" max="0.98" step="0.01" value="0.85"><span id="caySV">0.85</span></div>
+        <div id="cayVals" class="note"></div>
+        <p class="note">Press POWER inside CAYLEY XI once (browsers need a click inside the frame to start its audio).</p>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>MIDI ROUTE (external CAYLEY XI)</h3>
+        <label class="chk"><input type="checkbox" id="cayMidiOn"> send to CAYLEY XI via MIDI</label>
+        <div class="row"><span>PORT</span><select id="cayPort"></select><span></span></div>
+        <div class="row"><span>CHANNEL</span><select id="cayCh"></select><span></span></div>
+        <p class="note">Sends the strongest triad's lowest frequency (nearest note) as CAYLEY's root on every re-roll, and σ₁ share as CC1 (set CAYLEY's MIDI CC target to SPIN/SHIFT/DEPTH).</p>
+      </div>
+    </div>
+    <div id="cayWrap"><div class="empty">CAYLEY XI loads here</div></div>
+  </div>
+</section>
+
+<!-- 5 VST RANDOMIZER -->
+<section class="tab" data-name="5 · VST RANDOMIZER">
+  <div class="grid">
+    <div>
+      <div class="card"><h3>EMBEDDED CONTROL (direct)</h3>
+        <div class="btns"><button id="vstLoad">LOAD vst-midi-randomizer.html</button></div>
+        <input type="file" id="vstFile" accept=".html,.htm" hidden>
+        <p class="note" id="vstStatus">Not loaded.</p>
+        <label class="chk"><input type="checkbox" id="vstOn" checked> drive from tensor</label>
+        <label class="chk"><input type="checkbox" id="vVel" checked> VELOCITY min/max ← LOUDNESS σ</label>
+        <label class="chk"><input type="checkbox" id="vBpm" checked> BPM ← Σ|dσ/dt|</label>
+        <label class="chk"><input type="checkbox" id="vRest" checked> REST % ← FREQUENCY σ spread</label>
+        <label class="chk"><input type="checkbox" id="vChord" checked> CHORD SIZE ← COLOR σ spread</label>
+        <label class="chk"><input type="checkbox" id="vRange" checked> NOTE RANGE ← strongest triad</label>
+        <label class="chk"><input type="checkbox" id="vChrom" checked> force CHROMATIC scale</label>
+        <label class="chk"><input type="checkbox" id="vPatch" checked> random PATCH on σ surge</label>
+        <div class="row"><span>SURGE AT</span><input type="range" id="vSurge" min="0.1" max="3" step="0.05" value="0.9"><span id="vSurgeV">0.90</span></div>
+        <div class="btns"><button id="vstPlay">▶ PLAY</button><button id="vstStop">■ STOP</button><button id="vstPatch">⟳ PATCH</button></div>
+        <div id="vstVals" class="note"></div>
+        <p class="note">Pick its MIDI output port inside the randomizer (Chrome / Edge).</p>
+      </div>
+    </div>
+    <div id="vstWrap"><div class="empty">VST MIDI Randomizer loads here</div></div>
+  </div>
+</section>
+
+<!-- 6 TENSOR CUBE -->
+<section class="tab" data-name="6 · TENSOR CUBE">
+  <div class="card"><h3>5×5×5 TENSOR · cell size = |T| · hollow = negative · dashed = equilibrium T∞ (v2 flow) · spin = max|dσ/dt|</h3>
+  <canvas id="cvCube" class="cv-tall"></canvas></div>
+</section>
+
+<!-- 7 PHASE FIELD -->
+<section class="tab" data-name="7 · RESONANCE FIELD">
+  <div class="card"><h3>15 TRIADS · x = mean log-frequency · y = σ · glow = share · trails</h3>
+  <canvas id="cvField" class="cv-tall"></canvas></div>
+</section>
+
+<!-- 8 TRIAD WAVEFORMS -->
+<section class="tab" data-name="8 · σ WAVEFORMS">
+  <div class="card"><h3>EACH σ's TRIAD AS A WAVEFORM · line weight = |dσ/dt| · ratios true, time compressed</h3>
+  <canvas id="cvWaves" class="cv-tall"></canvas></div>
+</section>
+
+<!-- 9 AUDIO + MIDI OUT -->
+<section class="tab" data-name="9 · AUDIO / MIDI">
+  <div class="grid">
+    <div>
+      <div class="card"><h3>MIDI OUT</h3>
+        <div class="btns"><button id="midiEnable">ENABLE WEB MIDI</button><button id="midiDexed">DEXED PRESET</button><button id="midiTest">TEST NOTE</button><button id="midiDexVoiceNow" title="a random voice from your Dexed cartridges, sent as SysEx">DEXED VOICE</button></div>
+        <label class="chk"><input type="checkbox" id="midiOn"> send triads</label>
+        <div class="row"><span>PORT</span><select id="midiPort"></select><span></span></div>
+        <div class="row"><span>MODE</span><select id="midiMode">
+          <option value="mpe">MPE · exact microtones (ch 2–16)</option>
+          <option value="single">Single channel · nearest semitone (Dexed, any synth)</option></select><span></span></div>
+        <div class="row" id="rowCh"><span>CHANNEL</span><select id="midiCh"></select><span></span></div>
+        <div class="row"><span>BEND RANGE</span><select id="midiBend"><option>2</option><option>12</option><option>24</option><option selected>48</option></select><span>st</span></div>
+        <label class="chk" id="rowFollow"><input type="checkbox" id="midiFollow"> notes follow the drift (busier); off = chords change only when a triad re-rolls</label>
+        <label class="chk" id="rowGBend"><input type="checkbox" id="midiGBend"> shared drift bend (bends every note on the channel)</label>
+        <label class="chk"><input type="checkbox" id="midiCC74" checked> brightness → CC74 (v2 flow; MPE: on master channel 1)</label>
+        <label class="chk"><input type="checkbox" id="midiDexVoice"> new Dexed voice at every epoch (sent as SysEx, from your Dexed cartridges)</label>
+        <div class="row"><span>VOICE MUTATE</span><input type="range" id="midiDexMut" min="0" max="1" step="0.05" value="0"><span id="midiDexMutV">0.00</span></div>
+        <div class="row"><span>TRIADS</span><input type="range" id="midiVoices" min="1" max="5" step="1" value="5"><span id="midiVoicesV">5</span></div>
+        <div class="btns"><button id="midiPanic">ALL NOTES OFF</button></div>
+        <p class="note"><b>MPE</b> gives every frequency its own channel and pitch bend, so nothing is rounded. Use it with MPE synths (Surge XT, Vital, Pianoteq), set to MPE with the same bend range.
+          <b>Single channel</b> rounds to the nearest semitone on one channel. Use it for Dexed or any non-MPE synth; <b>DEXED PRESET</b> sets channel 1 and 3 triads.
+          <b>TEST NOTE</b> plays a chord on the chosen port and channel, so you can hear whether the synth is listening.
+          <b>Dexed:</b> a MIDI Program Change can crash Dexed 1.0.x (a bug in Dexed). To change its sound, <b>DEXED VOICE</b> and the epoch option send a whole voice as SysEx instead, which is safe; the voices come from your Dexed cartridges through the Python engine.
+          Give this its <b>own lane</b>: add an IAC bus named <b>Tensor</b> (Audio MIDI Setup → IAC Driver → Ports → +) and pick it here and in the synth, so it never mixes with other streams on IAC Bus 1. If the Python server is sending MIDI (./run.sh --midi), leave this off.</p>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>EVENT LOG</h3><div class="log" id="log"></div></div>
+    </div>
+    <div>
+      <div class="card"><h3>OSCILLOSCOPE</h3><canvas id="cvScope" class="cv-small"></canvas></div>
+      <div class="card" style="margin-top:14px"><h3>SPECTRUM · ticks = 27 target frequencies</h3><canvas id="cvSpec" class="cv-small"></canvas></div>
+      <div class="card" style="margin-top:14px"><h3>SPECTROGRAM · log 20 Hz – 20 kHz</h3><canvas id="cvGram" class="cv-mid"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 RECORD / ALBUM -->
+<section class="tab" data-name="10 · RECORD / ALBUM">
+  <div class="grid">
+    <div>
+      <div class="card"><h3>RECORD A TAKE</h3>
+        <label class="chk"><input type="checkbox" id="stTensor" checked> tensor synth (45 oscillators)</label>
+        <label class="chk"><input type="checkbox" id="stCay" checked> CAYLEY XI (when loaded in tab 4)</label>
+        <label class="chk"><input type="checkbox" id="stExt"> external input (Dexed / Surge through BlackHole or your interface)</label>
+        <div class="row"><span>INPUT</span><select id="extDev"><option value="">— allow input first —</option></select><span></span></div>
+        <div class="btns"><button id="extAllow">ALLOW INPUT</button></div>
+        <label class="chk"><input type="checkbox" id="stMix" checked> mix of all of the above</label>
+        <p class="note">Also saved with every take: all MIDI the engine and the VST randomizer send (.mid, microtonal bends included), and the σ trajectory (sigma.json, frame by frame).</p>
+        <div class="btns"><button id="recBtn2" class="big rec">● REC</button></div>
+        <p class="note" id="recWhere"></p>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>MAKE A RECORD (album mode)</h3>
+        <div class="row"><span>ALBUM NAME</span><input type="text" id="albName" placeholder="auto"><span></span></div>
+        <div class="row"><span>TRACKS</span><input type="range" id="albTracks" min="1" max="20" step="1" value="6"><span id="albTracksV">6</span></div>
+        <div class="row"><span>MINUTES EACH</span><input type="range" id="albMins" min="0.25" max="30" step="0.25" value="4"><span id="albMinsV">4.00</span></div>
+        <div class="row"><span>GAP s</span><input type="range" id="albGap" min="0" max="30" step="1" value="4"><span id="albGapV">4</span></div>
+        <label class="chk"><input type="checkbox" id="albReset" checked> new tensor for every track</label>
+        <label class="chk"><input type="checkbox" id="albParams" checked> new engine settings for every track</label>
+        <label class="chk"><input type="checkbox" id="albCay" checked> new CAYLEY XI preset for every track</label>
+        <label class="chk"><input type="checkbox" id="albVst" checked> new VST patch for every track</label>
+        <label class="chk"><input type="checkbox" id="albDudley"> afterwards, DUDLEY hybrid of every track (all stems through all envelopes on its own σ path)</label>
+        <div class="btns"><button id="albStart" class="big">▶ RECORD ALBUM</button><button id="albStop">■ STOP</button></div>
+        <div class="bar"><div id="albBar"></div></div><p class="note" id="albStatus">Keep this tab visible while it runs; background tabs get slowed down.</p>
+      </div>
+    </div>
+    <div class="card"><h3>LIBRARY</h3><div class="btns"><button id="libRefresh">REFRESH</button></div><div id="libList" class="takes note"></div></div>
+  </div>
+</section>
+
+<!-- 11 DUDLEY -->
+<section class="tab" data-name="11 · DUDLEY">
+  <div class="grid">
+    <div>
+      <div class="card"><h3>SOURCES · C = carrier (grains) · D = donor (envelope)</h3>
+        <div class="btns"><button id="dudRefresh">REFRESH</button><button id="dudClear">CLEAR</button></div>
+        <p class="note" id="dudStatus">DUDLEY runs in Python: start the engine with ./run.sh.</p>
+        <div id="dudSrc" class="srclist"></div>
+        <audio id="dudAudio" controls></audio>
+      </div>
+    </div>
+    <div>
+      <div class="card"><h3>MORPH PATH</h3>
+        <div class="radio" id="dudPathMode">
+          <label><input type="radio" name="dpm" value="sigma" checked> σ path</label>
+          <label><input type="radio" name="dpm" value="draw"> draw</label>
+          <label><input type="radio" name="dpm" value="walk"> entropy walk</label>
+          <label><input type="radio" name="dpm" value="rms"> follow donor 1 loudness</label></div>
+        <div class="row" id="dudSigRow"><span>σ SOURCE</span><select id="dudSigma"></select><span></span></div>
+        <div class="row" id="dudWalkRow"><span>WALK RATE</span><input type="range" id="dudWalk" min="0.05" max="2" step="0.01" value="0.35"><span id="dudWalkV">0.35</span></div>
+        <canvas id="cvPath" style="height:170px"></canvas>
+        <p class="note" id="dudPathHint">σ path: the morph follows the recorded tensor of the take the sources come from. 0 = the carrier's own envelope, each line above is a donor.</p>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>SETTINGS</h3>
+        <div class="radio"><b>between envelopes</b>
+          <label><input type="radio" name="dmorph" value="transport" checked> transport · peaks travel</label>
+          <label><input type="radio" name="dmorph" value="cepstral"> cepstral · peaks fade</label></div>
+        <div class="radio"><b>loudness follows</b>
+          <label><input type="radio" name="ddyn" value="donor" checked> donor</label>
+          <label><input type="radio" name="ddyn" value="carrier"> carrier</label></div>
+        <div class="row"><span>READ CARRIER</span><select id="dudScan"><option value="stretch">stretch</option><option value="loop">loop</option><option value="random">random</option><option value="freeze">freeze at</option></select><span></span></div>
+        <div class="row"><span>FREEZE AT</span><input type="range" id="dudFreeze" min="0" max="1" step="0.01" value="0.5"><span id="dudFreezeV">0.50</span></div>
+        <div id="dudSliders"></div>
+        <div class="row"><span>SAMPLE RATE</span><select id="dudSr"><option>44100</option><option selected>48000</option><option>96000</option></select><span></span></div>
+        <div class="btns"><button id="dudRender" class="big">RENDER</button><button id="dudStop">STOP</button>
+          <select id="dudTake"></select><button id="dudBatch">ALL HYBRIDS OF TAKE</button></div>
+        <div class="bar"><div id="dudBar"></div></div><p class="note" id="dudProg"></p>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>RENDERS</h3><canvas id="cvDudSpec" style="height:150px"></canvas><div id="dudResults" class="takes note"></div></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+'use strict';
+// =================================================================== constants
+const $ = id => document.getElementById(id);
+const TAU = Math.PI * 2;
+// 5×5×5: on every axis the 3 original slots sit at 0, 2, 4 and a variable in-between slot at 1 and 3
+const SIZE = 5, TOK = SIZE * SIZE, CELLS = SIZE ** 3, TRIADS = 3 * SIZE;
+const SUB = ['₁','₂','₃','₄','₅'];
+const SIGN = [...'CLF'].flatMap(m => SUB.map(s => m + s));
+const SIGC = ['#ff3b5c','#ff7a8f','#ff9a3b','#ffc14d','#ffd23b',  '#3b8cff','#6aa8ff','#a06bff','#c48bff','#2dc8ff',  '#9be22d','#2de2b4','#2ecc71','#ff4fd8','#e8e8f0'];
+const MODE_N = ['COLOR','LOUDNESS','FREQUENCY'];
+const MODEC = ['#ff3b5c','#3b8cff','#9be22d'];                     // one colour per mode
+const SLOT_N = [['RED','PURPLE','BLUE','GREEN','YELLOW'], ['LOUD','LOUD~SOFT','SOFT','SOFT~MID','MIDDLE'], ['F₁','F₁·₂','F₂','F₂·₃','F₃']];
+const AXC = ['#ff3b5c','#a24bff','#3b8cff','#2ecc71','#ffd23b'];   // the 5 COLOR slots
+const TIMBRE_N = ['RED·saw','PURPLE·saw~sine','BLUE·sine','GREEN·sine~tri','YELLOW·tri'];
+const LOUD_N = SLOT_N[1];
+const BLEND_KEYS = [['blend_c1','blend_c2'], ['blend_l1','blend_l2'], ['blend_f1','blend_f2']];
+const BLEND_N = [['PURPLE  red→blue','GREEN  blue→yellow'], ['LOUD~SOFT','SOFT~MIDDLE'], ['F₁·₂','F₂·₃']];
+let BL = [[0.5,0.5],[0.5,0.5],[0.5,0.5]];                          // current in-between values (from the engine)
+const lerp = (a, b, t) => a + (b - a) * t;
+// LOUDNESS: LOUD, SOFT, MIDDLE as before; the in-betweens blend level (linear) and attack (geometric)
+function loudLvl(s) { const L = [1, 0.35, 0.6]; return [L[0], lerp(L[0], L[1], BL[1][0]), L[1], lerp(L[1], L[2], BL[1][1]), L[2]][s]; }
+function loudAtk(s) { const A = [0.01, 0.45, 0.12]; return [A[0], A[0] * (A[1] / A[0]) ** BL[1][0], A[1], A[1] * (A[2] / A[1]) ** BL[1][1], A[2]][s]; }
+const SC = Math.sqrt(27 / CELLS);                                   // per-cell scale vs the 3×3×3 engine
+const FLASH = new Array(TRIADS).fill(-1e9);      // last phantom crossing per σ (ms)
+let TILT_EXP = 0.32, lastEpoch = null;
+const randn = () => { let u = 0; while (!u) u = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * Math.random()); };
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const log2 = Math.log2;
+
+// =================================================================== linear algebra
+function jacobi(A) { // symmetric n×n -> eigen (cyclic Jacobi), sorted descending; vecs[r] = eigenvector r
+  const n = A.length, a = A.map(r => r.slice()), V = A.map((_, i) => A.map((_, j) => +(i === j)));
+  for (let sweep = 0; sweep < 60; sweep++) {
+    let off = 0; for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) off += Math.abs(a[p][q]);
+    if (off < 1e-14) break;
+    for (let p = 0; p < n - 1; p++) for (let q = p + 1; q < n; q++) {
+      if (Math.abs(a[p][q]) < 1e-18) continue;
+      const th = (a[q][q] - a[p][p]) / (2 * a[p][q]);
+      const t = (th >= 0 ? 1 : -1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+      const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+      for (let k = 0; k < n; k++) { const x = a[k][p], y = a[k][q]; a[k][p] = c*x - s*y; a[k][q] = s*x + c*y; }
+      for (let k = 0; k < n; k++) { const x = a[p][k], y = a[q][k]; a[p][k] = c*x - s*y; a[q][k] = s*x + c*y; }
+      for (let k = 0; k < n; k++) { const x = V[k][p], y = V[k][q]; V[k][p] = c*x - s*y; V[k][q] = s*x + c*y; }
+    }
+  }
+  const idx = [...Array(n).keys()].sort((x, y) => a[y][y] - a[x][x]);
+  return { vals: idx.map(i => a[i][i]), vecs: idx.map(i => V.map(row => row[i])) };
+}
+const ti = (i, j, k) => (i * SIZE + j) * SIZE + k;
+const cellAt = (n, a, u, v) => n === 0 ? ti(a, u, v) : n === 1 ? ti(u, a, v) : ti(u, v, a);
+function decompose(T) { // HOSVD == full-rank Tucker: 3 modes × SIZE singular values
+  const sigma = [], factors = [];
+  for (let n = 0; n < 3; n++) {
+    const G = [...Array(SIZE)].map(() => new Array(SIZE).fill(0));
+    for (let a = 0; a < SIZE; a++) for (let b = a; b < SIZE; b++) {
+      let s = 0;
+      for (let u = 0; u < SIZE; u++) for (let v = 0; v < SIZE; v++) s += T[cellAt(n, a, u, v)] * T[cellAt(n, b, u, v)];
+      G[a][b] = G[b][a] = s;
+    }
+    const e = jacobi(G);
+    e.vals.forEach(x => sigma.push(Math.sqrt(Math.max(0, x))));
+    factors.push(e.vecs); // factors[n][r] = column r (length SIZE)
+  }
+  return { sigma, factors };
+}
+
+// =================================================================== Tensor Flow v2 (line-for-line mirror of flow.py)
+// 1 relaxation flow (Tasinato, arXiv:2610.13739) · 2 bidirectional cross-attention + distilled memory
+// (X-AVDD, arXiv:2610.13687) · 3 alignment-free multi-granular readout (OpenPA, arXiv:2610.13826).
+// Random projections, no training: the papers' structures, not their claims.
+const FL = (() => {
+  const COORD = []; for (let i = 0; i < SIZE; i++) for (let j = 0; j < SIZE; j++) for (let k = 0; k < SIZE; k++) COORD.push([i, j, k]);
+  const DIRS = [[0, 1], [1, 0], [1, 2], [2, 1], [2, 0], [0, 2]];
+  const DIR_NAMES = ['C→L', 'L→C', 'L→F', 'F→L', 'F→C', 'C→F'];
+  const TRANSCRIPT_P = [0.5, 0.3, 0.2];
+  const ASPECTS = { brightness: [1, 0, 0.5, 0], fluency: [0, 1, 0, -0.3], prosody: [0, -0.3, 0, 1] };
+  const NB = COORD.map(([i, j, k]) => {           // lattice neighbours (graph Laplacian rows)
+    const n = [];
+    for (let ax = 0; ax < 3; ax++) for (const d of [-1, 1]) { const q = [i, j, k]; q[ax] += d; if (q[ax] >= 0 && q[ax] < SIZE) n.push(ti(q[0], q[1], q[2])); }
+    return n;
+  });
+  const lap = D => D.map((x, c) => NB[c].length * x - NB[c].reduce((s, q) => s + D[q], 0));
+  const cellOf = (mode, r, a, b) => mode === 0 ? ti(r, a, b) : mode === 1 ? ti(a, r, b) : ti(a, b, r);
+  const unfold = (T, mode) => [...Array(SIZE).keys()].map(r => { const v = []; for (let a = 0; a < SIZE; a++) for (let b = 0; b < SIZE; b++) v.push(T[cellOf(mode, r, a, b)]); return v; });
+  const fold = (tok, mode) => { const o = new Float64Array(CELLS); for (let r = 0; r < SIZE; r++) for (let a = 0; a < SIZE; a++) for (let b = 0; b < SIZE; b++) o[cellOf(mode, r, a, b)] = tok[r][SIZE * a + b]; return o; };
+  const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+  const nrm = a => Math.sqrt(dot(a, a));
+  const mm = (A, B) => A.map(row => B[0].map((_, c) => row.reduce((s, x, k) => s + x * B[k][c], 0)));
+  const softmax = x => { const m = Math.max(...x), e = x.map(v => Math.exp(v - m)), s = e.reduce((a, b) => a + b, 0); return e.map(v => v / s); };
+  const gauss = (r, c, sd) => [...Array(r)].map(() => [...Array(c)].map(() => randn() * sd));
+  const onehot = (v, n = SIZE) => [...Array(n).keys()].map(q => q === v ? 1 : 0);
+  const shares = s => { const p = []; for (let m = 0; m < 3; m++) { let t = 1e-12; for (let r = 0; r < SIZE; r++) t += s[SIZE * m + r] ** 2; for (let r = 0; r < SIZE; r++) p.push(s[SIZE * m + r] ** 2 / t); } return p; };
+
+  function crossAttention(T, W) {                  // -> {F (CELLS), maps (6×SIZE×SIZE), emb (6·TOK)}
+    const F = new Float64Array(CELLS), maps = [], emb = [];
+    DIRS.forEach(([a, b], d) => {
+      const A = unfold(T, a), B = unfold(T, b), Q = mm(A, W.q[d]), K = mm(B, W.k[d]), Vv = mm(B, W.v[d]);
+      const S = Q.map(q => softmax(K.map(k => dot(q, k) / 2)));
+      const R = A.map((row, r) => row.map((x, c) => x + S[r].reduce((s, sv, m) => s + sv * Vv[m][c], 0)));
+      R.forEach((row, r) => { const g = nrm(A[r]) / (nrm(row) + 1e-9); for (let c = 0; c < TOK; c++) row[c] *= g; });  // Add & Norm
+      const f = fold(R.map((row, r) => row.map((x, c) => x - A[r][c])), a);
+      for (let x = 0; x < CELLS; x++) F[x] += f[x];
+      maps.push(S);
+      for (let c = 0; c < TOK; c++) { let s = 0; for (let r = 0; r < SIZE; r++) s += R[r][c]; emb.push(s / SIZE); }
+    });
+    for (let x = 0; x < CELLS; x++) F[x] /= DIRS.length;
+    return { F, maps, emb };
+  }
+
+  function readout(T, V, sigma, vel, H, Wr, sources) {   // -> {mc, ml (TRIADS×SIZE), ek (TRIADS), A (TRIADS×CELLS)}
+    const smax = Math.max(Math.max(...sigma), 1e-6), vmax = Math.max(Math.max(...vel.map(Math.abs)), 1e-6);
+    const K = mm(COORD.map(([i, j, k], c) => [...onehot(i), ...onehot(j), ...onehot(k), T[c] / smax, V[c] / (H * smax + 1e-9)]), Wr.k);
+    const Q = mm([...Array(TRIADS)].map((_, i) => {
+      const s = sources[i];
+      if (s < 0) return Wr.free[i];
+      return [...onehot(Math.floor(s / SIZE), 3), ...onehot(s % SIZE), sigma[s] / smax, vel[s] / vmax];
+    }), Wr.q);
+    let tm = 0; for (let c = 0; c < CELLS; c++) tm = Math.max(tm, Math.abs(T[c]));
+    const sal = [...T].map(v => 2 * Math.abs(v) / (tm + 1e-9));
+    const A = Q.map(q => softmax(K.map((k, c) => dot(q, k) / 2 + sal[c])));
+    const mass = ax => A.map(row => { const o = new Array(SIZE).fill(0); row.forEach((x, c) => o[COORD[c][ax]] += x); return o; });
+    const mf = mass(2);
+    return { mc: mass(0), ml: mass(1), ek: mf.map(m => m.reduce((s, x, v) => s + v * x, 0)), A };
+  }
+
+  function hysteresis(cur, mass, margin = 0.06) {
+    return mass.map((m, i) => {
+      let b = 0; for (let v = 1; v < m.length; v++) if (m[v] > m[b]) b = v;
+      const c = cur ? cur[i] : b;
+      return m[b] > m[c] + margin ? b : c;
+    });
+  }
+
+  function aspectsRaw(sigma, speed, amp, X) {
+    const smax = Math.max(Math.max(...sigma), 1e-6), vmax = Math.max(Math.max(...speed), 1e-6);
+    const r = sigma.map((s, i) => [s / smax, speed[i] / vmax, TRIADS * amp[i] - 1, clamp(X[i], -2, 2) / 2]);
+    const At = r.map(a => softmax(r.map(b => dot(a, b) / 2)));
+    const C = r.map((row, i) => row.map((x, f) => x + At[i].reduce((s, w, j) => s + w * r[j][f], 0)));
+    const out = {};
+    for (const [name, a] of Object.entries(ASPECTS)) {
+      const al = softmax(C.map(row => dot(row, a)));
+      const u = [0, 1, 2, 3].map(f => C.reduce((s, row, i) => s + al[i] * row[f], 0));
+      out[name] = dot(u, a);
+    }
+    return out;
+  }
+
+  function distill(buffer, k, iters = 6) {        // k-means in the cross-attended space, medoid tensors
+    if (buffer.length < 2 * k) return [];
+    const E = buffer.map(b => b[0]), d2 = (a, b) => a.reduce((s, x, i) => s + (x - b[i]) ** 2, 0);
+    const pick = []; while (pick.length < k) { const q = Math.floor(Math.random() * E.length); if (!pick.includes(q)) pick.push(q); }
+    const cent = pick.map(q => E[q].slice());
+    const label = () => E.map(e => { let b = 0; for (let c = 1; c < k; c++) if (d2(e, cent[c]) < d2(e, cent[b])) b = c; return b; });
+    for (let it = 0; it < iters; it++) {
+      const lab = label();
+      for (let c = 0; c < k; c++) { const m = E.filter((_, i) => lab[i] === c); if (m.length) cent[c] = cent[c].map((_, f) => m.reduce((s, e) => s + e[f], 0) / m.length); }
+    }
+    const lab = label(), protos = [];
+    for (let c = 0; c < k; c++) {
+      const idx = lab.map((l, i) => l === c ? i : -1).filter(i => i >= 0);
+      if (!idx.length) continue;
+      let best = idx[0]; for (const i of idx) if (d2(E[i], cent[c]) < d2(E[best], cent[c])) best = i;
+      protos.push([Float64Array.from(buffer[best][1]), idx.length]);
+    }
+    return protos;
+  }
+
+  class RelaxFlow {
+    constructor() {
+      this.V = new Float64Array(CELLS); this.Tinf = null; this.N = 0; this.epoch = 0; this.source = 'start';
+      this.buffer = []; this.bufT = 0; this.protos = [];
+      this.maps = [...Array(6)].map(() => [...Array(SIZE)].map(() => new Array(SIZE).fill(1 / SIZE))); this.emb = new Array(6 * TOK).fill(0);
+      this.xd = new Array(TRIADS).fill(0); this.X = null; this.w = new Array(TRIADS).fill(0); this.cool = new Array(TRIADS).fill(0);
+      this.pInf = new Array(TRIADS).fill(1 / SIZE);
+      this.aspects = {}; this.aspMu = {}; this.aspVar = {}; this.aspN = 0; this.speed = new Array(TRIADS).fill(0);
+      for (const a in ASPECTS) { this.aspects[a] = 0.5; this.aspMu[a] = 0; this.aspVar[a] = 0; }
+      this.timbre = null; this.loud = null; this.ek = new Array(TRIADS).fill((SIZE - 1) / 2);
+      this.attn = [...Array(TRIADS)].map(() => new Array(CELLS).fill(1 / CELLS));
+      this.newProjections();
+    }
+    newProjections() {
+      this.W = { q: DIRS.map(() => gauss(TOK, 4, 1 / 3)), k: DIRS.map(() => gauss(TOK, 4, 1 / 3)), v: DIRS.map(() => gauss(TOK, TOK, 1 / SIZE)) };
+      this.Wr = { q: gauss(3 + SIZE + 2, 4, 0.6), k: gauss(3 * SIZE + 2, 4, 0.6), free: gauss(TRIADS, 3 + SIZE + 2, 1) };
+      this.sources = [...Array(TRIADS)].map((_, i) => {   // mixed-transcript adaptation
+        const u = Math.random();
+        if (u < TRANSCRIPT_P[0]) return i;
+        if (u < TRANSCRIPT_P[0] + TRANSCRIPT_P[1]) { let j = Math.floor(Math.random() * (TRIADS - 1)); if (j >= i) j++; return j; }
+        return -1;
+      });
+    }
+    freshAttractor(energy) {
+      const a = 0.3 * SC, T = new Float64Array(CELLS); for (let x = 0; x < CELLS; x++) T[x] = (Math.random() * 2 - 1) * a;
+      const cells = []; while (cells.length < SIZE) { const c = Math.floor(Math.random() * CELLS); if (!cells.includes(c)) cells.push(c); }
+      cells.forEach(c => T[c] = (Math.random() < 0.5 ? -1 : 1) * (0.9 + Math.random() * 0.4));
+      const g = energy / (nrm(T) + 1e-9); return T.map(v => v * g);
+    }
+    newEpoch(T, energy, memory, sigmaOf) {
+      this.protos = distill(this.buffer, 4);
+      if (this.protos.length && Math.random() < memory) {
+        const tot = this.protos.reduce((s, p) => s + p[1], 0); let u = Math.random() * tot, c = 0;
+        while (c < this.protos.length - 1 && u >= this.protos[c][1]) { u -= this.protos[c][1]; c++; }
+        const P = this.protos[c][0], g = energy / (nrm(P) + 1e-9);
+        this.Tinf = P.map(v => v * g + randn() * 0.05 * SC);
+        this.source = `memory ${c + 1}/${this.protos.length}`;
+      } else { this.Tinf = this.freshAttractor(energy); this.source = 'fresh'; }
+      this.epoch++;
+      this.newProjections();
+      this.pInf = shares(sigmaOf(this.Tinf));
+    }
+    step(T, dt, p, sigmaOf) {                      // advances T (Float64Array CELLS) in place
+      const H = p.expansion, n = p.relax_n, cs = p.sound_cs, kap = p.xattn;
+      if (!this.Tinf) this.newEpoch(T, p.energy, 0, sigmaOf);
+      const sub = 3, h = dt / sub;
+      for (let s = 0; s < sub; s++) {
+        const r = crossAttention(T, this.W); this.maps = r.maps; this.emb = r.emb;
+        const D = new Float64Array(CELLS); for (let x = 0; x < CELLS; x++) D[x] = T[x] - (this.Tinf[x] + kap * r.F[x]);
+        const LD = lap(D);
+        for (let x = 0; x < CELLS; x++) this.V[x] += (-2 * n * H * this.V[x] - H * H * (n * n * D[x] + cs * cs * LD[x])) * h;
+        for (let x = 0; x < CELLS; x++) T[x] += this.V[x] * h;
+      }
+      this.N += H * dt;
+      const ws = 2 * p.noise * H * Math.sqrt(dt) * SC;                // WANDER: continuous stochastic force
+      for (let x = 0; x < CELLS; x++) this.V[x] += randn() * ws;
+      const tn = nrm(T) + 1e-9;                                        // soft ceiling at 1.6 × ENERGY
+      if (tn > 1.6 * p.energy) { const g = (1.6 * p.energy / tn) ** Math.min(1, 2.5 * dt); for (let x = 0; x < CELLS; x++) T[x] *= g; }
+      if (Math.random() < 1 - Math.exp(-p.kick_rate * dt)) {         // small-scale fluctuations
+        if (Math.random() < 0.5) this.V[Math.floor(Math.random() * CELLS)] += randn() * p.kick_amp * H * 4;
+        else for (let x = 0; x < CELLS; x++) this.V[x] += randn() * p.kick_amp * H * 1.5 * SC;
+      }
+      this.bufT += dt;
+      if (this.bufT >= 0.5) { this.bufT = 0; this.buffer.push([this.emb.slice(), Float64Array.from(T)]); if (this.buffer.length > 240) this.buffer.splice(0, this.buffer.length - 240); }
+      if (Math.random() < 1 - Math.exp(-p.epoch_rate * dt)) this.newEpoch(T, p.energy, p.memory, sigmaOf);
+      return T;
+    }
+    composition(sigma, dt, H) {                    // X = ln(p/p∞), w = −(dX/dN)/3 -> upward phantom crossings
+      const pp = shares(sigma), X = pp.map((v, i) => Math.log((v + 1e-6) / (this.pInf[i] + 1e-6)));
+      if (!this.X) this.X = X;
+      this.xd = this.xd.map((v, i) => 0.8 * v + 0.2 * (X[i] - this.X[i]) / Math.max(dt, 1e-4));
+      this.X = X;
+      const wPrev = this.w; this.w = this.xd.map(v => -v / (3 * Math.max(H, 1e-6)));
+      this.cool = this.cool.map(c => Math.max(0, c - dt));
+      const cross = [];
+      for (let i = 0; i < TRIADS; i++) if (wPrev[i] < -1 && -1 <= this.w[i] && this.cool[i] <= 0) { cross.push(i); this.cool[i] = 1.5; }
+      return cross;
+    }
+    read(T, V, sigma, vel, H) {
+      const r = readout(T, V, sigma, vel, H, this.Wr, this.sources);
+      this.attn = r.A; this.timbre = hysteresis(this.timbre, r.mc); this.loud = hysteresis(this.loud, r.ml); this.ek = r.ek;
+    }
+    score(sigma, vel, amp, dt) {
+      const ks0 = 1 - Math.exp(-dt / 1.0); this.speed = this.speed.map((s, i) => s + ks0 * (Math.abs(vel[i]) - s));
+      const raw = aspectsRaw(sigma, this.speed, amp, this.X || new Array(TRIADS).fill(0));
+      this.aspN++;
+      const k = Math.max(1 / this.aspN, 1 - Math.exp(-dt / 20)), ks = 1 - Math.exp(-dt / 1.5);
+      for (const [a, x] of Object.entries(raw)) {
+        this.aspMu[a] += k * (x - this.aspMu[a]);
+        this.aspVar[a] += k * ((x - this.aspMu[a]) ** 2 - this.aspVar[a]);
+        const z = (x - this.aspMu[a]) / Math.sqrt(this.aspVar[a] + 1e-4);
+        this.aspects[a] += ks * (1 / (1 + Math.exp(-1.6 * clamp(z, -20, 20))) - this.aspects[a]);
+      }
+      return this.aspects;
+    }
+  }
+  return { COORD, DIRS, DIR_NAMES, ASPECTS, NB, lap, unfold, fold, crossAttention, readout, hysteresis, aspectsRaw, distill, shares, RelaxFlow };
+})();
+
+// =================================================================== local engine (mirror of app.py)
+class Engine {
+  constructor() {
+    this.params = { f_min: 20, f_max: 20000, drift_gain: 6, reroll_base: 0.15, reroll_vel: 4,
+                    kick_rate: 0.7, kick_amp: 0.45, noise: 0.12, couple_rate: 0.8, energy: 2.2,
+                    flow: 'relax', expansion: 0.6, relax_n: 0.5, sound_cs: 1.5, xattn: 0.5, memory: 0.4, epoch_rate: 0.1,
+                    blend_c1: 0.5, blend_c2: 0.5, blend_l1: 0.5, blend_l2: 0.5, blend_f1: 0.5, blend_f2: 0.5, blend_follow: 0 };
+    this.weights = [0, 1, 2].map(() => new Array(SIZE).fill(1));
+    this.reset();
+  }
+  reset() {
+    const T = new Float64Array(CELLS);
+    for (let x = 0; x < CELLS; x++) T[x] = (Math.random() * 2 - 1) * 0.3 * SC;
+    for (let i = 0; i < SIZE; i++) T[ti(i,i,i)] = 0.9 + Math.random() * 0.4;
+    this.T = T;
+    const off = 0.08 * Math.sqrt(2 / (SIZE - 1));
+    this.coupling = [0,1,2].map(() => [...Array(SIZE)].map((_, a) => [...Array(SIZE)].map((_, b) => a === b ? 0.85 + Math.random() * 0.07 : (Math.random() * 2 - 1) * off)));
+    this.t = 0;
+    this.flow = new FL.RelaxFlow(); this.crossings = [];
+    this.bl = this.blendParams();
+    const d = decompose(this.effective()); this.sigma = d.sigma; this.factors = d.factors;
+    this.vel = new Array(TRIADS).fill(0);
+    this.triads = []; this.dirs = []; this.gen = new Array(TRIADS).fill(0);
+    for (let i = 0; i < TRIADS; i++) this.reroll(i);
+    this.events = [];
+  }
+  relax() { return this.params.flow !== 'classic'; }
+  randFreq() { const lo = log2(this.params.f_min), hi = log2(this.params.f_max); return 2 ** (lo + Math.random() * (hi - lo)); }
+  reroll(i) {
+    this.triads[i] = [this.randFreq(), this.randFreq(), this.randFreq()];
+    this.dirs[i] = [0,1,2].map(() => (Math.random() < 0.5 ? -1 : 1) * (0.4 + Math.random() * 1.2));
+    this.gen[i]++;
+  }
+  wmask() {
+    const w = this.weights, m = new Float64Array(CELLS);
+    for (let i = 0; i < SIZE; i++) for (let j = 0; j < SIZE; j++) for (let k = 0; k < SIZE; k++) m[ti(i,j,k)] = w[0][i] * w[1][j] * w[2][k];
+    return m;
+  }
+  effective() { const m = this.wmask(); return this.T.map((v, x) => v * m[x]); }
+  sigmaOf(Tf) { const m = this.wmask(); return decompose(Tf.map((v, x) => v * m[x])).sigma; }
+  dominant(mode) { return this.factors[mode].map(col => { let m = 0; for (let s = 1; s < SIZE; s++) if (Math.abs(col[s]) > Math.abs(col[m])) m = s; return m; }); }
+  // ---- the in-between slots' variable values: sliders, or (follow) the balance of the two neighbouring slices
+  blendParams() { return BLEND_KEYS.map(r => r.map(k => +this.params[k])); }
+  updateBlends(dt) {
+    if (!(this.params.blend_follow >= 0.5)) { this.bl = this.blendParams(); return; }
+    const E = this.effective(), k = 1 - Math.exp(-dt / 0.5);
+    for (let m = 0; m < 3; m++) {
+      const e = [...Array(SIZE).keys()].map(s => { let q = 0; for (let u = 0; u < SIZE; u++) for (let v = 0; v < SIZE; v++) q += E[cellAt(m, s, u, v)] ** 2; return Math.sqrt(q); });
+      [1, 3].forEach((s, n) => { const tg = e[s + 1] / (e[s - 1] + e[s + 1] + 1e-9); this.bl[m][n] += k * (tg - this.bl[m][n]); });
+    }
+  }
+  freqLog2() { const b = this.bl[2]; return [-1, -1 + b[0], 0, b[1], 1]; }
+  modeProduct(T, M, mode) {          // T ×_mode M
+    const o = new Float64Array(CELLS);
+    for (let a = 0; a < SIZE; a++) for (let u = 0; u < SIZE; u++) for (let v = 0; v < SIZE; v++) {
+      let s = 0; for (let i = 0; i < SIZE; i++) s += M[a][i] * T[cellAt(mode, i, u, v)];
+      o[cellAt(mode, a, u, v)] = s;
+    }
+    return o;
+  }
+  classic(dt) {
+    const p = this.params, T = this.T;
+    const TM = this.modeProduct(this.modeProduct(this.modeProduct(T, this.coupling[0], 0), this.coupling[1], 1), this.coupling[2], 2);
+    const al = Math.min(1, p.couple_rate * dt), ns = p.noise * Math.sqrt(dt) * SC;
+    for (let x = 0; x < CELLS; x++) T[x] = (1 - al) * T[x] + al * TM[x] + randn() * ns;
+    if (Math.random() < 1 - Math.exp(-p.kick_rate * dt)) {           // arrhythmic kick
+      if (Math.random() < 0.5) T[Math.floor(Math.random() * CELLS)] += randn() * p.kick_amp * 2;
+      else for (let x = 0; x < CELLS; x++) T[x] += randn() * p.kick_amp * 0.5 * SC;
+      if (Math.random() < 0.3) {
+        const M = this.coupling[Math.floor(Math.random() * 3)];
+        for (let a = 0; a < SIZE; a++) for (let b = 0; b < SIZE; b++) M[a][b] = a === b ? clamp(M[a][b] + randn() * 0.03, 0.85, 0.92) : M[a][b] + randn() * 0.03;
+      }
+    }
+    let nrm = 0; for (let x = 0; x < CELLS; x++) nrm += T[x] * T[x]; nrm = Math.sqrt(nrm) + 1e-9;
+    const g = (p.energy / nrm) ** Math.min(1, 2.5 * dt);
+    for (let x = 0; x < CELLS; x++) T[x] *= g;
+  }
+  newEpoch() { this.flow.newEpoch(this.T, this.params.energy, this.params.memory, x => this.sigmaOf(x)); }
+  step(dt) {
+    const p = this.params, relax = this.relax();
+    if (relax) this.flow.step(this.T, dt, p, x => this.sigmaOf(x)); else this.classic(dt);
+    this.updateBlends(dt);
+
+    const d = decompose(this.effective());
+    for (let i = 0; i < TRIADS; i++) this.vel[i] = 0.75 * this.vel[i] + 0.25 * (d.sigma[i] - this.sigma[i]) / Math.max(dt, 1e-4);
+    this.sigma = d.sigma; this.factors = d.factors;
+
+    // relax: composition (phantom crossings) + multi-granular readout + aspects
+    let driftMul = 1, rerollMul = 1, cross = [];
+    if (relax) {
+      const H = p.expansion, m = this.wmask(), tot = this.sigma.reduce((a, b) => a + b, 0) + 1e-9;
+      cross = this.flow.composition(this.sigma, dt, H);
+      this.flow.read(this.T.map((v, x) => v * m[x]), this.flow.V.map((v, x) => v * m[x]), this.sigma, this.vel, H);
+      const asp = this.flow.score(this.sigma, this.vel, this.sigma.map(x => x / tot), dt);
+      driftMul = 0.5 + asp.fluency; rerollMul = 0.5 + asp.prosody;
+    }
+    this.crossings = cross;
+
+    const lo = log2(p.f_min), hi = log2(p.f_max), ds = this.dscale(), ev = [];
+    for (let i = 0; i < TRIADS; i++) {
+      for (let n = 0; n < 3; n++) {
+        let lf = log2(this.triads[i][n]) + p.drift_gain * driftMul * this.vel[i] * this.dirs[i][n] * ds[i] * dt;
+        if (lf > hi) { lf = 2 * hi - lf; this.dirs[i][n] *= -1; }
+        if (lf < lo) { lf = 2 * lo - lf; this.dirs[i][n] *= -1; }
+        this.triads[i][n] = 2 ** clamp(lf, lo, hi);
+      }
+      if (cross.includes(i) || Math.random() < 1 - Math.exp(-(p.reroll_base + p.reroll_vel * Math.abs(this.vel[i])) * rerollMul * dt)) { this.reroll(i); ev.push(i); }
+    }
+    this.t += dt; this.events = ev;
+    return this.snapshot();
+  }
+  ready() { return this.relax() && this.flow.timbre; }
+  dscale() {
+    const fl = this.freqLog2();
+    if (this.ready()) return this.flow.ek.map(e => { const k = clamp(Math.floor(e), 0, SIZE - 2), f = e - k; return 2 ** lerp(fl[k], fl[k + 1], f); });
+    const d = this.dominant(2); return [...Array(TRIADS)].map((_, i) => 2 ** fl[d[i % SIZE]]);
+  }
+  snapshot() {
+    const s = this.sigma, tot = s.reduce((a, b) => a + b, 0) + 1e-9, dc = this.dominant(0), dl = this.dominant(1), rd = this.ready();
+    const st = { t: this.t, size: SIZE, sigma: s.slice(), vel: this.vel.slice(), amp: s.map(x => x / tot),
+      triads: this.triads.map(t => t.slice()), gen: this.gen.slice(), events: this.events.slice(),
+      timbre: rd ? this.flow.timbre.slice() : [...Array(TRIADS)].map((_, i) => dc[i % SIZE]),
+      loud: rd ? this.flow.loud.slice() : [...Array(TRIADS)].map((_, i) => dl[i % SIZE]),
+      dscale: this.dscale(), blends: this.bl.map(r => r.slice()), T: Array.from(this.effective()), weights: this.weights.map(r => r.slice()), params: { ...this.params },
+      flow: this.relax() ? 'relax' : 'classic' };
+    if (this.relax()) {
+      const f = this.flow, m = this.wmask();
+      Object.assign(st, { efold: f.N, epoch: f.epoch, source: f.source, w: f.w.slice(), X: f.X ? f.X.slice() : new Array(TRIADS).fill(0),
+        crossings: this.crossings.slice(), attn: f.maps, attn_dirs: FL.DIR_NAMES, qattn: f.attn, sources: f.sources.slice(),
+        Tinf: f.Tinf ? Array.from(f.Tinf, (v, x) => v * m[x]) : new Array(CELLS).fill(0), aspects: { ...f.aspects },
+        memory: { buffer: f.buffer.length, protos: f.protos.map(p => p[1]) } });
+    }
+    return st;
+  }
+}
+
+// =================================================================== global state
+const ENG = new Engine();
+let STATE = ENG.snapshot(), RUNNING = false, SRC = 'LOCAL', sock = null;
+let prevGen = STATE.gen.slice();
+const HIST_N = 600, HIST = []; // [{t, sigma, vel}]
+const TRAILS = [...Array(TRIADS)].map(() => []);
+let rot = 0, rotCube = 0, stateCount = 0;
+
+function logMsg(msg, cls = '') {
+  const el = $('log'), d = document.createElement('div');
+  d.className = cls; d.textContent = new Date().toTimeString().slice(0, 8) + '  ' + msg;
+  el.insertBefore(d, el.firstChild); while (el.children.length > 120) el.removeChild(el.lastChild);
+}
+
+// =================================================================== tabs
+const tabs = [...document.querySelectorAll('.tab')];
+let ACTIVE = 0;
+tabs.forEach((t, i) => {
+  const b = document.createElement('button'); b.textContent = t.dataset.name;
+  b.onclick = () => setTab(i); $('tabs').appendChild(b);
+});
+function setTab(i) {
+  ACTIVE = i; tabs.forEach((t, k) => t.classList.toggle('act', k === i));
+  [...$('tabs').children].forEach((b, k) => b.classList.toggle('act', k === i));
+  try { localStorage.setItem('tre_tab', i); } catch (e) {}
+  if (i === 10) { setTimeout(drawPath, 0); if (typeof sock !== 'undefined' && sock && sock.connected && !DUD.sources) refreshDudley(); }
+  if (i === 9 && typeof sock !== 'undefined' && sock && sock.connected) refreshLibrary();
+}
+let saved = 0; try { saved = +localStorage.getItem('tre_tab') || 0; } catch (e) {}
+setTab(clamp(saved, 0, tabs.length - 1));
+
+// =================================================================== controls (tab 1)
+function slider(parent, label, min, max, step, val, fmt, on) {
+  const r = document.createElement('div'); r.className = 'row';
+  r.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${val}"><span></span>`;
+  const inp = r.children[1], out = r.children[2];
+  const upd = () => { out.textContent = fmt(+inp.value); on(+inp.value); };
+  inp.addEventListener('input', upd); out.textContent = fmt(+inp.value);
+  parent.appendChild(r); return inp;
+}
+for (let m = 0; m < 3; m++) for (let s = 0; s < SIZE; s++) {
+  slider($('wSliders'), `${MODE_N[m].slice(0, 4)}·${SLOT_N[m][s]}`, 0, 3, 0.01, 1, v => v.toFixed(2), v => {
+    ENG.weights[m][s] = v; send({ weights: ENG.weights });
+  });
+}
+const PDEF = [
+  ['f_min', 'F MIN Hz', 20, 2000, 1, v => v.toFixed(0)], ['f_max', 'F MAX Hz', 200, 20000, 10, v => v.toFixed(0)],
+  ['drift_gain', 'DRIFT GAIN', 0, 20, 0.1, v => v.toFixed(1)], ['reroll_base', 'RE-ROLL /s', 0, 3, 0.01, v => v.toFixed(2)],
+  ['reroll_vel', 'RE-ROLL × |v|', 0, 20, 0.1, v => v.toFixed(1)], ['kick_rate', 'KICKS /s', 0, 5, 0.05, v => v.toFixed(2)],
+  ['kick_amp', 'KICK AMP', 0, 1.5, 0.01, v => v.toFixed(2)], ['noise', 'WANDER', 0, 0.6, 0.01, v => v.toFixed(2)],
+  ['couple_rate', 'COUPLING', 0, 4, 0.05, v => v.toFixed(2)], ['energy', 'ENERGY', 0.5, 5, 0.05, v => v.toFixed(2)],
+];
+const PIN = {};
+PDEF.forEach(([k, lab, mn, mx, st, fmt]) => {
+  PIN[k] = slider($('pSliders'), lab, mn, mx, st, ENG.params[k], fmt, v => {
+    ENG.params[k] = v;
+    if (k === 'f_min' && v > ENG.params.f_max * 0.9) ENG.params.f_min = ENG.params.f_max * 0.9;
+    if (k === 'f_max' && v < ENG.params.f_min * 1.1) ENG.params.f_max = ENG.params.f_min * 1.1;
+    send({ params: { [k]: ENG.params[k] } });
+  });
+});
+// ---- TENSOR FLOW v2 controls
+const FDEF = [
+  ['expansion', 'EXPANSION H', 0.05, 3, 0.01, v => v.toFixed(2)], ['relax_n', 'RELAX n', 0.05, 2, 0.01, v => v.toFixed(2)],
+  ['sound_cs', 'SOUND c_s', 0, 4, 0.05, v => v.toFixed(2)], ['xattn', 'CROSS-ATTN κ', 0, 1.5, 0.01, v => v.toFixed(2)],
+  ['memory', 'MEMORY', 0, 1, 0.01, v => v.toFixed(2)], ['epoch_rate', 'EPOCHS /s', 0, 1, 0.01, v => v.toFixed(2)],
+];
+FDEF.forEach(([k, lab, mn, mx, st, fmt]) => {
+  PIN[k] = slider($('fSliders'), lab, mn, mx, st, ENG.params[k], fmt, v => { ENG.params[k] = v; send({ params: { [k]: v } }); });
+});
+// ---- in-between slots (variable values)
+const BLIN = {};
+BLEND_KEYS.forEach((row, m) => row.forEach((k, n) => {
+  BLIN[k] = slider($('blSliders'), BLEND_N[m][n], 0, 1, 0.01, ENG.params[k], v => v.toFixed(2), v => { ENG.params[k] = v; send({ params: { [k]: v } }); });
+}));
+$('blFollow').onchange = e => {
+  ENG.params.blend_follow = e.target.checked ? 1 : 0; send({ params: { blend_follow: ENG.params.blend_follow } });
+  Object.values(BLIN).forEach(inp => inp.disabled = e.target.checked);
+  logMsg(e.target.checked ? 'in-between slots follow the tensor' : 'in-between slots set by the sliders', 'ev');
+};
+function showBlends(bl) {      // while following, the sliders show where the tensor puts them
+  if (!$('blFollow').checked || !bl) return;
+  BLEND_KEYS.forEach((row, m) => row.forEach((k, n) => { const inp = BLIN[k]; inp.value = bl[m][n]; inp.nextElementSibling.textContent = (+bl[m][n]).toFixed(2); }));
+}
+function setFlow(f, quiet) {
+  f = f === 'classic' ? 'classic' : 'relax';
+  ENG.params.flow = f; $('flowSel').value = f;
+  const v2 = f === 'relax';
+  $('fSliders').style.display = $('bEpoch').style.display = $('flowCard').style.display = v2 ? '' : 'none';
+  PIN.couple_rate.closest('.row').style.display = v2 ? 'none' : '';
+  $('flowNote').innerHTML = v2
+    ? 'The tensor relaxes toward an equilibrium T∞ at <b>RELAX n</b> per e-fold of its own clock (<b>EXPANSION H</b> e-folds/s); short-wavelength disturbances ring as damped sound waves (<b>SOUND c<sub>s</sub></b>). ' +
+      'The equilibrium is cross-attended between COLOR, LOUDNESS and FREQUENCY (<b>CROSS-ATTN κ</b>). New equilibria arrive at random (<b>EPOCHS/s</b>); with chance <b>MEMORY</b> one is recalled from prototypes distilled out of the recent past. ' +
+      'Built from three papers: relaxation dark energy (arXiv 2610.13739), X-AVDD (2610.13687), OpenPA (2610.13826); random projections, no training.'
+    : 'The first flow: diagonal-dominant coupling, wander and arrhythmic kicks, with soft energy normalisation.';
+  if (!quiet) send({ params: { flow: f } });
+}
+$('flowSel').onchange = e => { setFlow(e.target.value); logMsg('flow → ' + (ENG.params.flow === 'relax' ? 'v2 relax + attention' : 'classic coupling'), 'ev'); };
+$('bEpoch').onclick = () => { if (SRC === 'SERVER') send({ epoch: true }); else ENG.newEpoch(); };
+setFlow(ENG.params.flow, true);
+$('bReset').onclick = () => { ENG.reset(); send({ reset: true }); logMsg('tensor reset', 'ev'); };
+$('bReroll').onclick = () => { for (let i = 0; i < TRIADS; i++) ENG.reroll(i); send({ reroll_all: true }); };
+$('bKick').onclick = () => { const x = Math.floor(Math.random() * CELLS); kick(Math.floor(x / TOK), Math.floor(x / SIZE) % SIZE, x % SIZE, randn() * 1.2); };
+function kick(i, j, k, amt) { ENG.T[ti(i,j,k)] += amt; send({ kick: [i, j, k, amt] }); logMsg(`kick T[${SLOT_N[0][i]},${SLOT_N[1][j]},${SLOT_N[2][k]}] ${amt > 0 ? '+' : ''}${amt.toFixed(2)}`, 'ev'); }
+
+// =================================================================== run / server
+$('btnRun').onclick = () => {
+  RUNNING = !RUNNING;
+  $('btnRun').textContent = RUNNING ? '■ STOP' : '▶ START';
+  $('btnRun').classList.toggle('on', RUNNING);
+  if (sock && SRC === 'SERVER') sock.emit(RUNNING ? 'start_engine' : 'stop_engine');
+  if (RUNNING && !AU.ctx) toggleAudio(true);
+  if (!RUNNING) midiPanic();
+};
+function send(msg) { if (sock && SRC === 'SERVER') sock.emit('update_tensor', msg); }
+function setSrc(s) {
+  SRC = s; const b = $('srcBadge');
+  b.textContent = s === 'SERVER' ? 'PYTHON ENGINE' : 'LOCAL ENGINE'; b.className = 'badge ' + (s === 'SERVER' ? 'server' : 'local');
+  $('btnSrv').textContent = s === 'SERVER' ? 'DISCONNECT' : 'CONNECT PY';
+}
+function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+async function connectServer(url) {
+  try {
+    if (!window.io) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js');
+  } catch (e) { logMsg('socket.io client failed to load', 'er'); return; }
+  if (sock) sock.close();
+  sock = io(url, { transports: ['websocket', 'polling'], reconnectionAttempts: 4, timeout: 4000 });
+  hookDudleySocket();
+  sock.on('connect', () => {
+    refreshLibrary(); if (ACTIVE === 10) refreshDudley();
+    setSrc('SERVER'); logMsg('connected to Python engine ' + url, 'ev');
+    sock.emit('update_tensor', { weights: ENG.weights, params: ENG.params });
+    if (RUNNING) sock.emit('start_engine');
+  });
+  sock.on('hello', h => { if (h.flow && h.flow !== ENG.params.flow) setFlow(h.flow); logMsg(`server: tensorly=${h.tensorly} · saves to ${h.library} · MIDI ${h.midi ? 'from Python → ' + h.midi_name + ' (' + h.midi_mode + ')' : 'off'}`, 'ev'); PYMIDI = !!h.midi; if (h.midi) { $('srcBadge').textContent = 'PYTHON ENGINE · MIDI → ' + h.midi_name; $('midiOn').checked = false; if (h.dexed_epoch) $('midiDexVoice').checked = true; } else dexedSettings(); });
+  sock.on('dexed_voice', v => v.index >= 0 ? logMsg(`Dexed voice → ${v.name} (${v.cart} #${v.index + 1}) · ${v.reason}`, 'ev') : logMsg('Dexed voice: ' + v.name, 'er'));
+  sock.on('state', s => {
+    if (SRC !== 'SERVER') return;
+    if (s.sigma.length !== TRIADS) { if (!sock.__sizeWarned) { sock.__sizeWarned = true; logMsg(`the Python engine is the older ${Math.round(Math.cbrt(s.T.flat(2).length))}×… version: stop it and start ./run.sh again from this folder`, 'er'); } return; }
+    onState(normalize(s));
+  });
+  sock.on('disconnect', () => { setSrc('LOCAL'); logMsg('server disconnected — local engine', 'er'); });
+  sock.on('connect_error', () => { if (SRC !== 'SERVER') logMsg('no Python server at ' + url, 'er'); });
+}
+function normalize(s) { s.T = Array.isArray(s.T[0]) ? s.T.flat(2) : s.T; return s; }
+$('btnSrv').onclick = () => {
+  if (SRC === 'SERVER' && sock) { sock.close(); sock = null; setSrc('LOCAL'); }
+  else connectServer($('srvUrl').value.trim());
+};
+// auto-connect when this page is served by app.py
+if (/^https?:/.test(location.protocol)) fetch('health').then(r => r.ok ? r.json() : null).then(j => {
+  if (j && 'tensorly' in j) { $('srvUrl').value = location.origin; connectServer(location.origin); }
+}).catch(() => {});
+
+// =================================================================== state pipeline
+function onState(st) {
+  STATE = st; stateCount++;
+  if (RUNNING || SRC === 'SERVER') {
+    HIST.push({ sigma: st.sigma.slice(), vel: st.vel.slice(), epoch: st.epoch, cross: st.crossings || [] }); if (HIST.length > HIST_N) HIST.shift();
+    for (let i = 0; i < TRIADS; i++) {
+      const mlf = st.triads[i].reduce((a, f) => a + log2(f), 0) / 3;
+      if (st.gen[i] !== prevGen[i]) TRAILS[i].push(null); TRAILS[i].push([mlf, st.sigma[i]]); if (TRAILS[i].length > 120) TRAILS[i].shift();
+    }
+  }
+  if (REC.on) REC.frames.push({ frame: REC.frames.length, t: +((performance.now() - REC.t0) / 1000).toFixed(4), sigma: st.sigma.map(v => +v.toFixed(5)), vel: st.vel.map(v => +v.toFixed(5)),
+    amp: st.amp.map(v => +v.toFixed(4)), triads: st.triads.map(t => t.map(f => +f.toFixed(2))), timbre: st.timbre, loud: st.loud,
+    blends: st.blends ? st.blends.map(r => r.map(v => +(+v).toFixed(3))) : undefined,
+    ...(st.aspects ? { efold: +st.efold.toFixed(3), epoch: st.epoch, source: st.source, w: st.w.map(v => +v.toFixed(4)), X: st.X.map(v => +v.toFixed(4)),
+      aspects: Object.fromEntries(Object.entries(st.aspects).map(([k, v]) => [k, +v.toFixed(4)])), crossings: st.crossings } : {}) });
+  if (st.aspects) {
+    TILT_EXP = 0.15 + 0.35 * (1 - st.aspects.brightness);
+    const now = performance.now(); (st.crossings || []).forEach(i => FLASH[i] = now);
+    if (st.crossings && st.crossings.length && ACTIVE === 8) logMsg('phantom crossing ' + st.crossings.map(i => SIGN[i]).join(' ') + ' (w rose through −1) → re-roll');
+    if (st.epoch !== lastEpoch) {
+      if (lastEpoch !== null) logMsg(`epoch ${st.epoch} · ${st.source === 'fresh' ? 'fresh equilibrium' : 'recalled ' + st.source + ' (distilled memory)'} · ${st.efold.toFixed(1)} e-folds`, 'ev');
+      if (lastEpoch !== null && $('midiDexVoice').checked && $('midiOn').checked && RUNNING && !(SRC === 'SERVER' && PYMIDI)) dexedVoice('epoch ' + st.epoch);
+      lastEpoch = st.epoch;
+    }
+  } else TILT_EXP = 0.32;
+  if (st.blends) { BL = st.blends; if (stateCount % 4 === 0) showBlends(st.blends); }
+  const changed = []; for (let i = 0; i < TRIADS; i++) if (st.gen[i] !== prevGen[i]) changed.push(i);
+  audioUpdate(st, changed);
+  midiUpdate(st, changed);
+  if (stateCount % 3 === 0) { bridgeCayley(st); bridgeVst(st); }
+  if (changed.length && stateCount % 2 === 0 && ACTIVE === 8)
+    logMsg('re-roll ' + changed.map(i => `${SIGN[i]} [${st.triads[i].map(f => f.toFixed(1)).join(' · ')}]`).join('  '));
+  prevGen = st.gen.slice();
+}
+let lastTick = performance.now();
+setInterval(() => {
+  const now = performance.now(), dt = Math.min(0.1, (now - lastTick) / 1000); lastTick = now;
+  if (SRC === 'LOCAL' && RUNNING) onState(ENG.step(dt)); else if (!RUNNING) onState(STATE);
+}, 33);
+
+// =================================================================== audio (Web Audio, 45 oscillators)
+const AU = { ctx: null, voices: [], master: null, an: null, on: false };
+// timbre: RED saw, BLUE sine, YELLOW triangle are the browser's own waves; PURPLE and GREEN are
+// blended PeriodicWaves (harmonic amplitudes mixed by the in-between value), cached per 1/20 step
+const WAVES = {};
+function harmonic(kind, n) {
+  if (kind === 'saw') return (n % 2 ? 1 : -1) * 2 / (Math.PI * n);
+  if (kind === 'sine') return n === 1 ? 1 : 0;
+  return n % 2 ? (((n - 1) / 2) % 2 ? -1 : 1) * 8 / (Math.PI * Math.PI * n * n) : 0;   // triangle
+}
+function timbreKey(slot) { return slot === 0 ? 'sawtooth' : slot === 2 ? 'sine' : slot === 4 ? 'triangle' : slot === 1 ? 'p' + Math.round(BL[0][0] * 20) : 'g' + Math.round(BL[0][1] * 20); }
+function applyTimbre(osc, key) {
+  if (key === 'sawtooth' || key === 'sine' || key === 'triangle') { osc.type = key; return; }
+  if (!WAVES[key]) {
+    const t = +key.slice(1) / 20, [A, B] = key[0] === 'p' ? ['saw', 'sine'] : ['sine', 'tri'], N = 64, re = new Float32Array(N), im = new Float32Array(N);
+    for (let n = 1; n < N; n++) im[n] = (1 - t) * harmonic(A, n) + t * harmonic(B, n);
+    WAVES[key] = AU.ctx.createPeriodicWave(re, im);
+  }
+  osc.setPeriodicWave(WAVES[key]);
+}
+function tilt(f) { return clamp((900 / f) ** TILT_EXP, 0.18, 1); }   // v2 flow: brightness opens the high end
+function audioInit() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ctx.createGain(); master.gain.value = +$('vol').value;
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -20; comp.knee.value = 8; comp.ratio.value = 10; comp.attack.value = 0.003; comp.release.value = 0.25;
+  const an = ctx.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0.55;
+  master.connect(comp); comp.connect(an); an.connect(ctx.destination);
+  AU.ctx = ctx; AU.master = master; AU.an = an; AU.comp = comp;
+  for (let i = 0; i < TRIADS; i++) {
+    const vg = ctx.createGain(); vg.gain.value = 0; vg.connect(master);
+    const oscs = [], key = timbreKey(STATE.timbre[i]);
+    for (let n = 0; n < 3; n++) {
+      const o = ctx.createOscillator(), g = ctx.createGain(), p = ctx.createStereoPanner();
+      applyTimbre(o, key); o.frequency.value = STATE.triads[i][n];
+      g.gain.value = tilt(STATE.triads[i][n]); p.pan.value = Math.random() * 1.6 - 0.8;
+      o.connect(g); g.connect(p); p.connect(vg); o.start();
+      oscs.push({ o, g, p });
+    }
+    AU.voices.push({ vg, oscs, lock: 0, key });
+  }
+}
+function toggleAudio(force) {
+  AU.on = force === undefined ? !AU.on : force;
+  if (AU.on && !AU.ctx) audioInit();
+  if (AU.ctx) { AU.on ? AU.ctx.resume() : AU.ctx.suspend(); }
+  $('btnAudio').textContent = AU.on ? '♪ AUDIO ON' : '♪ AUDIO OFF';
+  $('btnAudio').classList.toggle('on', AU.on);
+}
+$('btnAudio').onclick = () => toggleAudio();
+$('vol').oninput = e => { if (AU.master) AU.master.gain.setTargetAtTime(+e.target.value, AU.ctx.currentTime, 0.05); };
+function audioUpdate(st, changed) {
+  if (!AU.ctx || !AU.on) return;
+  const now = AU.ctx.currentTime, live = RUNNING;
+  for (let i = 0; i < TRIADS; i++) {
+    const v = AU.voices[i], L = st.loud[i];
+    const target = live ? loudLvl(L) * st.amp[i] * 2.0 : 0;
+    if (changed.includes(i) && live) {
+      // re-roll: duck, jump to the new unaligned triad, re-attack with the LOUDNESS envelope
+      v.vg.gain.cancelScheduledValues(now); v.vg.gain.setValueAtTime(v.vg.gain.value, now);
+      v.vg.gain.linearRampToValueAtTime(0, now + 0.02);
+      v.oscs.forEach((x, n) => {
+        x.o.frequency.cancelScheduledValues(now); x.o.frequency.setValueAtTime(st.triads[i][n], now + 0.022);
+        x.g.gain.setValueAtTime(tilt(st.triads[i][n]), now + 0.022);
+        x.p.pan.setValueAtTime(Math.random() * 1.6 - 0.8, now + 0.022);
+      });
+      const key = timbreKey(st.timbre[i]), atk = loudAtk(L);
+      setTimeout(() => { if (v.key !== key) { v.oscs.forEach(x => applyTimbre(x.o, key)); v.key = key; } }, 21);
+      v.vg.gain.setTargetAtTime(target, now + 0.025, atk / 3);
+      v.lock = now + 0.025 + atk;
+    } else {
+      v.oscs.forEach((x, n) => { x.o.frequency.setTargetAtTime(st.triads[i][n], now, 0.035); x.g.gain.setTargetAtTime(tilt(st.triads[i][n]), now, 0.05); });
+      if (now > v.lock) v.vg.gain.setTargetAtTime(target, now, live ? 0.08 : 0.25);
+    }
+  }
+}
+
+// =================================================================== MIDI out: MPE (exact microtones) or single channel (Dexed, any synth)
+const MIDI = { acc: null, active: new Map(), free: [], sounding: new Map(), track: new Map(), lastCC: -1, lastBend: null };
+function resetVoices() { MIDI.active.clear(); MIDI.sounding.clear(); MIDI.track.clear(); MIDI.free = []; for (let c = 1; c < 16; c++) MIDI.free.push(c); MIDI.lastBend = null; MIDI.lastCC74 = null; }
+resetVoices();
+function mSend(out, bytes, src = 'tensor') { out.send(bytes); recMidi(src, bytes); }
+function fillPorts() {
+  for (const sel of [$('midiPort'), $('cayPort')]) {
+    const prev = sel.value; sel.innerHTML = '<option value="">— port —</option>';
+    if (MIDI.acc) for (const [id, o] of MIDI.acc.outputs) { const op = document.createElement('option'); op.value = id; op.textContent = o.name; sel.appendChild(op); }
+    sel.value = prev;
+    // own lane: auto-pick only a port named *Tensor* (never IAC Bus 1, which other streams may use)
+    if (!sel.value && MIDI.acc) { const own = [...MIDI.acc.outputs.values()].find(o => /tensor/i.test(o.name)); if (own) sel.value = own.id; }
+  }
+}
+for (const sel of [$('cayCh'), $('midiCh')]) for (let c = 1; c <= 16; c++) { const o = document.createElement('option'); o.value = c - 1; o.textContent = 'ch ' + c; sel.appendChild(o); }
+fillPorts();
+async function midiEnable() {
+  if (!navigator.requestMIDIAccess) { logMsg('Web MIDI not available here: use Chrome or Edge, or ./run.sh --midi', 'er'); return; }
+  try {   // SysEx is needed only for Dexed voices; without it everything else still works
+    try { MIDI.acc = await navigator.requestMIDIAccess({ sysex: true }); } catch (e) { MIDI.acc = await navigator.requestMIDIAccess(); }
+    MIDI.acc.onstatechange = fillPorts; fillPorts(); logMsg('Web MIDI ready' + (MIDI.acc.sysexEnabled ? ' (SysEx allowed: Dexed voices work)' : ' (no SysEx: Dexed voices off)'), 'ev'); $('midiEnable').classList.add('on');
+  }
+  catch (e) { logMsg('MIDI denied: ' + e.message, 'er'); }
+}
+$('midiEnable').onclick = midiEnable;
+const outOf = sel => MIDI.acc && sel.value ? MIDI.acc.outputs.get(sel.value) : null;
+const isSingle = () => $('midiMode').value === 'single';
+const midiFloat = f => 69 + 12 * log2(f / 440);
+function sendBendRange(out, st) { for (let ch = 0; ch < 16; ch++) mSend(out, [0xB0|ch,101,0, 0xB0|ch,100,0, 0xB0|ch,6,st, 0xB0|ch,38,0, 0xB0|ch,101,127, 0xB0|ch,100,127]); }
+function midiModeUI() {
+  const single = isSingle();
+  $('rowCh').style.display = single ? '' : 'none'; $('rowGBend').style.display = single ? '' : 'none'; $('rowFollow').style.display = single ? '' : 'none';
+}
+function applyMidiSetup() {
+  midiPanic(); midiModeUI();
+  const o = outOf($('midiPort')); if (!o) return;
+  if (!isSingle()) { sendBendRange(o, +$('midiBend').value); logMsg(`MPE → ${o.name} · channels 2–16 · bend ±${$('midiBend').value}`); }
+  else logMsg(`single channel ${+$('midiCh').value + 1} → ${o.name} · nearest semitone${$('midiGBend').checked ? ' · shared bend ±' + $('midiBend').value : ''}`);
+}
+$('midiPort').onchange = $('midiBend').onchange = $('midiMode').onchange = $('midiCh').onchange = $('midiGBend').onchange = applyMidiSetup;
+midiModeUI();
+$('midiVoices').oninput = e => { $('midiVoicesV').textContent = e.target.value; };
+$('midiDexed').onclick = () => {
+  $('midiMode').value = 'single'; $('midiCh').value = '0'; $('midiVoices').value = 3; $('midiVoicesV').textContent = '3';
+  $('midiGBend').checked = false; $('midiFollow').checked = false; $('midiBend').value = '2'; $('midiCC74').checked = false; applyMidiSetup();
+  logMsg('DEXED preset: channel 1, nearest semitone, 3 triads, no bend, no CC74 (leaves voices for the VST randomizer)', 'ev');
+};
+// ---- Dexed voices as SysEx (a Program Change can crash Dexed 1.0.x; a voice dump can't: see dexed.py)
+let PYMIDI = false;
+const engineBases = () => [...new Set([/^https?:/.test(location.protocol) ? location.origin : null, SRC === 'SERVER' ? $('srvUrl').value.trim() : null, 'http://127.0.0.1:5055', 'http://127.0.0.1:5056'].filter(Boolean))];
+async function fetchDexedVoice(ch) {
+  let last = 'start the Python engine (./run.sh): Dexed voices come from your cartridges through it';
+  for (const b of engineBases()) {
+    try { const r = await (await fetch(`${b}/api/dexed/voice?channel=${ch}&mutate=${$('midiDexMut').value}`)).json(); if (r.ok) return r; last = r.error + (r.looked_in ? ' · looked in ' + r.looked_in[0] : ''); break; } catch (e) {}
+  }
+  throw new Error(last);
+}
+async function dexedVoice(reason) {
+  if (SRC === 'SERVER' && sock && PYMIDI) { sock.emit('dexed_voice_now', { reason, mutate: +$('midiDexMut').value }); return; }
+  const out = outOf($('midiPort'));
+  if (!out) { logMsg('DEXED VOICE: press ENABLE WEB MIDI and pick the PORT Dexed listens to', 'er'); return; }
+  if (!MIDI.acc.sysexEnabled) { logMsg('DEXED VOICE needs SysEx: reload, press ENABLE WEB MIDI and allow it to "control and reprogram" MIDI devices', 'er'); return; }
+  try {
+    const r = await fetchDexedVoice(isSingle() ? +$('midiCh').value + 1 : 1);
+    mSend(out, r.sysex); resetVoices();            // Dexed silences its notes on a new voice: they are sent again next frame
+    logMsg(`Dexed voice → ${r.name} (${r.cart} #${r.index + 1}) · ${reason}`, 'ev');
+  } catch (e) { logMsg('DEXED VOICE: ' + e.message, 'er'); }
+}
+$('midiDexVoiceNow').onclick = () => dexedVoice('button');
+$('midiDexMut').oninput = e => { $('midiDexMutV').textContent = (+e.target.value).toFixed(2); dexedSettings(); };
+$('midiDexVoice').onchange = () => dexedSettings();
+function dexedSettings() { if (SRC === 'SERVER' && sock) sock.emit('dexed_settings', { epoch: $('midiDexVoice').checked, mutate: +$('midiDexMut').value }); }
+$('midiTest').onclick = () => {
+  const o = outOf($('midiPort'));
+  if (!o) { logMsg('TEST: press ENABLE WEB MIDI, then pick a PORT (the IAC Driver bus on a Mac)', 'er'); return; }
+  const chs = isSingle() ? [+$('midiCh').value, +$('midiCh').value, +$('midiCh').value] : [1, 2, 3], notes = [60, 64, 67];
+  notes.forEach((n, k) => mSend(o, [0x90 | chs[k], n, 100]));
+  setTimeout(() => notes.forEach((n, k) => mSend(o, [0x80 | chs[k], n, 0])), 800);
+  logMsg(`TEST chord C-E-G → ${o.name} on ${isSingle() ? 'channel ' + (chs[0] + 1) : 'channels 2-4'}. Silent? Enable this port as an input in the synth and set it to that channel (or Omni).`, 'ev');
+};
+function midiPanic() {
+  const o = outOf($('midiPort'));
+  if (o) for (let ch = 0; ch < 16; ch++) { mSend(o, [0xB0|ch, 123, 0]); if (isSingle() && ch === +$('midiCh').value) mSend(o, [0xE0|ch, 0, 64]); }
+  resetVoices();
+}
+$('midiPanic').onclick = midiPanic;
+$('midiOn').onchange = e => { if (!e.target.checked) midiPanic(); };
+const topTriads = (st, n) => [...Array(TRIADS).keys()].sort((a, b) => st.amp[b] - st.amp[a]).slice(0, n);
+const midiVel = (st, i) => clamp(Math.round(30 + 300 * st.amp[i] * (TRIADS / 9) * loudLvl(st.loud[i])), 1, 127);
+function midiUpdateMpe(out, st, changed) {
+  const BR = +$('midiBend').value, top = new Set(topTriads(st, +$('midiVoices').value));
+  for (const [key, val] of [...MIDI.active]) {
+    const i = Math.floor(key / 3);
+    if (!top.has(i) || changed.includes(i)) { mSend(out, [0x80|val.ch, val.note, 0]); MIDI.free.push(val.ch); MIDI.active.delete(key); }
+  }
+  for (const i of top) {
+    const vel = midiVel(st, i);
+    for (let n = 0; n < 3; n++) {
+      const key = i * 3 + n, m = midiFloat(st.triads[i][n]), a = MIDI.active.get(key);
+      if (a) {
+        if (Math.abs(m - a.note) < BR - 0.5) {
+          // only send a bend that moved ~5 cents or more: keeps Bluetooth / network MIDI light
+          const b = clamp(Math.round((m - a.note) / BR * 8192) + 8192, 0, 16383);
+          if (a.b === undefined || Math.abs(b - a.b) >= Math.max(2, Math.round(8192 / BR * 0.05))) { mSend(out, [0xE0|a.ch, b & 127, b >> 7]); a.b = b; }
+          continue;
+        }
+        mSend(out, [0x80|a.ch, a.note, 0]); MIDI.free.push(a.ch); MIDI.active.delete(key);
+      }
+      if (!MIDI.free.length) continue;
+      const ch = MIDI.free.shift(), note = clamp(Math.round(m), 0, 127), b = clamp(Math.round((m - note) / BR * 8192) + 8192, 0, 16383);
+      mSend(out, [0xE0|ch, b & 127, b >> 7]); mSend(out, [0x90|ch, note, vel]);
+      MIDI.active.set(key, { ch, note, b });
+    }
+  }
+}
+function midiUpdateSingle(out, st, changed) {
+  // one channel, nearest semitone. Each triad note keeps its pitch until its triad re-rolls,
+  // or (if "follow the drift" is on) until it has drifted 1.25 semitones away: no note spray.
+  const ch = +$('midiCh').value, top = topTriads(st, +$('midiVoices').value), follow = $('midiFollow').checked;
+  const want = new Map(), retrig = new Set(), keep = new Set();
+  for (const i of top) {
+    const vel = midiVel(st, i), rolled = changed.includes(i);
+    for (let n = 0; n < 3; n++) {
+      const key = i * 3 + n, m = midiFloat(st.triads[i][n]);
+      let cur = MIDI.track.get(key);
+      if (cur === undefined || rolled || (follow && Math.abs(m - cur) > 1.25)) { cur = clamp(Math.round(m), 0, 127); MIDI.track.set(key, cur); if (rolled) retrig.add(cur); }
+      keep.add(key); want.set(cur, Math.max(vel, want.get(cur) || 0));
+    }
+  }
+  for (const key of [...MIDI.track.keys()]) if (!keep.has(key)) MIDI.track.delete(key);
+  for (const note of [...MIDI.sounding.keys()]) if (!want.has(note) || retrig.has(note)) { mSend(out, [0x80|ch, note, 0]); MIDI.sounding.delete(note); }
+  for (const [note, vel] of want) if (!MIDI.sounding.has(note)) { mSend(out, [0x90|ch, note, vel]); MIDI.sounding.set(note, vel); }
+  if ($('midiGBend').checked && top.length) {
+    const BR = +$('midiBend').value, m = midiFloat(Math.min(...st.triads[top[0]]));
+    const b = clamp(Math.round((m - Math.round(m)) / BR * 8192) + 8192, 0, 16383);
+    if (MIDI.lastBend === null || Math.abs(b - MIDI.lastBend) > 40) { mSend(out, [0xE0|ch, b & 127, b >> 7]); MIDI.lastBend = b; }
+  }
+}
+function midiUpdate(st, changed) {
+  const out = outOf($('midiPort'));
+  if (out && $('midiOn').checked && RUNNING) {
+    if (st.aspects && $('midiCC74').checked) {            // v2 flow brightness -> CC74 (dedupe: moves of 2+)
+      const v = clamp(Math.round(st.aspects.brightness * 127), 0, 127);
+      if (MIDI.lastCC74 === null || Math.abs(v - MIDI.lastCC74) >= 2) { mSend(out, [0xB0 | (isSingle() ? +$('midiCh').value : 0), 74, v]); MIDI.lastCC74 = v; }
+    }
+    (isSingle() ? midiUpdateSingle : midiUpdateMpe)(out, st, changed);
+  }
+  // CAYLEY XI over MIDI: root note from strongest triad + CC1
+  const co = outOf($('cayPort'));
+  if (co && $('cayMidiOn').checked && RUNNING) {
+    const ch = +$('cayCh').value, top = st.amp.indexOf(Math.max(...st.amp));
+    if (changed.includes(top)) {
+      const f = Math.min(...st.triads[top]), note = clamp(Math.round(midiFloat(f)), 24, 96);
+      mSend(co, [0x90|ch, note, 100], 'cayley_midi'); setTimeout(() => mSend(co, [0x80|ch, note, 0], 'cayley_midi'), 120);
+    }
+    const cc = clamp(Math.round(st.amp[top] * 3 * 127), 0, 127);
+    if (cc !== MIDI.lastCC) { mSend(co, [0xB0|ch, 1, cc], 'cayley_midi'); MIDI.lastCC = cc; }
+  }
+}
+
+// =================================================================== bridges into the two uploaded instruments
+// A tiny tap is injected at the top of each embedded page: it copies the page's audio output
+// into a stream the recorder can take, and copies every MIDI message it sends into the take.
+const TAP = '<script>(function(){try{var P=window.parent;var oc=AudioNode.prototype.connect;' +
+  'AudioNode.prototype.connect=function(d){var r=oc.apply(this,arguments);try{if(d instanceof AudioDestinationNode){var c=this.context;' +
+  'if(!c.__treTap){c.__treTap=c.createMediaStreamDestination();if(P&&P.__treStream)P.__treStream(window,c.__treTap.stream);}oc.call(this,c.__treTap);}}catch(e){}return r;};' +
+  'if(window.MIDIOutput&&MIDIOutput.prototype.send){var os=MIDIOutput.prototype.send;MIDIOutput.prototype.send=function(d,t){try{if(P&&P.__treMidi)P.__treMidi(window,d,t);}catch(e){}return os.apply(this,arguments);};}' +
+  '}catch(e){}})();<\/script>';
+function injectTap(html) {
+  const m = html.match(/<head[^>]*>/i) || html.match(/<html[^>]*>/i);
+  return m ? html.replace(m[0], m[0] + TAP) : TAP + html;
+}
+const STREAMS = {};
+const frameName = win => { for (const p of ['cay', 'vst']) { const f = $(p + 'Frame'); if (f && f.contentWindow === win) return p === 'cay' ? 'cayley' : 'vst_audio'; } return 'frame'; };
+window.__treStream = (win, stream) => { const n = frameName(win); STREAMS[n] = stream; logMsg(`${n} audio is available to the recorder`); if (REC.on) attachStream(n, stream); };
+window.__treMidi = (win, data, ts) => {
+  const n = frameName(win) === 'cayley' ? 'cayley_out' : 'vst';
+  const off = (win.performance && win.performance.timeOrigin || performance.timeOrigin) - performance.timeOrigin;
+  recMidi(n, Array.from(data), ts ? ts + off : null);
+};
+function wireLoader(prefix, file, onLoaded) {
+  const frameIn = html => {
+    const w = $(prefix + 'Wrap'); w.innerHTML = '';
+    const f = document.createElement('iframe'); f.id = prefix + 'Frame'; f.allow = 'midi; autoplay; microphone';
+    f.srcdoc = injectTap(html); w.appendChild(f);
+    f.onload = () => { $(prefix + 'Status').textContent = 'Loaded · ' + (frameDoc(f) ? 'direct control active · recordable' : 'loaded, but the browser blocked direct control — use the MIDI route'); onLoaded && onLoaded(f); };
+  };
+  $(prefix + 'Load').onclick = async () => {
+    try { const r = await fetch(file); if (!r.ok) throw 0; frameIn(await r.text()); }
+    catch (e) { $(prefix + 'File').click(); }
+  };
+  $(prefix + 'File').onchange = e => {
+    const fl = e.target.files[0]; if (!fl) return;
+    const rd = new FileReader(); rd.onload = () => frameIn(rd.result); rd.readAsText(fl);
+  };
+}
+function frameDoc(f) { try { return f && f.contentDocument && f.contentDocument.body ? f.contentDocument : null; } catch (e) { return null; } }
+function setIn(doc, id, val, ev = 'input') { const el = doc && doc.getElementById(id); if (!el) return false; el.value = val; el.dispatchEvent(new Event(ev, { bubbles: true })); return true; }
+wireLoader('cay', 'cayleyXI.html');
+wireLoader('vst', 'vst-midi-randomizer.html');
+[['cayAmt','cayAmtV'],['cayS','caySV'],['vSurge','vSurgeV']].forEach(([a, b]) => $(a).addEventListener('input', e => $(b).textContent = (+e.target.value).toFixed(2)));
+
+// leading-σ dominance of each mode: σ_r0 / Σ σ_mode  in [1/3, 1]  -> [0, 1]
+const dominance = (st, m) => { const n = st.sigma.length / 3, s = st.sigma.slice(m * n, m * n + n), t = s.reduce((a, b) => a + b, 0) + 1e-9; return clamp((s[0] / t - 1 / n) / (1 - 1 / n), 0, 1); };
+const CAY = { spin: null, shift: null, depth: null };
+function bridgeCayley(st) {
+  const d = frameDoc($('cayFrame'));
+  const tgt = { spin: dominance(st, 0), shift: dominance(st, 1), depth: dominance(st, 2) }, k = +$('cayS').value, amt = +$('cayAmt').value;
+  for (const key in tgt) CAY[key] = CAY[key] == null ? tgt[key] : CAY[key] * k + tgt[key] * (1 - k);
+  $('cayVals').textContent = `SPIN ${CAY.spin.toFixed(3)} · SHIFT ${CAY.shift.toFixed(3)} · DEPTH ${CAY.depth.toFixed(3)}`;
+  if (!d || !$('cayOn').checked || !RUNNING) return;
+  const put = (chk, id, val) => { if (!$(chk).checked) return; const el = d.getElementById(id); if (!el) return; if (el.dataset.treBase === undefined) el.dataset.treBase = el.value; const base = +el.dataset.treBase; setIn(d, id, (base * (1 - amt) + val * amt).toFixed(3)); };
+  put('cSpin', 'sSpin', CAY.spin); put('cShift', 'sShift', CAY.shift); put('cDepth', 'sDepth', CAY.depth);
+}
+let lastPatch = 0;
+function bridgeVst(st) {
+  const f = $('vstFrame'), d = frameDoc(f);
+  const loudDom = dominance(st, 1), vmax = Math.round(60 + 67 * loudDom), vmin = Math.round(vmax * (0.25 + 0.4 * (1 - loudDom)));
+  const vsum = st.vel.reduce((a, v) => a + Math.abs(v), 0), bpm = Math.round(clamp(40 + vsum * 25, 20, 280));
+  const rest = Math.round(clamp(75 * (st.sigma[3 * SIZE - 1] / (st.sigma[2 * SIZE] + 1e-9)) * 2, 0, 75));
+  const chord = clamp(1 + Math.round(5 * st.sigma[1] / (st.sigma[0] + 1e-9)), 1, 6);
+  const top = st.amp.indexOf(Math.max(...st.amp)), notes = st.triads[top].map(fr => clamp(Math.round(69 + 12 * log2(fr / 440)), 0, 127));
+  const nMin = Math.min(...notes), nMax = Math.max(Math.max(...notes), nMin + 1);
+  $('vstVals').textContent = `vel ${vmin}–${vmax} · ${bpm} BPM · rest ${rest}% · chord ${chord} · notes ${nMin}–${nMax} · Σ|v| ${vsum.toFixed(2)}`;
+  if (!d || !$('vstOn').checked || !RUNNING) return;
+  if ($('vVel').checked) { setIn(d, 'velMax', vmax); setIn(d, 'velMin', vmin); }
+  if ($('vBpm').checked) setIn(d, 'bpmSlider', bpm);
+  if ($('vRest').checked) setIn(d, 'restP', rest);
+  if ($('vChord').checked) setIn(d, 'chordSz', chord);
+  if ($('vRange').checked) { setIn(d, 'noteMin', nMin, 'change'); setIn(d, 'noteMax', nMax, 'change'); }
+  if ($('vChrom').checked && d.getElementById('scaleMode') && d.getElementById('scaleMode').value !== 'chromatic') setIn(d, 'scaleMode', 'chromatic', 'change');
+  const vmaxAbs = Math.max(...st.vel.map(Math.abs)), now = performance.now();
+  if ($('vPatch').checked && vmaxAbs > +$('vSurge').value && now - lastPatch > 2500) {
+    lastPatch = now; try { f.contentWindow.doRandomPatch(); logMsg(`σ surge ${vmaxAbs.toFixed(2)} → VST random patch`, 'ev'); } catch (e) {}
+  }
+}
+const vstCall = fn => { try { $('vstFrame').contentWindow[fn](); } catch (e) { logMsg('load the VST randomizer first', 'er'); } };
+$('vstPlay').onclick = () => vstCall('startPlay'); $('vstStop').onclick = () => vstCall('stopPlay'); $('vstPatch').onclick = () => vstCall('doRandomPatch');
+
+// =================================================================== drawing helpers
+function fit(cv) {
+  const r = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * r) || cv.height !== Math.round(h * r)) { cv.width = Math.round(w * r); cv.height = Math.round(h * r); }
+  const g = cv.getContext('2d'); g.setTransform(r, 0, 0, r, 0, 0); return [g, w, h];
+}
+const fmtF = f => f >= 1000 ? (f / 1000).toFixed(2) + 'k' : f.toFixed(1);
+function project(x, y, z, ry, rx, cx, cy, sc) {
+  const c = Math.cos(ry), s = Math.sin(ry); let X = x * c + z * s, Z = -x * s + z * c;
+  const c2 = Math.cos(rx), s2 = Math.sin(rx); const Y = y * c2 - Z * s2; Z = y * s2 + Z * c2;
+  const p = 4 / (4 + Z); return [cx + X * sc * p, cy + Y * sc * p, Z, p];
+}
+
+// ---- tab 1 slices
+let sliceGeom = null;
+const LOUD_S = ['LOUD', 'L~S', 'SOFT', 'S~M', 'MID'];
+function drawSlices() {
+  const [g, w, h] = fit($('cvSlices')); g.clearRect(0, 0, w, h);
+  const T = STATE.T, gap = 14, lab = 34, per = w >= 760 ? SIZE : 3, rows = Math.ceil(SIZE / per);
+  const cell = Math.min((w - lab - gap * (per + 1)) / (per * SIZE), 64);
+  const blockW = cell * SIZE, x0 = lab + (w - lab - (blockW * per + gap * (per - 1))) / 2;
+  const need = Math.ceil(24 + rows * (blockW + 40));
+  if (Math.abs(need - h) > 4 && cell > 0) { $('cvSlices').style.height = Math.max(160, need) + 'px'; return; }
+  let mx = 1e-9; T.forEach(v => mx = Math.max(mx, Math.abs(v)));
+  sliceGeom = { cell, origins: [] };
+  for (let i = 0; i < SIZE; i++) {
+    const row = Math.floor(i / per), col = i % per, sx = x0 + col * (blockW + gap), sy = 24 + row * (blockW + 40);
+    sliceGeom.origins.push([sx, sy]);
+    const tween = i === 1 || i === 3;
+    g.fillStyle = AXC[i]; g.font = '600 11px IBM Plex Mono'; g.textAlign = 'center';
+    g.fillText(SLOT_N[0][i] + (tween ? ' ' + (+BL[0][(i - 1) / 2]).toFixed(2) : ''), sx + blockW / 2, sy - 8);
+    for (let j = 0; j < SIZE; j++) for (let k = 0; k < SIZE; k++) {
+      const v = T[ti(i,j,k)], a = Math.abs(v) / mx, x = sx + k * cell, y = sy + j * cell;
+      g.fillStyle = v >= 0 ? AXC[i] : '#ffffff'; g.globalAlpha = 0.08 + 0.85 * a; g.fillRect(x + 1.5, y + 1.5, cell - 3, cell - 3); g.globalAlpha = 1;
+      g.strokeStyle = (j % 2 || k % 2) ? '#1a2030' : '#2c3550'; g.strokeRect(x + 1.5, y + 1.5, cell - 3, cell - 3);
+      if (cell >= 34) { g.fillStyle = a > 0.55 ? '#000' : '#d8deea'; g.font = '9px IBM Plex Mono'; g.fillText(v.toFixed(2), x + cell / 2, y + cell / 2 + 3); }
+    }
+    g.fillStyle = '#7c869c'; g.font = '9px IBM Plex Mono';
+    if (col === 0) { g.textAlign = 'right'; for (let j = 0; j < SIZE; j++) g.fillText(LOUD_S[j], sx - 4, sy + j * cell + cell / 2 + 3); }
+    g.textAlign = 'center';
+    for (let k = 0; k < SIZE; k++) g.fillText(SLOT_N[2][k], sx + k * cell + cell / 2, sy + SIZE * cell + 12);
+  }
+}
+$('cvSlices').addEventListener('click', e => {
+  if (!sliceGeom) return; const r = e.target.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, { cell, origins } = sliceGeom;
+  for (let i = 0; i < SIZE; i++) {
+    const [sx, sy] = origins[i], k = Math.floor((x - sx) / cell), j = Math.floor((y - sy) / cell);
+    if (k >= 0 && k < SIZE && j >= 0 && j < SIZE) { kick(i, j, k, (e.shiftKey ? -1 : 1) * 0.6); return; }
+  }
+});
+
+// ---- tab 1 flow readout (v2 flow)
+function drawFlow() {
+  const cv = $('cvFlow'); if (!cv.clientWidth) return;
+  const [g, w, h] = fit(cv); g.clearRect(0, 0, w, h);
+  const st = STATE; g.font = '10px IBM Plex Mono'; g.textAlign = 'left';
+  if (!st.aspects) { g.fillStyle = '#7c869c'; g.textAlign = 'center'; g.fillText('press START (v2 flow)', w / 2, h / 2); return; }
+  const now = performance.now();
+  g.fillStyle = '#d8deea'; g.font = '600 11px IBM Plex Mono';
+  g.fillText(`${st.efold.toFixed(2)} e-folds · epoch ${st.epoch} (${st.source})` + (w > 560 ? ` · memory ${st.memory.buffer} states → ${st.memory.protos.length ? 'prototypes ' + st.memory.protos.join(' · ') : 'no prototypes yet'}` : ''), 8, 14);
+  // A: six cross-attention maps (rows = the querying mode's slots, columns = the other mode's)
+  const wA = Math.min(w * 0.36, 300), mw = (wA - 8 - 24) / 3, cell = mw / SIZE, top = 30;
+  st.attn.forEach((S, d) => {
+    const [a] = FL.DIRS[d], x0 = 8 + Math.floor(d / 2) * (mw + 12), y0 = top + (d % 2) * (cell * SIZE + 26);
+    g.fillStyle = MODEC[a]; g.font = '600 10px IBM Plex Mono'; g.fillText(st.attn_dirs[d], x0, y0 + 9);
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      g.fillStyle = MODEC[a]; g.globalAlpha = 0.08 + 0.92 * S[r][c]; g.fillRect(x0 + c * cell + 1, y0 + 13 + r * cell + 1, cell - 2, cell - 2);
+      g.globalAlpha = 1; g.strokeStyle = '#232a3b'; g.strokeRect(x0 + c * cell + 1, y0 + 13 + r * cell + 1, cell - 2, cell - 2);
+    }
+  });
+  const yA = top + 2 * (cell * SIZE + 26);
+  // B: each triad's attention over the 125 cells, grouped by COLOR slot
+  const x1 = wA + 24, lab = 64, info = w > 700 ? 128 : 0, bg = 4, cw = (w - x1 - lab - info - 8 - (SIZE - 1) * bg) / CELLS, rh = Math.min(18, (yA - top - 14) / TRIADS);
+  g.font = '10px IBM Plex Mono';
+  for (let b = 0; b < SIZE; b++) { g.fillStyle = AXC[b]; g.fillText(SLOT_N[0][b].slice(0, 6), x1 + lab + b * (TOK * cw + bg), top + 9); }
+  for (let i = 0; i < TRIADS; i++) {
+    const y = top + 14 + i * rh, row = st.qattn[i], mx = Math.max(...row) + 1e-9, src = st.sources[i];
+    g.fillStyle = SIGC[i]; g.fillText(SIGN[i], x1, y + rh * 0.75);
+    g.fillStyle = '#7c869c'; g.fillText(src === i ? 'own' : src < 0 ? '∗ free' : '← ' + SIGN[src], x1 + 22, y + rh * 0.75);
+    for (let c = 0; c < CELLS; c++) {
+      const x = x1 + lab + Math.floor(c / TOK) * (TOK * cw + bg) + (c % TOK) * cw;
+      g.fillStyle = SIGC[i]; g.globalAlpha = 0.05 + 0.95 * row[c] / mx; g.fillRect(x, y + 1, Math.max(1, cw - 0.5), rh - 2);
+    }
+    g.globalAlpha = 1;
+    if (info) { g.fillStyle = '#7c869c'; g.fillText(`${SLOT_N[0][st.timbre[i]]} ${LOUD_S[st.loud[i]]} ×${(+st.dscale[i]).toFixed(2)}`, w - info, y + rh * 0.75); }
+  }
+  // C: aspects + equation of state w per σ
+  const yC = Math.max(yA, top + 14 + TRIADS * rh) + 14, names = ['brightness', 'fluency', 'prosody'], what = ['high end', 'drift ×', 're-roll ×'];
+  names.forEach((k, n) => {
+    const v = st.aspects[k], y = yC + n * 26, bw = wA - 8;
+    g.fillStyle = '#d8deea'; g.fillText(k.toUpperCase(), 8, y + 9);
+    g.fillStyle = '#7c869c'; g.textAlign = 'right'; g.fillText(bw > 190 ? (n ? what[n] + ' ' + (0.5 + v).toFixed(2) : what[n] + ' ' + v.toFixed(2)) : v.toFixed(2), 8 + bw, y + 9); g.textAlign = 'left';
+    g.fillStyle = '#05060a'; g.fillRect(8, y + 13, bw, 7); g.fillStyle = ['#ffd23b', '#2de2b4', '#ff4fd8'][n]; g.fillRect(8, y + 13, bw * v, 7);
+  });
+  const wx = x1, ww = w - x1 - 8, bh = Math.max(40, h - yC - 22), zero = yC + bh / 2, sc = bh / 2 / 2.2, bwid = ww / TRIADS;
+  g.strokeStyle = '#232a3b'; g.beginPath(); g.moveTo(wx, zero); g.lineTo(wx + ww, zero); g.stroke();
+  g.setLineDash([4, 3]); g.strokeStyle = 'rgba(255,255,255,0.4)'; g.beginPath(); g.moveTo(wx, zero + sc); g.lineTo(wx + ww, zero + sc); g.stroke(); g.setLineDash([]);
+  g.fillStyle = '#7c869c'; g.fillText('w = −1', wx + ww - 44, zero + sc - 3); g.fillText('w (equation of state)', wx, yC + 9);
+  for (let i = 0; i < TRIADS; i++) {
+    const v = clamp(st.w[i], -2.2, 2.2), x = wx + i * bwid + bwid * 0.2, fl = clamp(1 - (now - FLASH[i]) / 700, 0, 1);
+    g.fillStyle = fl > 0 ? '#ffffff' : SIGC[i]; g.globalAlpha = 0.5 + 0.5 * fl; g.shadowColor = '#fff'; g.shadowBlur = 20 * fl;
+    g.fillRect(x, Math.min(zero, zero - v * sc), bwid * 0.6, Math.max(1, Math.abs(v * sc)));
+    g.globalAlpha = 1; g.shadowBlur = 0; g.fillStyle = SIGC[i]; g.fillText(SIGN[i], x, h - 6);
+  }
+}
+
+// ---- tab 2 trajectories + table
+function drawTraj() {
+  const [g, w, h] = fit($('cvTraj')); g.clearRect(0, 0, w, h);
+  const pad = 40, W = w - pad - 110, H = h - 30;
+  let mx = 0.5; HIST.forEach(s => s.sigma.forEach(v => mx = Math.max(mx, v)));
+  g.strokeStyle = '#1a2030'; g.fillStyle = '#7c869c'; g.font = '10px IBM Plex Mono'; g.textAlign = 'right';
+  for (let q = 0; q <= 4; q++) { const y = 10 + H - H * q / 4; g.beginPath(); g.moveTo(pad, y); g.lineTo(pad + W, y); g.stroke(); g.fillText((mx * q / 4).toFixed(2), pad - 4, y + 3); }
+  const hx = n => pad + W * (n + HIST_N - HIST.length) / (HIST_N - 1);
+  g.setLineDash([3, 4]); g.strokeStyle = 'rgba(255,210,59,0.45)'; g.fillStyle = '#ffd23b'; g.textAlign = 'left';
+  HIST.forEach((s, n) => { if (n && s.epoch !== undefined && HIST[n - 1].epoch !== undefined && s.epoch !== HIST[n - 1].epoch) { const x = hx(n); g.beginPath(); g.moveTo(x, 10); g.lineTo(x, 10 + H); g.stroke(); g.fillText('epoch ' + s.epoch, x + 3, 20); } });
+  g.setLineDash([]);
+  const labY = [];
+  for (let i = 0; i < TRIADS; i++) {
+    g.strokeStyle = SIGC[i]; g.lineWidth = 1.4; g.beginPath();
+    HIST.forEach((s, n) => { const x = pad + W * (n + HIST_N - HIST.length) / (HIST_N - 1), y = 10 + H - H * s.sigma[i] / mx; n ? g.lineTo(x, y) : g.moveTo(x, y); });
+    g.stroke();
+    const y = 10 + H - H * STATE.sigma[i] / mx, v = STATE.vel[i], L = clamp(v * 40, -40, 40);
+    g.lineWidth = 2; g.beginPath(); g.moveTo(pad + W + 14, y); g.lineTo(pad + W + 14, y - L); g.stroke();
+    g.beginPath(); g.moveTo(pad + W + 10, y - L + (L > 0 ? 5 : -5)); g.lineTo(pad + W + 14, y - L); g.lineTo(pad + W + 18, y - L + (L > 0 ? 5 : -5)); g.stroke();
+    let col = 0; while (labY.some(([q, c]) => c === col && Math.abs(q - y) < 10)) col++; labY.push([y, col]);
+    g.fillStyle = SIGC[i]; g.textAlign = 'left'; g.fillText(SIGN[i], pad + W + 24 + col * 18, y + 3);
+  }
+  g.lineWidth = 1; g.fillStyle = '#ffffff';     // phantom crossings (v2 flow): w rose through −1 -> re-roll
+  HIST.forEach((s, n) => (s.cross || []).forEach(i => { const x = hx(n), y = 10 + H - H * s.sigma[i] / mx; g.beginPath(); g.moveTo(x, y - 5); g.lineTo(x + 4, y); g.lineTo(x, y + 5); g.lineTo(x - 4, y); g.closePath(); g.fill(); }));
+}
+function drawTable() {
+  const st = STATE;
+  const v2 = !!st.w, now = performance.now();
+  let h = '<tr><th>σ</th><th>mode</th><th>value</th><th>dσ/dt</th><th>share</th><th>f₁ Hz</th><th>f₂ Hz</th><th>f₃ Hz</th><th>timbre</th><th>envelope</th><th>drift×</th>' + (v2 ? '<th title="equation of state: re-roll when it rises through −1">w</th><th title="ln(share / equilibrium share)">X</th>' : '') + '<th>gen</th></tr>';
+  for (let i = 0; i < TRIADS; i++) h += `<tr><td><span class="dot" style="background:${SIGC[i]}"></span>${SIGN[i]}</td><td>${MODE_N[Math.floor(i / SIZE)]}</td><td>${st.sigma[i].toFixed(4)}</td><td style="color:${st.vel[i] >= 0 ? '#9be22d' : '#ff3b5c'}">${st.vel[i] >= 0 ? '+' : ''}${st.vel[i].toFixed(3)}</td><td>${(st.amp[i] * 100).toFixed(1)}%</td>${st.triads[i].map(f => `<td>${f.toFixed(2)}</td>`).join('')}<td>${TIMBRE_N[st.timbre[i]]}</td><td>${LOUD_N[st.loud[i]]}</td><td>${(+st.dscale[i]).toFixed(2)}</td>` +
+    (v2 ? `<td style="color:${now - FLASH[i] < 700 ? '#fff;font-weight:600' : st.w[i] < -1 ? '#ffd23b' : 'inherit'}">${st.w[i].toFixed(2)}</td><td>${st.X[i].toFixed(2)}</td>` : '') + `<td>${st.gen[i]}</td></tr>`;
+  $('tblState').innerHTML = h;
+}
+
+// ---- tab 3 helix
+const HL = log2(1000);
+function helixPt(f, R, Hh) { const u = log2(f / 20) / HL, th = TAU * log2(f / 20); return [R * Math.cos(th), (0.5 - u) * Hh, R * Math.sin(th)]; }
+function drawHelix() {
+  const [g, w, h] = fit($('cvHelix')); g.fillStyle = 'rgba(5,6,10,0.35)'; g.fillRect(0, 0, w, h);
+  const cx = w / 2, cy = h / 2, sc = Math.min(w, h) * 0.42, rx = 0.42, R = 0.75, Hh = 1.8;
+  rot += 0.004 + 0.02 * Math.max(...STATE.vel.map(Math.abs));
+  g.strokeStyle = 'rgba(120,135,170,0.22)'; g.beginPath();
+  for (let s = 0; s <= 900; s++) { const f = 20 * 1000 ** (s / 900), [x, y, z] = helixPt(f, R, Hh), [X, Y] = project(x, y, z, rot, rx, cx, cy, sc); s ? g.lineTo(X, Y) : g.moveTo(X, Y); }
+  g.stroke();
+  g.fillStyle = '#7c869c'; g.font = '10px IBM Plex Mono'; g.textAlign = 'left';
+  [20, 100, 1000, 10000, 20000].forEach(f => { const [x, y, z] = helixPt(f, R, Hh), [X, Y] = project(x, y, z, rot, rx, cx, cy, sc); g.fillText(fmtF(f) + ' Hz', X + 6, Y); });
+  const pts = [];
+  for (let i = 0; i < TRIADS; i++) STATE.triads[i].forEach(f => { const [x, y, z] = helixPt(f, R, Hh); pts.push([i, ...project(x, y, z, rot, rx, cx, cy, sc), f]); });
+  for (let i = 0; i < TRIADS; i++) {
+    const p = pts.slice(i * 3, i * 3 + 3); g.strokeStyle = SIGC[i]; g.globalAlpha = Math.min(1, 0.25 + STATE.amp[i] * 2 * TRIADS / 9); g.lineWidth = 1 + Math.abs(STATE.vel[i]) * 4;
+    g.beginPath(); g.moveTo(p[0][1], p[0][2]); g.lineTo(p[1][1], p[1][2]); g.lineTo(p[2][1], p[2][2]); g.closePath(); g.stroke();
+  }
+  g.globalAlpha = 1; g.lineWidth = 1;
+  pts.sort((a, b) => b[3] - a[3]).forEach(([i, X, Y, Z, p, f]) => {
+    g.shadowColor = SIGC[i]; g.shadowBlur = 14; g.fillStyle = SIGC[i];
+    g.beginPath(); g.arc(X, Y, (2.5 + STATE.amp[i] * 40 * TRIADS / 9) * p, 0, TAU); g.fill();
+  });
+  g.shadowBlur = 0;
+}
+
+// ---- tab 6 cube
+function drawCube() {
+  const [g, w, h] = fit($('cvCube')); g.clearRect(0, 0, w, h);
+  const cx = w / 2, cy = h / 2, sc = Math.min(w, h) * 0.26, rx = 0.5;
+  rotCube += 0.003 + 0.06 * Math.max(...STATE.vel.map(Math.abs));
+  const T = STATE.T; let mx = 1e-9; T.forEach(v => mx = Math.max(mx, Math.abs(v)));
+  const pos = q => (q - (SIZE - 1) / 2) * 2 / (SIZE - 1), sz = v => (3 + 30 * Math.abs(v) / mx);
+  g.strokeStyle = 'rgba(120,135,170,0.10)';
+  for (let a = 0; a < SIZE; a++) for (let b = 0; b < SIZE; b++) for (let ax = 0; ax < 3; ax++) {
+    const P = (t) => { const c = [pos(a), pos(b)]; c.splice(ax, 0, t); return project(c[0], c[1], c[2], rotCube, rx, cx, cy, sc); };
+    const p1 = P(-1), p2 = P(1); g.beginPath(); g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.stroke();
+  }
+  const cells = [];
+  for (let i = 0; i < SIZE; i++) for (let j = 0; j < SIZE; j++) for (let k = 0; k < SIZE; k++) cells.push([i, j, k, ...project(pos(i), pos(j), pos(k), rotCube, rx, cx, cy, sc)]);
+  cells.sort((a, b) => b[5] - a[5]).forEach(([i, j, k, X, Y, Z, p]) => {
+    const v = T[ti(i,j,k)], s = sz(v) * p;
+    g.shadowColor = AXC[i]; g.shadowBlur = 18 * Math.abs(v) / mx;
+    if (v >= 0) { g.fillStyle = AXC[i]; g.globalAlpha = 0.85; g.fillRect(X - s / 2, Y - s / 2, s, s); }
+    else { g.strokeStyle = AXC[i]; g.lineWidth = 2; g.globalAlpha = 0.9; g.strokeRect(X - s / 2, Y - s / 2, s, s); }
+  });
+  g.globalAlpha = 1; g.shadowBlur = 0; g.lineWidth = 1;
+  if (STATE.Tinf) {                              // v2 flow: the equilibrium the tensor relaxes toward
+    g.setLineDash([3, 3]); g.globalAlpha = 0.5;
+    cells.forEach(([i, j, k, X, Y, Z, p]) => { const v = STATE.Tinf[ti(i,j,k)]; if (Math.abs(v) < 0.08 * mx) return; const s = sz(v) * p; g.strokeStyle = AXC[i]; g.strokeRect(X - s / 2, Y - s / 2, s, s); });
+    g.setLineDash([]); g.globalAlpha = 1;
+  }
+  g.font = '11px IBM Plex Mono'; g.fillStyle = '#7c869c'; g.textAlign = 'left';
+  const L = (x, y, z, t, c) => { const [X, Y] = project(x, y, z, rotCube, rx, cx, cy, sc); g.fillStyle = c; g.fillText(t, X, Y); };
+  L(1.5, -1.3, -1.3, 'COLOR →', '#ff3b5c'); L(-1.4, 1.5, -1.3, 'LOUDNESS ↓', '#d8deea'); L(-1.3, -1.3, 1.6, 'FREQUENCY ↗', '#9be22d');
+  g.fillStyle = '#7c869c'; g.fillText('spin ∝ max|dσ/dt| = ' + Math.max(...STATE.vel.map(Math.abs)).toFixed(3), 12, h - 12);
+}
+
+// ---- tab 7 resonance field
+function drawField() {   // 15 triads
+  const [g, w, h] = fit($('cvField')); g.fillStyle = 'rgba(5,6,10,0.25)'; g.fillRect(0, 0, w, h);
+  const pad = 40, lo = log2(20), hi = log2(20000);
+  let mx = 0.5; STATE.sigma.forEach(v => mx = Math.max(mx, v * 1.15));
+  const X = lf => pad + (w - 2 * pad) * (lf - lo) / (hi - lo), Y = s => h - pad - (h - 2 * pad) * s / mx;
+  g.fillStyle = '#3a4255'; g.font = '10px IBM Plex Mono'; g.textAlign = 'center';
+  [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000].forEach(f => g.fillText(fmtF(f), X(log2(f)), h - 14));
+  for (let i = 0; i < TRIADS; i++) {
+    const tr = TRAILS[i]; if (tr.length < 2) continue;
+    g.strokeStyle = SIGC[i]; g.lineWidth = 1.5;
+    for (let n = 1; n < tr.length; n++) { if (!tr[n] || !tr[n - 1]) continue; g.globalAlpha = n / tr.length * 0.6; g.beginPath(); g.moveTo(X(tr[n - 1][0]), Y(tr[n - 1][1])); g.lineTo(X(tr[n][0]), Y(tr[n][1])); g.stroke(); }
+    g.globalAlpha = 1; const [lf, s] = tr[tr.length - 1];
+    g.shadowColor = SIGC[i]; g.shadowBlur = 30; g.fillStyle = SIGC[i];
+    g.beginPath(); g.arc(X(lf), Y(s), 4 + STATE.amp[i] * 60 * TRIADS / 9, 0, TAU); g.fill(); g.shadowBlur = 0;
+    g.fillStyle = '#fff'; g.fillText(SIGN[i], X(lf), Y(s) - 10 - STATE.amp[i] * 60 * TRIADS / 9);
+  }
+  if (!TRAILS[0].length) { g.fillStyle = '#7c869c'; g.fillText('press START', w / 2, h / 2); }
+}
+
+// ---- tab 8 triad waveforms
+function drawWaves() {
+  const [g, w, h] = fit($('cvWaves')); g.clearRect(0, 0, w, h);
+  const cols = w < 640 ? 1 : 3, rows = Math.ceil(TRIADS / cols), cw = w / cols, ch = h / rows;
+  let vm = 0.05; STATE.vel.forEach(v => vm = Math.max(vm, Math.abs(v)));
+  const t0 = performance.now() / 1000;
+  for (let i = 0; i < TRIADS; i++) {
+    const x0 = (i % cols) * cw, y0 = Math.floor(i / cols) * ch, fr = STATE.triads[i], fl = Math.min(...fr);
+    g.strokeStyle = '#1a2030'; g.strokeRect(x0 + 4, y0 + 4, cw - 8, ch - 8);
+    g.strokeStyle = SIGC[i]; g.lineWidth = 0.8 + 6 * Math.abs(STATE.vel[i]) / vm; g.globalAlpha = Math.min(1, 0.4 + STATE.amp[i] * 4 * TRIADS / 9); g.beginPath();
+    const N = Math.floor(cw - 16);
+    for (let n = 0; n <= N; n++) {
+      const tt = n / N * 3 + t0 * 0.3;  // 3 cycles of the lowest partial; others at their true ratio
+      const y = fr.reduce((a, f) => a + Math.sin(TAU * tt * f / fl), 0) / 3;
+      const X = x0 + 8 + n, Y = y0 + ch / 2 - y * (ch / 2 - 22) * (0.4 + STATE.amp[i] * 5 * TRIADS / 9);
+      n ? g.lineTo(X, Y) : g.moveTo(X, Y);
+    }
+    g.stroke(); g.globalAlpha = 1; g.lineWidth = 1;
+    g.fillStyle = SIGC[i]; g.font = '600 11px IBM Plex Mono'; g.textAlign = 'left';
+    g.fillText(`${SIGN[i]} σ=${STATE.sigma[i].toFixed(3)}  v=${STATE.vel[i] >= 0 ? '+' : ''}${STATE.vel[i].toFixed(3)}`, x0 + 10, y0 + 18);
+    g.fillStyle = '#7c869c'; g.font = '10px IBM Plex Mono';
+    g.fillText(fr.map(fmtF).join(' · ') + ' Hz  ' + TIMBRE_N[STATE.timbre[i]] + ' ' + LOUD_N[STATE.loud[i]], x0 + 10, y0 + ch - 10);
+  }
+}
+
+// ---- tab 9 audio
+let gramBuf = null;
+function drawAudio() {
+  const [gs, ws, hs] = fit($('cvScope')), [gp, wp, hp] = fit($('cvSpec')), [gg, wg, hg] = fit($('cvGram'));
+  if (!AU.an) {
+    [[gs, ws, hs], [gp, wp, hp], [gg, wg, hg]].forEach(([g, w, h]) => { g.clearRect(0, 0, w, h); g.fillStyle = '#7c869c'; g.font = '11px IBM Plex Mono'; g.textAlign = 'center'; g.fillText('turn AUDIO on', w / 2, h / 2); });
+    return;
+  }
+  const an = AU.an, td = new Float32Array(an.fftSize); an.getFloatTimeDomainData(td);
+  gs.clearRect(0, 0, ws, hs); gs.strokeStyle = '#2dc8ff'; gs.beginPath();
+  for (let x = 0; x < ws; x++) { const v = td[Math.floor(x / ws * 2048)], y = hs / 2 - v * hs * 0.45; x ? gs.lineTo(x, y) : gs.moveTo(x, y); }
+  gs.stroke();
+  const fd = new Float32Array(an.frequencyBinCount); an.getFloatFrequencyData(fd);
+  const ny = AU.ctx.sampleRate / 2, xf = f => wp * log2(f / 20) / HL, bin = f => clamp(Math.round(f / ny * fd.length), 0, fd.length - 1);
+  gp.clearRect(0, 0, wp, hp); gp.fillStyle = '#ff3b5c';
+  for (let x = 0; x < wp; x++) { const f = 20 * 1000 ** (x / wp), db = fd[bin(f)], m = clamp((db + 110) / 90, 0, 1); gp.globalAlpha = 0.85; gp.fillRect(x, hp - m * hp, 1, m * hp); }
+  gp.globalAlpha = 1;
+  for (let i = 0; i < TRIADS; i++) STATE.triads[i].forEach(f => { gp.fillStyle = SIGC[i]; gp.fillRect(xf(f) - 1, 0, 2, 10); });
+  if (!gramBuf || gramBuf.width !== $('cvGram').width || gramBuf.height !== $('cvGram').height) { gramBuf = document.createElement('canvas'); gramBuf.width = $('cvGram').width; gramBuf.height = $('cvGram').height; }
+  const bg = gramBuf.getContext('2d'), W = gramBuf.width, H = gramBuf.height;
+  bg.drawImage(gramBuf, -2, 0);
+  for (let y = 0; y < H; y++) {
+    const f = 20 * 1000 ** (1 - y / H), m = clamp((fd[bin(f)] + 110) / 90, 0, 1);
+    bg.fillStyle = `hsl(${280 - m * 280},90%,${m * 60}%)`; bg.fillRect(W - 2, y, 2, 1);
+  }
+  gg.clearRect(0, 0, wg, hg); gg.drawImage(gramBuf, 0, 0, wg, hg);
+  gg.fillStyle = 'rgba(255,255,255,.5)'; gg.font = '10px IBM Plex Mono'; gg.textAlign = 'left';
+  [100, 1000, 10000].forEach(f => gg.fillText(fmtF(f), 4, hg * (1 - log2(f / 20) / HL) - 2));
+}
+
+// =================================================================== RECORDER: every engine as its own track + MIDI + σ
+// Audio is tapped with an AudioWorklet per track. With the Python engine running, chunks stream
+// straight to disk as 24-bit WAV (no length limit). Without it, the take is kept in memory and
+// downloaded as one .zip when you stop (16-bit WAV; fine for a few minutes).
+const REC = { on: false, busy: false, t0: 0, take: null, server: false, nodes: {}, srcs: [], local: {}, midi: {}, frames: [], sink: null, mix: null, extStream: null, meta: {}, timer: null };
+const WORKLET_SRC = `class TreRec extends AudioWorkletProcessor{constructor(){super();this.b=[];this.n=0;this.start=null;this.began=false;
+this.port.onmessage=e=>{if(e.data==='flush'){this.flush();this.port.postMessage('flushed');}else if(e.data&&e.data.start!==undefined)this.start=e.data.start;}}
+process(inputs){if(this.start===null||currentTime<this.start)return true;
+if(!this.began){this.began=true;const pad=Math.round((currentTime-this.start)*sampleRate);if(pad>0){this.b.push(new Float32Array(pad*2));this.n+=pad;}}
+const i=inputs[0];const L=i&&i.length?i[0]:null;const R=i&&i.length>1?i[1]:L;const n=L?L.length:128;const f=new Float32Array(n*2);
+if(L){for(let k=0;k<n;k++){f[2*k]=L[k];f[2*k+1]=R[k];}}this.b.push(f);this.n+=n;if(this.n>=8192)this.flush();return true;}
+flush(){if(!this.b.length)return;let t=0;for(const x of this.b)t+=x.length;const o=new Float32Array(t);let p=0;for(const x of this.b){o.set(x,p);p+=x.length;}this.b=[];this.n=0;this.port.postMessage(o,[o.buffer]);}}
+registerProcessor('tre-rec',TreRec);`;
+let workletReady = null;
+function ensureWorklet() {
+  if (!workletReady) workletReady = AU.ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET_SRC], { type: 'application/javascript' })));
+  return workletReady;
+}
+function recMidi(src, bytes, ts) {
+  if (!REC.on) return;
+  (REC.midi[src] = REC.midi[src] || []).push([(ts || performance.now()) - REC.t0, ...bytes]);
+}
+const serverUp = () => !!(sock && sock.connected);
+function onChunk(name, f32) {
+  if (!REC.take && REC.on) return;
+  if (REC.server) sock.emit('rec_chunk', { take: REC.take, stem: name, data: f32.buffer });
+  else {
+    const q = new Int16Array(f32.length);
+    for (let k = 0; k < f32.length; k++) q[k] = Math.max(-32768, Math.min(32767, Math.round(f32[k] * 32767)));
+    (REC.local[name] = REC.local[name] || []).push(q);
+  }
+}
+function spStem(name) {
+  const sp = AU.ctx.createScriptProcessor(4096, 2, 2); let began = false;
+  sp.onaudioprocess = e => {
+    if (REC.startTime === null || REC.startTime === undefined || e.playbackTime < REC.startTime) return;
+    const L = e.inputBuffer.getChannelData(0), R = e.inputBuffer.numberOfChannels > 1 ? e.inputBuffer.getChannelData(1) : L, n = L.length;
+    let pad = 0; if (!began) { began = true; pad = Math.max(0, Math.round((e.playbackTime - REC.startTime) * AU.ctx.sampleRate)); }
+    const f = new Float32Array((n + pad) * 2); for (let k = 0; k < n; k++) { f[2 * (pad + k)] = L[k]; f[2 * (pad + k) + 1] = R[k]; }
+    onChunk(name, f);
+  };
+  sp.port = { postMessage(m) { if (m === 'flush') setTimeout(() => sp._flushed && sp._flushed(), 0); }, close() {} };
+  sp.connect(REC.sink); REC.nodes[name] = sp; return sp;
+}
+function stemNode(name) {
+  if (REC.useSP) return spStem(name);
+  const node = new AudioWorkletNode(AU.ctx, 'tre-rec', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
+  node.port.onmessage = e => { if (typeof e.data === 'string') { node._flushed && node._flushed(); return; } onChunk(name, e.data); };
+  node.connect(REC.sink); REC.nodes[name] = node;
+  if (REC.startTime !== undefined && REC.startTime !== null) node.port.postMessage({ start: REC.startTime });
+  return node;
+}
+function attachStream(name, stream) {
+  if (name === 'cayley' && !$('stCay').checked) return;
+  try {
+    const src = AU.ctx.createMediaStreamSource(stream); REC.srcs.push(src);
+    src.connect(REC.nodes[name] || stemNode(name));
+    if (REC.mix) src.connect(REC.mix);
+    logMsg(`recording ${name}`, 'ev');
+  } catch (e) { logMsg(`could not record ${name}: ${e.message}`, 'er'); }
+}
+async function recStart(meta = {}) {
+  if (REC.on || REC.busy) return null;
+  REC.busy = true;
+  try {
+    if (!AU.ctx) toggleAudio(true);
+    await AU.ctx.resume();
+    try { await ensureWorklet(); REC.useSP = false; }
+    catch (e) { REC.useSP = true; workletReady = null; }   // page opened from a file: use the fallback capture
+    REC.startTime = null; REC.server = serverUp(); REC.take = null; REC.local = {}; REC.midi = {}; REC.frames = []; REC.nodes = {}; REC.srcs = [];
+    REC.meta = { ...meta, sample_rate: AU.ctx.sampleRate, started: new Date().toISOString() };
+    if (REC.server) {
+      const ack = await new Promise(res => sock.emit('rec_start', { sr: AU.ctx.sampleRate, ...meta }, res));
+      REC.take = ack.take; $('recWhere').textContent = 'saving to ' + ack.dir;
+    } else {
+      { const d = new Date(), z = n => String(n).padStart(2, '0'); REC.take = `take_${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`; }
+      $('recWhere').textContent = 'no Python engine: kept in memory, downloaded as a .zip when you stop (start ./run.sh for long takes, saved straight to disk)';
+    }
+    REC.sink = AU.ctx.createGain(); REC.sink.gain.value = 0; REC.sink.connect(AU.ctx.destination);
+    REC.mix = $('stMix').checked ? AU.ctx.createGain() : null;
+    if (REC.mix) {
+      REC.mix.gain.value = 0.7;
+      const lim = AU.ctx.createDynamicsCompressor();
+      lim.threshold.value = -1.5; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.12;
+      REC.mix.connect(lim); lim.connect(stemNode('mix')); REC.srcs.push(lim);
+    }
+    if ($('stTensor').checked) { AU.comp.connect(stemNode('tensor')); if (REC.mix) AU.comp.connect(REC.mix); }
+    for (const [n, st] of Object.entries(STREAMS)) attachStream(n, st);
+    if ($('stExt').checked) {
+      try {
+        const id = $('extDev').value;
+        REC.extStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: id ? { exact: id } : undefined, echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 2 } });
+        attachStream('external', REC.extStream);
+      } catch (e) { logMsg('external input unavailable: ' + e.message, 'er'); }
+    }
+    REC.startTime = AU.ctx.currentTime + 0.12;                     // one shared start for every track
+    Object.values(REC.nodes).forEach(n => n.port.postMessage({ start: REC.startTime }));
+    REC.t0 = performance.now() + (REC.startTime - AU.ctx.currentTime) * 1000;
+    REC.on = true;
+    setRecUI(true);
+    logMsg(`● REC ${REC.take}`, 'ev');
+    return REC.take;
+  } finally { REC.busy = false; }
+}
+// Saving a file: inside a published claude.ai page the viewer confirms it (downloads capability);
+// opened locally, it is an ordinary browser download.
+const DOWNLOADS = (window.claude && typeof window.claude.use === 'function') ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+async function saveFile(filename, blob) {
+  const dl = await DOWNLOADS;
+  if (dl) {
+    try { await dl.save({ filename, data: blob }); return true; }
+    catch (e) { logMsg(e && e.code === 'declined' ? `save of ${filename} declined` : `could not save ${filename}: ${(e && e.code) || e}`, 'er'); return false; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  return true;
+}
+function midiFile(events) {          // standard MIDI file, format 0, 960 ppq, 120 bpm
+  const msgs = [], vlq = n => { const o = [n & 0x7F]; while ((n >>= 7)) o.unshift((n & 0x7F) | 0x80); return o; };
+  for (const ev of events) {
+    const t = ev[0], b = ev.slice(1); let i = 0;
+    while (i < b.length) {
+      const s = b[i];
+      if (s < 0x80) { i++; continue; }
+      if (s === 0xF0) {               // SysEx (e.g. a Dexed voice): F0 <length> <data … F7>
+        let j = i + 1; while (j < b.length && b[j] !== 0xF7) j++;
+        const body = b.slice(i + 1, j + 1); if (body[body.length - 1] === 0xF7) msgs.push([Math.max(0, t), [0xF0, ...vlq(body.length), ...body]]);
+        i = j + 1; continue;
+      }
+      if (s >= 0xF1) { i++; continue; }
+      const len = (s & 0xF0) === 0xC0 || (s & 0xF0) === 0xD0 ? 2 : 3;
+      msgs.push([Math.max(0, t), b.slice(i, i + len)]); i += len;
+    }
+  }
+  msgs.sort((a, b) => a[0] - b[0]);
+  const trk = [0x00, 0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20];
+  let last = 0;
+  for (const [t, m] of msgs) { const tick = Math.round(t * 1.92); trk.push(...vlq(Math.max(0, tick - last)), ...m); last = Math.max(last, tick); }
+  trk.push(0x00, 0xFF, 0x2F, 0x00);
+  const u32 = n => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+  return new Uint8Array([0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, 0x03, 0xC0, 0x4D, 0x54, 0x72, 0x6B, ...u32(trk.length), ...trk]);
+}
+function wav16(chunks, sr) {
+  const n = chunks.reduce((a, c) => a + c.length, 0), buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const w = (o, s) => [...s].forEach((c, k) => v.setUint8(o + k, c.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 2, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 4, true); v.setUint16(32, 4, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+  let o = 44; for (const c of chunks) { new Int16Array(buf, o, c.length).set(c); o += c.length * 2; }
+  return new Uint8Array(buf);
+}
+async function recStop() {
+  if (!REC.on) return null;
+  REC.on = false; setRecUI(false);
+  await Promise.all(Object.values(REC.nodes).map(n => new Promise(res => { n._flushed = res; n.port.postMessage('flush'); setTimeout(res, 600); })));
+  // disconnect only what the recorder added (a bare disconnect() would silence the synth)
+  if (REC.nodes.tensor) try { AU.comp.disconnect(REC.nodes.tensor); } catch (e) {}
+  if (REC.mix && REC.nodes.tensor) try { AU.comp.disconnect(REC.mix); } catch (e) {}
+  if (REC.mix) try { REC.mix.disconnect(); } catch (e) {}
+  REC.srcs.forEach(s => { try { s.disconnect(); } catch (e) {} });
+  Object.values(REC.nodes).forEach(n => { try { n.disconnect(); n.port.close(); } catch (e) {} });
+  if (REC.extStream) REC.extStream.getTracks().forEach(t => t.stop());
+  try { REC.sink.disconnect(); } catch (e) {}
+  const dur = (performance.now() - REC.t0) / 1000;
+  const files = {};
+  files['sigma.json'] = new TextEncoder().encode(JSON.stringify({ instrument: 'TENSOR RESONANCE ENGINE', flow: ENG.params.flow, fps: Math.round(REC.frames.length / Math.max(dur, 1e-3)), duration_s: +dur.toFixed(3), frames: REC.frames }));
+  files['take.json'] = new TextEncoder().encode(JSON.stringify({ ...REC.meta, duration_s: +dur.toFixed(3), engine: SRC, params: ENG.params, weights: ENG.weights,
+    midi_mode: $('midiMode').value, cayley_loaded: !!$('cayFrame'), vst_loaded: !!$('vstFrame'), stems: Object.keys(REC.nodes) }, null, 1));
+  for (const [src, ev] of Object.entries(REC.midi)) if (ev.length) files[`${src}_midi.mid`] = midiFile(ev);
+  if (REC.server) {
+    for (const [name, data] of Object.entries(files)) sock.emit('rec_file', { take: REC.take, name, data: data.buffer });
+    const res = await new Promise(r => sock.emit('rec_stop', { take: REC.take }, r));
+    logMsg(`■ saved ${res.files.length} files → ${res.dir}`, 'ev'); $('recWhere').textContent = 'saved to ' + res.dir;
+    refreshLibrary();
+    return res;
+  }
+  for (const [name, chunks] of Object.entries(REC.local)) files[`${name}.wav`] = wav16(chunks, AU.ctx.sampleRate);
+  try {
+    if (!window.JSZip) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+    const zip = new JSZip(), dir = zip.folder(REC.take);
+    for (const [name, data] of Object.entries(files)) dir.file(name, data);
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    if (await saveFile(REC.take + '.zip', blob)) logMsg(`■ ${REC.take}.zip (${Object.keys(files).length} files)`, 'ev');
+  } catch (e) {
+    logMsg('zip unavailable, saving files one by one: ' + e.message, 'er');
+    for (const [name, data] of Object.entries(files)) await saveFile(`${REC.take}_${name}`, new Blob([data]));
+  }
+  return { take: REC.take, files: Object.keys(files), local: true };
+}
+function setRecUI(on) {
+  for (const b of [$('btnRec'), $('recBtn2')]) { b.classList.toggle('on', on); b.textContent = on ? '■ STOP REC' : '● REC'; }
+  clearInterval(REC.timer);
+  if (on) REC.timer = setInterval(() => { const s = (performance.now() - REC.t0) / 1000; $('recTime').textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`; }, 250);
+  else $('recTime').textContent = '';
+}
+async function recToggle() { if (REC.on) await recStop(); else { if (!RUNNING) $('btnRun').click(); await recStart(); } }
+$('btnRec').onclick = recToggle; $('recBtn2').onclick = recToggle;
+$('extAllow').onclick = async () => {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach(t => t.stop());
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput');
+    $('extDev').innerHTML = devs.map(d => `<option value="${d.deviceId}">${d.label || 'input ' + d.deviceId.slice(0, 6)}</option>`).join('');
+    const bh = devs.find(d => /blackhole|loopback|soundflower/i.test(d.label)); if (bh) $('extDev').value = bh.deviceId;
+    $('stExt').checked = true; logMsg(`${devs.length} audio inputs found`, 'ev');
+  } catch (e) { logMsg('input permission refused: ' + e.message, 'er'); }
+};
+
+// =================================================================== ALBUM: make a record, track after track
+const ALBUM = { on: false, stop: false };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+[['albTracks', 'albTracksV', 0], ['albMins', 'albMinsV', 2], ['albGap', 'albGapV', 0]].forEach(([a, b, d]) => $(a).addEventListener('input', e => $(b).textContent = (+e.target.value).toFixed(d)));
+const PRANGE = { drift_gain: [2, 12], reroll_base: [0.08, 0.8], reroll_vel: [1, 8], kick_rate: [0.2, 2], kick_amp: [0.2, 0.8], noise: [0.04, 0.3], couple_rate: [0.3, 2], energy: [1.5, 3],
+  expansion: [0.3, 1.2], relax_n: [0.3, 0.9], sound_cs: [0.8, 2.5], xattn: [0.2, 0.9], memory: [0.2, 0.7], epoch_rate: [0.04, 0.25],
+  blend_c1: [0, 1], blend_c2: [0, 1], blend_l1: [0, 1], blend_l2: [0, 1], blend_f1: [0, 1], blend_f2: [0, 1] };
+function randomizeParams() {
+  for (const [k, [lo, hi]] of Object.entries(PRANGE)) { const inp = PIN[k] || BLIN[k]; inp.value = lo + Math.random() * (hi - lo); inp.dispatchEvent(new Event('input')); }
+  PIN.f_min.value = [20, 30, 45, 80][Math.floor(Math.random() * 4)]; PIN.f_min.dispatchEvent(new Event('input'));
+  PIN.f_max.value = [5000, 9000, 14000, 20000][Math.floor(Math.random() * 4)]; PIN.f_max.dispatchEvent(new Event('input'));
+}
+function cayleyRandomPreset() {
+  const f = $('cayFrame'), d = frameDoc(f); if (!d) return null;
+  const names = f.contentWindow.FACTORY_ORDER || []; if (!names.length || !d.getElementById('factSel')) return null;
+  const n = names[Math.floor(Math.random() * names.length)];
+  d.getElementById('factSel').value = n; d.getElementById('factLoad').click(); return n;
+}
+function trackTitle() {
+  const st = STATE, i = st.amp.indexOf(Math.max(...st.amp));
+  return `${['Red', 'Blue', 'Yellow-Green'][st.timbre[i]]} ${['Loud', 'Soft', 'Middle'][st.loud[i]]} ${st.triads[i].map(f => Math.round(f)).join('-')} Hz`;
+}
+async function runAlbum() {
+  if (ALBUM.on) return;
+  ALBUM.on = true; ALBUM.stop = false; $('albStart').classList.add('on');
+  const n = +$('albTracks').value, secs = +$('albMins').value * 60, gap = +$('albGap').value;
+  const name = $('albName').value.trim() || 'Tensor Resonance ' + new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', '');
+  const tracks = [], t0 = performance.now(), total = n * (secs + gap);
+  if (!AU.ctx) toggleAudio(true);
+  if (!RUNNING) $('btnRun').click();
+  if ($('albVst').checked) vstCall('startPlay');
+  const prog = (k, phase) => { const el = (performance.now() - t0) / 1000; $('albBar').style.width = Math.min(100, el / total * 100) + '%'; $('albStatus').textContent = `${name} · track ${k}/${n} · ${phase} · ${Math.max(0, Math.round((total - el) / 60))} min left`; };
+  try {
+    for (let k = 1; k <= n && !ALBUM.stop; k++) {
+      if ($('albReset').checked) { ENG.reset(); send({ reset: true }); }
+      if ($('albParams').checked) randomizeParams();
+      const cp = $('albCay').checked ? cayleyRandomPreset() : null;
+      if ($('albVst').checked) vstCall('doRandomPatch');
+      await sleep(1500);
+      const title = trackTitle();
+      const take = await recStart({ album: name, track: k, title, cayley_preset: cp });
+      if (!take) break;
+      logMsg(`album ${name}: track ${k} "${title}"`, 'ev');
+      const end = performance.now() + secs * 1000;
+      while (performance.now() < end && !ALBUM.stop) { prog(k, 'recording'); await sleep(500); }
+      const res = await recStop();
+      tracks.push({ n: k, title, take: res && res.take });
+      if (k < n && !ALBUM.stop) { const g = performance.now() + gap * 1000; while (performance.now() < g && !ALBUM.stop) { prog(k, 'gap'); await sleep(250); } }
+    }
+    if (serverUp() && tracks.length) {
+      const res = await new Promise(r => sock.emit('album_done', { album: name, tracks }, r));
+      logMsg(`album finished: ${res.files.length} tracks in ${res.dir}`, 'ev');
+      $('albStatus').textContent = `done · ${res.dir} (tracklist.txt inside)`;
+      if ($('albDudley').checked) sock.emit('dudley_album', { takes: tracks.map(t => t.take) }, r => logMsg(r.error ? 'DUDLEY: ' + r.error : `DUDLEY: rendering ${r.jobs} album hybrids (see tab 11)`, r.error ? 'er' : 'ev'));
+      refreshLibrary();
+    } else $('albStatus').textContent = `done · ${tracks.length} tracks downloaded`;
+  } finally { ALBUM.on = false; $('albStart').classList.remove('on'); $('albBar').style.width = '100%'; }
+}
+$('albStart').onclick = runAlbum;
+$('albStop').onclick = () => { ALBUM.stop = true; logMsg('album: stopping after the current step', 'ev'); };
+
+// =================================================================== LIBRARY
+const fileUrl = rel => 'files/' + rel.split('/').map(encodeURIComponent).join('/');
+const base = p => p.split('/').pop();
+async function refreshLibrary() {
+  if (!serverUp()) { $('libList').textContent = 'The library lives on disk; start the engine with ./run.sh to see it here.'; return; }
+  try {
+    const lib = await (await fetch('api/library')).json();
+    LIBRARY = lib;
+    $('libList').innerHTML = `<p>${lib.root}</p>` + (lib.takes.length ? lib.takes.slice().reverse().map(t => `<div style="margin:8px 0"><b>${t.id}</b><br>${t.files.filter(f => /\.(wav|mid|json|txt)$/.test(f)).map(f => /\.wav$/.test(f) ? `<a href="#" data-play="${f}">▶ ${base(f)}</a>` : `<a href="${fileUrl(f)}" download>${base(f)}</a>`).join(' · ')}${t.dudley.length ? '<br>DUDLEY: ' + t.dudley.map(f => `<a href="#" data-play="${f}">▶ ${base(f)}</a>`).join(' · ') : ''}</div>`).join('') : 'No takes yet. Press ● REC.');
+    $('libList').querySelectorAll('[data-play]').forEach(a => a.onclick = e => { e.preventDefault(); playFile(a.dataset.play); });
+    fillDudleyTakes();
+  } catch (e) { $('libList').textContent = 'library unavailable: ' + e.message; }
+}
+let LIBRARY = null, PLAYER = null;
+function playFile(rel) { if (!PLAYER) { PLAYER = new Audio(); } PLAYER.src = fileUrl(rel); PLAYER.play(); logMsg('playing ' + rel); }
+$('libRefresh').onclick = refreshLibrary;
+
+// =================================================================== DUDLEY (sound hybridization, rendered by the Python engine)
+const DUD = { carriers: [], donors: [], points: [[0, 0], [1, 1]], drag: null, sources: null, busy: false, sig: {}, preview: null, previewKey: '' };
+const DUD_SLIDERS = [
+  ['texture', 'TEXTURE', 0, 1, 0, 0.01], ['grain_ms', 'GRAIN ms', 5, 400, 80, 1], ['grain_jitter', 'GRAIN SPREAD', 0, 1.5, 0.3, 0.01],
+  ['density', 'DENSITY /s', 2, 300, 60, 1], ['onset_jitter', 'ONSET JITTER', 0, 4, 1, 0.05], ['spray_ms', 'SPRAY ms', 0, 1000, 30, 1],
+  ['pitch', 'PITCH st', -36, 36, 0, 0.1], ['pitch_spread', 'PITCH SPREAD', 0, 12, 0, 0.05], ['width', 'WIDTH', 0, 1, 0.8, 0.01],
+  ['lifter_ms', 'ENVELOPE DETAIL', 0.3, 6, 1.2, 0.05], ['max_gain_db', 'MAX BOOST dB', 6, 72, 36, 1], ['duration', 'LENGTH s (0=donor)', 0, 600, 0, 0.5],
+  ['peak_db', 'PEAK dBFS', -24, 0, -1, 0.5]];
+const DIN = {};
+DUD_SLIDERS.forEach(([k, lab, mn, mx, d, st]) => { DIN[k] = slider($('dudSliders'), lab, mn, mx, st, d, v => st >= 1 ? v.toFixed(0) : v.toFixed(2), () => {}); });
+[['dudFreeze', 'dudFreezeV'], ['dudWalk', 'dudWalkV']].forEach(([a, b]) => $(a).addEventListener('input', e => $(b).textContent = (+e.target.value).toFixed(2)));
+const pathMode = () => document.querySelector('input[name=dpm]:checked').value;
+document.querySelectorAll('input[name=dpm]').forEach(r => r.onchange = () => {
+  const m = pathMode();
+  $('dudSigRow').style.display = m === 'sigma' ? '' : 'none'; $('dudWalkRow').style.display = m === 'walk' ? '' : 'none';
+  $('dudPathHint').textContent = { sigma: 'σ path: the morph follows the recorded tensor of the take the sources come from. 0 = the carrier\'s own envelope, each line above is a donor.',
+    draw: 'Click to add a point, drag to move, right-click to delete.', walk: 'A fresh random walk from os.urandom every render.', rms: 'The louder donor 1 gets, the further along the path.' }[m];
+});
+$('dudWalkRow').style.display = 'none';
+function dudNeedServer() { if (serverUp()) return false; $('dudStatus').textContent = 'DUDLEY runs in Python: start the engine with ./run.sh, then open the page it prints.'; return true; }
+function refreshDudley() {
+  if (dudNeedServer()) return;
+  sock.emit('dudley_sources', {}, r => {
+    DUD.sources = r;
+    $('dudStatus').textContent = r.ok ? `DUDLEY ready · library ${r.root}` : 'DUDLEY could not load: ' + r.error;
+    $('dudSigma').innerHTML = Object.entries(r.sigma_sources).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+    renderSources(); fillDudleyTakes(r);
+  });
+}
+function renderSources() {
+  const r = DUD.sources; if (!r) return;
+  const row = f => {
+    const di = DUD.donors.indexOf(f);
+    return `<div class="src"><span title="${f}">${base(f)}</span><button data-p="${f}">▶</button><button class="c ${DUD.carriers.includes(f) ? 'on' : ''}" data-c="${f}">C</button><button class="d ${di >= 0 ? 'on' : ''}" data-d="${f}">${di >= 0 ? 'D' + (di + 1) : 'D'}</button></div>`;
+  };
+  let h = '';
+  for (const t of r.takes.slice().reverse()) {
+    const w = t.files.filter(f => f.endsWith('.wav'));
+    h += `<div class="grp">${t.id.toUpperCase()}${t.sigma ? ' · σ' : ''}</div>` + w.map(row).join('') + t.dudley.map(row).join('');
+  }
+  if (r.renders.length) h += '<div class="grp">DUDLEY RENDERS</div>' + r.renders.map(row).join('');
+  h += '<div class="grp">DUDLEY TEST SOUNDS</div>' + r.sounds.map(row).join('');
+  $('dudSrc').innerHTML = h;
+  $('dudSrc').querySelectorAll('[data-p]').forEach(b => b.onclick = () => { $('dudAudio').src = fileUrl(b.dataset.p); $('dudAudio').play(); });
+  $('dudSrc').querySelectorAll('[data-c]').forEach(b => b.onclick = () => { const f = b.dataset.c, i = DUD.carriers.indexOf(f); i >= 0 ? DUD.carriers.splice(i, 1) : DUD.carriers.push(f); renderSources(); drawPath(); });
+  $('dudSrc').querySelectorAll('[data-d]').forEach(b => b.onclick = () => { const f = b.dataset.d, i = DUD.donors.indexOf(f); i >= 0 ? DUD.donors.splice(i, 1) : DUD.donors.push(f); renderSources(); drawPath(); });
+}
+function fillDudleyTakes(r = DUD.sources || LIBRARY) {
+  if (!r) return;
+  $('dudTake').innerHTML = r.takes.slice().reverse().map(t => `<option value="${t.id}">${t.id}</option>`).join('') || '<option value="">no takes yet</option>';
+}
+$('dudRefresh').onclick = refreshDudley;
+$('dudClear').onclick = () => { DUD.carriers = []; DUD.donors = []; renderSources(); drawPath(); };
+function dudSettings() {
+  const st = {}; for (const k in DIN) st[k] = +DIN[k].value;
+  st.morph = document.querySelector('input[name=dmorph]:checked').value; st.dynamics = document.querySelector('input[name=ddyn]:checked').value;
+  st.scan = $('dudScan').value === 'freeze' ? `freeze:${(+$('dudFreeze').value).toFixed(3)}` : $('dudScan').value;
+  st.sr = +$('dudSr').value; return st;
+}
+function dudPath() {
+  const m = pathMode();
+  if (m === 'draw') return { mode: 'draw', spec: DUD.points.map(([t, p]) => `${t.toFixed(4)}:${p.toFixed(4)}`).join(',') };
+  if (m === 'walk') return { mode: 'walk', rate: +$('dudWalk').value };
+  if (m === 'rms') return { mode: 'rms' };
+  return { mode: 'sigma', source: $('dudSigma').value || 'speed' };
+}
+$('dudRender').onclick = () => {
+  if (dudNeedServer()) return;
+  if (!DUD.carriers.length || !DUD.donors.length) { $('dudProg').textContent = 'Pick at least one carrier (C) and one donor (D).'; return; }
+  sock.emit('dudley_render', { carriers: DUD.carriers, donors: DUD.donors, path: dudPath(), settings: dudSettings() }, r => { $('dudProg').textContent = r.error ? r.error : 'rendering…'; });
+};
+$('dudBatch').onclick = () => {
+  if (dudNeedServer()) return;
+  if (!$('dudTake').value) { $('dudProg').textContent = 'Record a take first (tab 10).'; return; }
+  sock.emit('dudley_batch', { take: $('dudTake').value, source: $('dudSigma').value || 'speed', settings: dudSettings() }, r => { $('dudProg').textContent = r.error ? r.error : `rendering ${r.jobs} hybrids…`; });
+};
+$('dudStop').onclick = () => serverUp() && sock.emit('dudley_cancel');
+function hookDudleySocket() {
+  sock.on('dudley_progress', p => { $('dudBar').style.width = (p.f * 100).toFixed(1) + '%'; $('dudProg').textContent = `${p.label || ''} ${p.jobs > 1 ? `(${p.job}/${p.jobs})` : ''} · ${p.stage} ${Math.round(p.f * 100)}%`; });
+  sock.on('dudley_done_one', r => {
+    const d = document.createElement('div');
+    d.innerHTML = `<a href="#">▶ ${base(r.file)}</a> · ${r.label} · ${r.duration}s · ${r.grains} grains · ${r.seconds}s · <i>${r.path}</i>`;
+    d.querySelector('a').onclick = e => { e.preventDefault(); $('dudAudio').src = fileUrl(r.file); $('dudAudio').play(); drawSpectrogram(r.file); };
+    $('dudResults').prepend(d); drawSpectrogram(r.file); logMsg(`DUDLEY → ${r.file}`, 'ev');
+  });
+  sock.on('dudley_error', e => { $('dudProg').textContent = 'error: ' + e.error; logMsg('DUDLEY error: ' + e.error, 'er'); });
+  sock.on('dudley_finished', r => { $('dudBar').style.width = '100%'; $('dudProg').textContent = `done · ${r.results.length} render(s)`; refreshLibrary(); if (DUD.sources) refreshDudley(); });
+}
+// path editor (draw mode): same idea as DUDLEY's window
+function pathGeom() { const cv = $('cvPath'); return { w: cv.clientWidth, h: cv.clientHeight, n: Math.max(1, DUD.donors.length), L: 70, R: 10, T: 10, B: 18 }; }
+const pxy = (t, p, g) => [g.L + t * (g.w - g.L - g.R), g.T + (1 - p / g.n) * (g.h - g.T - g.B)];
+const ptp = (x, y, g) => [clamp((x - g.L) / (g.w - g.L - g.R), 0, 1), clamp((1 - (y - g.T) / (g.h - g.T - g.B)) * g.n, 0, g.n)];
+function drawPath() {
+  const [c, w, h] = fit($('cvPath')), g = pathGeom(); c.clearRect(0, 0, w, h);
+  DUD.points = DUD.points.map(([t, p]) => [t, Math.min(p, g.n)]);
+  c.font = '10px IBM Plex Mono'; c.textAlign = 'right';
+  for (let k = 0; k <= g.n; k++) { const [, y] = pxy(0, k, g); c.strokeStyle = '#232a3b'; c.setLineDash([2, 4]); c.beginPath(); c.moveTo(g.L, y); c.lineTo(w - g.R, y); c.stroke(); c.setLineDash([]); c.fillStyle = k ? '#5fb3b3' : '#7c869c'; c.fillText(k ? base(DUD.donors[k - 1] || 'donor ' + k).slice(0, 10) : 'carrier', g.L - 6, y + 3); }
+  if (pathMode() === 'sigma') {
+    const key = sigmaKey();
+    if (DUD.preview && DUD.previewKey === key) {
+      c.strokeStyle = '#e8a33d'; c.lineWidth = 2; c.beginPath();
+      DUD.preview.pts.forEach(([t, p], k) => { const [x, y] = pxy(t, p, g); k ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.lineWidth = 1;
+      c.fillStyle = '#7c869c'; c.textAlign = 'right'; c.fillText('σ path from ' + DUD.preview.take, w - g.R - 4, g.T + 10);
+      return;
+    }
+    if (key) { computeSigmaPreview(key).then(drawPath); }
+    c.fillStyle = '#7c869c'; c.textAlign = 'center'; c.fillText(key ? 'loading σ…' : 'pick sources from a recorded take to see its σ path', (g.L + w) / 2, h / 2); return;
+  }
+  if (pathMode() !== 'draw') { c.fillStyle = '#7c869c'; c.textAlign = 'center'; c.fillText({ walk: 'entropy walk: new every render', rms: 'follows donor 1 loudness' }[pathMode()], (g.L + w) / 2, h / 2); return; }
+  c.strokeStyle = '#e8a33d'; c.lineWidth = 2; c.beginPath(); DUD.points.forEach(([t, p], k) => { const [x, y] = pxy(t, p, g); k ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.lineWidth = 1;
+  DUD.points.forEach(([t, p]) => { const [x, y] = pxy(t, p, g); c.fillStyle = '#07080c'; c.strokeStyle = '#e8a33d'; c.beginPath(); c.arc(x, y, 5, 0, TAU); c.fill(); c.stroke(); });
+}
+function sigmaTake() {
+  const r = DUD.sources; if (!r) return null;
+  const files = [...DUD.donors, ...DUD.carriers];
+  const t = r.takes.find(t => t.sigma && files.some(f => f.startsWith(t.id + '/')));
+  return t ? t.id : null;
+}
+function sigmaKey() { const t = sigmaTake(); return t ? `${t}|${$('dudSigma').value || 'speed'}|${Math.max(1, DUD.donors.length)}` : ''; }
+async function computeSigmaPreview(key) {   // same maths as sigma_path() in app.py
+  const [take, src, nStr] = key.split('|'), n = +nStr;
+  try {
+    if (!DUD.sig[take]) DUD.sig[take] = await (await fetch(fileUrl(take + '/sigma.json'))).json();
+    const fr = DUD.sig[take].frames; if (fr.length < 2) return;
+    let y;
+    if (src === 'speed') y = fr.map(f => f.vel.reduce((a, v) => a + Math.abs(v), 0));
+    else if (src.startsWith('dominance:')) { const m = +src.split(':')[1]; y = fr.map(f => { const n = f.sigma.length / 3, sm = f.sigma.slice(n * m, n * m + n); return sm[0] / (sm.reduce((a, b) => a + b, 0) + 1e-9); }); }
+    else if (src.startsWith('aspect:') || src === 'disequilibrium') {
+      const key = src === 'disequilibrium' ? 'X' : 'aspects';
+      if (!fr.every(f => f[key])) y = fr.map(f => f.vel.reduce((a, v) => a + Math.abs(v), 0));   // older take: speed, like app.py
+      else y = key === 'X' ? fr.map(f => f.X.reduce((a, v) => a + Math.abs(v), 0)) : fr.map(f => f.aspects[src.split(':')[1]]);
+    }
+    else { const i = +src.split(':')[1]; y = fr.map(f => i < f.sigma.length ? f.sigma[i] : f.vel.reduce((a, v) => a + Math.abs(v), 0)); }
+    const k = Math.max(1, Math.floor(y.length / 120)), sm = y.map((_, i) => { let a = 0, c = 0; for (let j = i - k; j <= i + k; j++) { a += y[clamp(j, 0, y.length - 1)]; c++; } return a / c; });
+    const lo = Math.min(...sm), hi = Math.max(...sm), t0 = fr[0].t, t1 = fr[fr.length - 1].t;
+    DUD.preview = { take, pts: sm.map((v, i) => [(fr[i].t - t0) / Math.max(1e-9, t1 - t0), (v - lo) / (hi - lo + 1e-9) * n]) };
+    DUD.previewKey = key;
+  } catch (e) { DUD.previewKey = key; DUD.preview = { take, pts: [[0, 0], [1, 0]] }; }
+}
+$('dudSigma').addEventListener('change', drawPath);
+document.querySelectorAll('input[name=dpm]').forEach(r => r.addEventListener('change', drawPath));
+const hit = (x, y) => { const g = pathGeom(); return DUD.points.findIndex(([t, p]) => { const [px, py] = pxy(t, p, g); return Math.abs(px - x) < 9 && Math.abs(py - y) < 9; }); };
+const evXY = e => { const r = $('cvPath').getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+$('cvPath').addEventListener('mousedown', e => {
+  if (pathMode() !== 'draw' || e.button !== 0) return;
+  const [x, y] = evXY(e); let i = hit(x, y);
+  if (i < 0) { const pt = ptp(x, y, pathGeom()); DUD.points.push(pt); DUD.points.sort((a, b) => a[0] - b[0]); i = DUD.points.indexOf(pt); }
+  DUD.drag = i; drawPath();
+});
+window.addEventListener('mousemove', e => {
+  if (DUD.drag === null) return;
+  const [x, y] = evXY(e), g = pathGeom(); let [t, p] = ptp(x, y, g), i = DUD.drag;
+  if (i === 0) t = 0; else if (i === DUD.points.length - 1) t = 1; else t = clamp(t, DUD.points[i - 1][0] + 1e-3, DUD.points[i + 1][0] - 1e-3);
+  DUD.points[i] = [t, p]; drawPath();
+});
+window.addEventListener('mouseup', () => { DUD.drag = null; });
+$('cvPath').addEventListener('contextmenu', e => { e.preventDefault(); const [x, y] = evXY(e), i = hit(x, y); if (i > 0 && i < DUD.points.length - 1) { DUD.points.splice(i, 1); drawPath(); } });
+// spectrogram of a render (same colours as DUDLEY's window)
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) { let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; } }
+  for (let len = 2; len <= n; len <<= 1) {
+    const a = -2 * Math.PI / len, wr = Math.cos(a), wi = Math.sin(a);
+    for (let i = 0; i < n; i += len) { let cr = 1, ci = 0; for (let k = 0; k < len / 2; k++) { const ur = re[i + k], ui = im[i + k], vr = re[i + k + len / 2] * cr - im[i + k + len / 2] * ci, vi = re[i + k + len / 2] * ci + im[i + k + len / 2] * cr; re[i + k] = ur + vr; im[i + k] = ui + vi; re[i + k + len / 2] = ur - vr; im[i + k + len / 2] = ui - vi; const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t; } }
+  }
+}
+async function drawSpectrogram(rel) {
+  try {
+    const ab = await (await fetch(fileUrl(rel))).arrayBuffer();
+    const buf = await new OfflineAudioContext(1, 1, 44100).decodeAudioData(ab);
+    const x = buf.getChannelData(0), sr = buf.sampleRate, [c, w, h] = fit($('cvDudSpec')), N = 2048, cols = Math.max(1, Math.floor(w));
+    const img = c.createImageData(cols, Math.floor(h)), hop = Math.max(1, Math.floor((x.length - N) / cols)), win = new Float32Array(N).map((_, k) => 0.5 - 0.5 * Math.cos(TAU * k / N));
+    const mags = [];
+    let mx = -1e9;
+    for (let col = 0; col < cols; col++) {
+      const re = new Float32Array(N), im = new Float32Array(N), o = col * hop;
+      for (let k = 0; k < N; k++) re[k] = (x[o + k] || 0) * win[k];
+      fft(re, im); const m = new Float32Array(N / 2);
+      for (let k = 0; k < N / 2; k++) { m[k] = 10 * Math.log10(re[k] * re[k] + im[k] * im[k] + 1e-12); mx = Math.max(mx, m[k]); }
+      mags.push(m);
+    }
+    const H = Math.floor(h);
+    for (let row = 0; row < H; row++) {
+      const f = 50 * Math.pow((sr / 2 * 0.98) / 50, 1 - row / (H - 1)), bin = Math.min(N / 2 - 1, Math.round(f / (sr / 2) * (N / 2)));
+      for (let col = 0; col < cols; col++) {
+        const v = clamp((mags[col][bin] - mx + 70) / 70, 0, 1), q = (row * cols + col) * 4;
+        img.data[q] = 255 * Math.min(1, v * 1.6); img.data[q + 1] = 255 * Math.max(0, v * 1.4 - 0.4); img.data[q + 2] = 255 * (0.35 * Math.sin(v * Math.PI) + 0.6 * Math.max(0, v - 0.75)); img.data[q + 3] = 255;
+      }
+    }
+    c.putImageData(img, 0, 0); c.fillStyle = '#fff'; c.font = '10px IBM Plex Mono'; c.fillText(base(rel), 6, 12);
+  } catch (e) { logMsg('spectrogram: ' + e.message, 'er'); }
+}
+
+// =================================================================== frame loop
+const DRAW = [() => { drawSlices(); if (ENG.params.flow === 'relax') drawFlow(); }, () => { drawTraj(); drawTable(); }, drawHelix, null, null, drawCube, drawField, drawWaves, drawAudio, null, null];
+let frame = 0;
+function loop() {
+  frame++;
+  const fn = DRAW[ACTIVE];
+  if (fn && !(ACTIVE === 1 && frame % 2)) { try { fn(); } catch (e) { console.error(e); } }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+logMsg('ready · press START (audio starts with it)');
+if (!navigator.requestMIDIAccess) {
+  const n = document.createElement('p'); n.className = 'note warnbox card';
+  n.textContent = 'This browser has no Web MIDI (Safari). Sound and visuals still work here. For MIDI, open this page in Chrome or Edge, or run ./run.sh --midi so Python sends the MIDI.';
+  $('midiEnable').parentNode.after(n); $('midiEnable').disabled = true;
+}
+</script>
+</body>
+</html>

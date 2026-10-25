@@ -1,0 +1,59 @@
+{
+  "instrument": "DUDLEY",
+  "version": "1.0",
+  "rendered": "2026-09-26T04:15:47-0400",
+  "seconds_to_render": 0.54,
+  "entropy": "os.urandom",
+  "path": "breakpoints 0:0,1:1",
+  "grains_scheduled": 240,
+  "grains_sounded": 240,
+  "duration_s": 8.0,
+  "sr": 44100,
+  "args": {
+    "carrier": [
+      "voice.wav"
+    ],
+    "donor": [
+      "bells.wav"
+    ],
+    "output": "05_frozen_voice_rung.wav",
+    "morph": "transport",
+    "path": null,
+    "texture": 0.0,
+    "dynamics": "donor",
+    "grain_ms": 150.0,
+    "grain_jitter": 0.3,
+    "density": 30.0,
+    "onset_jitter": 1.0,
+    "scan": "freeze:0.2",
+    "spray_ms": 30.0,
+    "pitch": -12.0,
+    "pitch_spread": 0.15,
+    "width": 0.8,
+    "lifter_ms": 1.2,
+    "max_gain_db": 36.0,
+    "grid": 384,
+    "duration": null,
+    "sr": 44100,
+    "peak_db": -1.0,
+    "fps": 30.0,
+    "seed": null
+  },
+  "carriers": [
+    {
+      "path": "voice.wav",
+      "sha1": "8b6d36fb7b57d603be784d51d33ddb1b669a8f33"
+    }
+  ],
+  "donors": [
+    {
+      "path": "bells.wav",
+      "sha1": "e3e7e4dcf8fa2589e16ae802e9be22ac8921c29a"
+    }
+  ],
+  "output": {
+    "path": "05_frozen_voice_rung.wav",
+    "sha1": "a3efbc5731a893e78badf8be2e04dd075e83d8d9"
+  },
+  "schedule": "05_frozen_voice_rung.schedule.json"
+}

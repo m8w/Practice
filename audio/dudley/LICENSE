@@ -1,0 +1,32 @@
+DUDLEY — sound hybridization engine
+Public domain dedication: CC0 1.0 Universal
+
+To the extent possible under law, the author has waived all copyright and
+related or neighboring rights to this work: the source code (dudley.py,
+make_test_sounds.py), the documentation, and the example audio and images
+in this package. This work is published from the United States.
+
+You can copy, modify, distribute and perform the work, even for commercial
+purposes, all without asking permission.
+
+Full legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+Provenance of the example material
+- All example audio was synthesized from scratch by make_test_sounds.py
+  (sawtooth/square oscillators, sine partials, filtered noise). No samples,
+  recordings, or third-party audio were used.
+- The techniques (granular synthesis, cepstral envelope estimation,
+  1-D optimal transport, cross-synthesis) are published signal-processing
+  methods and are not owned by anyone.
+
+Dependencies (not included here, keep their own licenses)
+- numpy, scipy: BSD-3-Clause
+- ffmpeg (optional, called as an external program): LGPL/GPL
+
+Note on renders
+Output made with DUDLEY belongs to whoever makes it, but it carries the
+rights of whatever you feed in. Hybrids of your own recordings or of
+public-domain/CC0 sources stay free. Hybrids of someone else's copyrighted
+recording are derivatives of that recording. Every render's
+.manifest.json records the SHA-1 of each input, so the provenance of any
+piece can be traced.

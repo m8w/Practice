@@ -1,0 +1,19 @@
+{
+  "carriers": [
+    "/Users/wvn/Music/DUDLEY/examples/rain.wav"
+  ],
+  "donors": [
+    "/Users/wvn/Music/DUDLEY/examples/voice.wav",
+    "/Users/wvn/Music/DUDLEY/examples/bells.wav"
+  ],
+  "path_mode": "draw",
+  "path_points": "0:0,0.3:1,0.55:1,0.8:2,1:2",
+  "morph": "transport",
+  "dynamics": "donor",
+  "scan": "stretch",
+  "sliders": {
+    "texture": 0.2
+  },
+  "output": "/Users/wvn/Music/DUDLEY/renders/dudley.wav",
+  "number_takes": true
+}

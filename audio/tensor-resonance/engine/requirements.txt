@@ -1,0 +1,9 @@
+numpy>=1.24
+flask>=2.3
+flask-cors>=4.0
+flask-socketio>=5.3
+simple-websocket>=0.10
+scipy>=1.9            # DUDLEY
+tensorly>=0.8
+# optional, only for Python MIDI out (--midi). run.sh installs these separately so a
+# failure here never stops the app:  mido>=1.3  python-rtmidi>=1.5
