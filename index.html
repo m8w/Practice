@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>xik6 Audio Rack</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: a patchbay. Each tool is one row with a jack in its section's cable colour; rows sit on hairlines, no cards. */
+:root{
+  --bg:#0c0f10; --panel:#131819; --rule:#212a2c; --fg:#dbe4e6; --dim:#8b999d; --accent:#5fd3dc;
+  --play:#5fd3dc; --stream:#e9a640; --midi:#b99af2; --shape:#86d18c; --air:#f07a68;
+  --display:"Major Mono Display", "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f1f4f4; --panel:#ffffff; --rule:#d4dddf; --fg:#121819; --dim:#55666a; --accent:#08838e;
+    --play:#08838e; --stream:#a46500; --midi:#7448c2; --shape:#2b8536; --air:#bd3d2c; color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f1f4f4; --panel:#ffffff; --rule:#d4dddf; --fg:#121819; --dim:#55666a; --accent:#08838e;
+  --play:#08838e; --stream:#a46500; --midi:#7448c2; --shape:#2b8536; --air:#bd3d2c; color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--fg); font-family:var(--sans); font-size:15px; line-height:1.5;
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:28px 56px;
+}
+.wrap{max-width:880px; margin:0 auto; display:flex; flex-direction:column; gap:40px}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:3px}
+
+/* head */
+.head{display:flex; flex-direction:column; gap:14px}
+.eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim)}
+h1{font-family:var(--display); font-weight:400; font-size:clamp(34px, 7vw, 54px); line-height:1.05; margin:0; letter-spacing:.01em; text-wrap:balance}
+.lede{margin:0; max-width:62ch; color:var(--dim)}
+.lede b{color:var(--fg); font-weight:500}
+.controls{display:flex; flex-direction:column; gap:12px; position:sticky; top:env(safe-area-inset-top, 0px); z-index:5; background:var(--bg); padding-block:10px; border-bottom:1px solid var(--rule)}
+body::before{content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top, 0px); z-index:10; background:var(--bg)}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{font-family:var(--mono); font-size:12.5px; border:1px solid var(--rule); background:transparent; color:var(--fg); border-radius:999px; padding:5px 11px 5px 9px; cursor:pointer; display:inline-flex; align-items:center; gap:7px}
+.chip .dot{width:9px; height:9px; border-radius:50%; background:var(--c, var(--fg)); box-shadow:0 0 0 2px var(--bg), 0 0 0 3px var(--c, var(--fg))}
+.chip .ct{color:var(--dim); font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--fg); color:var(--bg); border-color:var(--fg)}
+.chip[aria-pressed="true"] .ct{color:var(--bg); opacity:.7}
+.chip[aria-pressed="true"] .dot{box-shadow:0 0 0 2px var(--fg), 0 0 0 3px var(--c, var(--bg))}
+.search{display:flex; gap:8px; align-items:center}
+.search input{flex:1; min-width:0; font:inherit; font-family:var(--mono); font-size:14px; color:var(--fg); background:var(--panel); border:1px solid var(--rule); border-radius:6px; padding:9px 12px}
+.search input::placeholder{color:var(--dim)}
+.search .count{font-family:var(--mono); font-size:12px; color:var(--dim); white-space:nowrap; font-variant-numeric:tabular-nums}
+
+/* sections */
+section.kind{display:flex; flex-direction:column; gap:0}
+.kh{display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 14px; padding-bottom:10px; border-bottom:2px solid var(--c)}
+.kh h2{font-family:var(--mono); font-weight:600; font-size:13px; letter-spacing:.14em; text-transform:uppercase; margin:0; color:var(--c)}
+.kh p{margin:0; color:var(--dim); font-size:14px}
+.kh .n{margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--dim); font-variant-numeric:tabular-nums}
+
+.chain{display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:14px 0 6px; font-family:var(--mono); font-size:12px}
+.chain span{border:1px solid var(--rule); background:var(--panel); padding:4px 8px; border-radius:4px}
+.chain i{font-style:normal; color:var(--c)}
+.chain small{width:100%; color:var(--dim); font-size:12px; font-family:var(--sans)}
+
+.tool{display:grid; grid-template-columns:22px minmax(0,1fr); gap:0 12px; padding:16px 0; border-bottom:1px solid var(--rule)}
+.jack{width:14px; height:14px; margin-top:5px; border-radius:50%; border:3px solid var(--c); background:var(--bg); position:relative}
+.jack::after{content:""; position:absolute; inset:2px; border-radius:50%; background:var(--c); opacity:.55}
+.tb{display:flex; flex-direction:column; gap:7px; min-width:0}
+.tt{display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px}
+.tt h3{margin:0; font-family:var(--mono); font-weight:600; font-size:16px; letter-spacing:.01em}
+.tt .tech{font-family:var(--mono); font-size:12px; color:var(--dim)}
+.tt time{margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--dim); font-variant-numeric:tabular-nums; white-space:nowrap}
+.tb p{margin:0; max-width:68ch}
+.gear{font-family:var(--mono); font-size:12px; color:var(--dim)}
+.where{display:flex; flex-wrap:wrap; gap:6px}
+.lk{font-family:var(--mono); font-size:12.5px; text-decoration:none; border:1px solid var(--rule); border-radius:5px; padding:4px 9px; display:inline-flex; gap:6px; align-items:center; background:transparent; color:var(--fg); cursor:pointer; max-width:100%}
+.lk:hover{border-color:var(--fg)}
+.lk.open{border-color:var(--c); color:var(--c)}
+.lk.open:hover{background:var(--c); color:var(--bg)}
+.lk .k{color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.08em}
+.lk.path{overflow-wrap:anywhere; text-align:left}
+.lk.path .p{overflow-wrap:anywhere}
+.note{font-size:13.5px; color:var(--dim)}
+.flag.new{border-style:solid; border-color:var(--c); color:var(--c)}
+.flag{font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; border:1px dashed var(--dim); color:var(--dim); border-radius:4px; padding:1px 6px}
+
+.empty{padding:22px 0; color:var(--dim); font-family:var(--mono); font-size:13px}
+
+/* loose ends */
+.ends{display:flex; flex-direction:column; gap:10px}
+.ends h2{font-family:var(--mono); font-weight:600; font-size:13px; letter-spacing:.14em; text-transform:uppercase; margin:0; padding-bottom:10px; border-bottom:2px solid var(--rule)}
+.ends ul{margin:0; padding-left:18px; display:flex; flex-direction:column; gap:6px; max-width:70ch}
+.ends li::marker{color:var(--dim)}
+.foot{font-size:13px; color:var(--dim); max-width:70ch; margin:0}
+.foot code, .ends code{font-family:var(--mono); font-size:12.5px}
+.toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(18px + env(safe-area-inset-bottom, 0px)); background:var(--fg); color:var(--bg); font-family:var(--mono); font-size:12.5px; padding:7px 12px; border-radius:6px; z-index:20}
+@media (max-width:520px){
+  .tt time{margin-left:0}
+  .kh .n{margin-left:0}
+  .chips{flex-wrap:nowrap; overflow-x:auto; padding:3px 2px 6px; scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:none}
+}
+@media (prefers-reduced-motion: no-preference){
+  .chip, .lk{transition:background-color .12s, color .12s, border-color .12s}
+}
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div class="eyebrow">xik6 · m8w · wvn — built in conversation, Mar–Oct 2026</div>
+    <h1>xik6 audio rack</h1>
+    <p class="lede" id="lede">Every audio tool in the xik6 practice, in one place: <b>instruments</b> you play, <b>streams</b> that run for days, <b>generators</b> that drive the synths, <b>shaping</b> tools, and the <b>broadcast</b> chain behind Newbold Radio. All built in conversation with Claude. Links go to the live pages and repos that are public.</p>
+  </header>
+
+  <div class="controls">
+    <div class="chips" id="chips" role="group" aria-label="Filter by kind"></div>
+    <div class="search">
+      <input id="q" type="search" placeholder="Search tools, synths, files…" aria-label="Search tools" autocomplete="off">
+      <span class="count" id="count"></span>
+    </div>
+  </div>
+
+  <main id="list" class="wrap" style="gap:44px"></main>
+
+  <p class="foot">Released as found. All open source, free, public domain where the material allows. Music at <a href="https://xik6.bandcamp.com" target="_blank" rel="noopener">xik6.bandcamp.com</a>. 000 Peace.</p>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+var CHAT = {};
+var ART = {};
+var PUBLIC = true;
+var KINDS = [
+  {id:"play",   name:"Instruments",             blurb:"Played live in the browser."},
+  {id:"stream", name:"Endless streams & pieces", blurb:"Run unattended and compose as they go."},
+  {id:"midi",   name:"Generators & MIDI",        blurb:"Drive the Supernova II, microKORG and soft synths."},
+  {id:"shape",  name:"Shaping, rendering & AV",  blurb:"Turn existing sound and picture into new work."},
+  {id:"air",    name:"Broadcast & recording",    blurb:"Newbold Radio's mixer, announcer, recorders and converters."}
+];
+// a: [label, artifact key]   c: chat keys   mac: paths   gh: repos   flag: short state
+var TOOLS = [
+  {n:"QOIX Synthesizer", k:"play", t:"HTML · Web Audio · Mac app", d:"2026-09-08", web:[["Open","https://h92o.github.io/qoix/"]], gh:["h92o/qoix","m8w/qoix"],
+   w:"Your full software synth: subtractive, 4-operator FM, wavetable, spectral, Scala microtonal and granular engines, stereo oscillators, a mod matrix, a random note generator, MIDI-file render to WAV and a session recorder. It also builds as a Mac app.",
+   g:"Built in Claude Code sessions, Mar–Sep · h92o/qoix is the newest"},
+  {n:"CAYLEY XI", k:"play", t:"HTML · Web Audio", d:"2026-10-13", a:[["Open","cayley"]], c:["oct"],
+   w:"Octonion ring machine: eight voices multiplied around the Fano plane, harmonic sequencer, granular layer, stereo rotation, XY morph pad, MIDI in and WAV recording.",
+   g:"Your saved patches are its factory presets"},
+  {n:"SHIFT", k:"play", t:"HTML · Web Audio", d:"2026-10-13", c:["oct"],
+   w:"Bode frequency shifter built from a Hilbert transform. The barberpole that grew into CAYLEY."},
+  {n:"Proof Horizon", k:"play", t:"HTML · Web Audio", d:"2026-10-13", a:[["Open","proof"]], c:["oct"],
+   w:"Euclid's 465 propositions become chords that walk the E8 lattice into a spinning black hole. Waveforms come from live-solved PDEs: Burgers, Euler, Maxwell, Bondi accretion and an 8-D wave."},
+  {n:"HELMHOLTZ", k:"play", t:"HTML · Web Audio", d:"2026-10-24", a:[["Open","helm"]], c:["helm"],
+   w:"Sound-effects synth: CZ-style phase distortion, 48-partial additive, eight noise sources including true entropy, formant comb, crush and reverb. 18 presets, 24-bit WAV and 8-variation export."},
+  {n:"Closed String Instrument", k:"play", t:"HTML · Web Audio + Python render", d:"2026-10-15", a:[["Open","string"]], c:["str"],
+   w:"Multitouch surface whose partials come from the closed-string mass formula. Dual swaps R↔1/R and Measure collapses six vacua. The chat also holds the numpy render of the four-part piece."},
+  {n:"Kernel Choir", k:"play", t:"HTML · Web Audio", d:"2026-10-02", a:[["Open","kern"],["Studio","kernS"]], c:["kern"],
+   w:"Graph null-space voices: every vertex sings and each closed neighbourhood sums to exactly zero. Flow paths, 5-cube to 600-cell, tape loops, Geiger counter, DNA reader and a self-growing Creature."},
+  {n:"LARSEN", k:"play", t:"HTML · Web Audio · ES5", d:"2026-07-09", c:["lars"],
+   w:"Feedback instrument: two banks of up to five delay lines, series or parallel, cross-coupled, with XOR bit-plane flips, bit-FIFO removal, ping-pong and mid/side. DAMAGE macro, ignite and panic."},
+  {n:"GRASSMANN", k:"play", t:"HTML · WebGL + Web Audio", d:"2026-07-16", c:["grass"],
+   w:"Colour matrix × frequency matrix displaces six 3-D surfaces, Klein bottle and Möbius strip among them. Three noise drones, a databender FX chain and a Blogger-safe embed.",
+   g:"grassmann2.html · grassmann2-embed.html"},
+  {n:"Fractal Timing", k:"play", t:"HTML · Web Audio · ES5", d:"2026-06-18", c:["frac"],
+   w:"Beatless beats: a Cantor-style drum subdivision tree and a Koch melody expander share one depth. A beatlessness slider bends the splits toward the golden ratio. 19-TET and Bohlen–Pierce scales."},
+  {n:"Glyph Instrument", k:"play", t:"HTML · Web Audio", d:"2026-08-18", c:["glyph"],
+   w:"Voynich-style procedural glyphs appear one at a time in paginated grids, each with its own 100–2000 Hz tone. Saves PNG frames for video."},
+  {n:"AS IT IS", k:"play", t:"HTML · Web Audio", d:"2026-07-31", c:["asit"],
+   w:"A wall of your liturgical words. A held gesture pulls the field into a pillar of light while letter-voices converge on 136.1 Hz.",
+   g:"Live on your blog"},
+  {n:"SACCADE", k:"play", t:"HTML · Web Audio · ES5", d:"2026-10-25", web:[["Open","audio/saccade.html"]], flag:"new",
+   w:"Attention instrument: any click snaps to GRASP (seeded LCG, quantised 16ths, variable-ratio reward, the same eleven places every time); stillness lets DWELL back in over 40 s (true entropy, long windows from anywhere in the archive). Streams WAV, RF64 and BW64 of any size from disk.",
+   g:"Built Oct 25 from the July design · #bare or ?bare=1 for OBS"},
+  {n:"Technicolor Interposition", k:"play", t:"HTML · Web Audio + video", d:"2026-06-04", c:["tech"],
+   w:"Two Poisson streams fight for one output. A real collision freezes and blooms the video you choose, over that video's own sound. Records webm."},
+  {n:"Solvable / Solvable / Proven", k:"play", t:"HTML · Web Audio", d:"2026-06-01", c:["ferm"],
+   w:"Three-movement Fermat piece: the just chord hidden in 3³+4³+5³=6³, beats closing to zero, and one inner pair that never locks."},
+  {n:"SERENITY", k:"play", t:"HTML · Web Audio", d:"2026-07-11", c:["seren"],
+   w:"Your ambient random generator. We made its sandboxed Blogger embed.", g:"serenity-blogger-embed.html"},
+  {n:"Oracle Song", k:"play", t:"HTML · Web Audio + speech", d:"2026-04-19", c:["orac"],
+   w:"88 keys, 64 hexagrams, 24 runes. Each throw becomes spoken stanzas over quiet chord drones. The chat also holds the Cage-style word lists as MP3."},
+  {n:"Appliance Station", k:"play", t:"HTML · Web Audio", d:"2026-05-14", c:["appl"],
+   w:"A dying lawn mower, a refrigerator and an A/C unit as never-repeating procedural noise machines, with fault events, gauges and a phosphor scope.",
+   g:"mower.html · appliance-station.html"},
+
+  {n:"Aggregate Field", k:"stream", t:"HTML · Web Audio · samples", d:"2026-10-24", a:[["Open","aggr"],["First build","aggr0"]], c:["classical","aggr"],
+   w:"Endless modern-classical stream from the documented methods of Babbitt, Feldman, Cage, Stockhausen, Partch, Glass, Riley, Reich, Pärt, Fripp and more, layered out of sync. Microtonal, with a sung solfège chorus; keeps playing in the background.",
+   g:"For YouTube Live through OBS"},
+  {n:"Endless Sonata", k:"stream", t:"HTML · Web Audio · samples", d:"2026-10-20", a:[["Open","sonata"]], c:["classical"],
+   w:"New piano pieces forever, modelled on ~400 public-domain works with Für Elise and all three Moonlight movements weighted in. Microtonal tunings; save pieces and reopen them in groups."},
+  {n:"Endless Symphony", k:"stream", t:"HTML · Web Audio · samples", d:"2026-10-20", a:[["Open","sym"]], c:["classical"],
+   w:"Full orchestral works from the public-domain symphony repertoire, with polytonal and polymicrotonal layers, abstract rhythm and CC0 instruments."},
+  {n:"Endless Station", k:"stream", t:"Python server · Mac mini", d:"2026-10-24", c:["classical"],
+   w:"Serves all three endless pages offline on the Mac mini, announces each piece in Dispatch's voice and writes a now-playing file for OBS.",
+   g:"Start it with Endless Station.command"},
+  {n:"Days on End", k:"stream", t:"HTML · Web Audio + canvas", d:"2026-10-17", a:[["Open","doe"]], c:["doe"],
+   w:"Days-long OS-entropy crossfade of 18 visual generators and 14 sound voices: Shepard tone, Risset rhythm, formant choir, Karplus strings, acid bass, drum machine. Starts a fresh cycle when OBS goes live."},
+  {n:"Perpendicular Now", k:"stream", t:"HTML · Web Audio + canvas", d:"2026-10-14", a:[["Open","perp"]], c:["perp"],
+   w:"Song/video: ring-modulated voices, a crushed ping-pong delay, a self-erasing asemic pen redrawn at 90°, SAID captions and a live timestamp title. 000 PEACE."},
+  {n:"SAID Symbol Set", k:"stream", t:"HTML · Web Audio", d:"2026-10-23", a:[["Open","said"]], c:["said"],
+   w:"Symbol forge whose motion, light, time and voice channels all sound. The chat also holds “SAID · Six Times”, the six-movement soundtrack and video rendered from your notebook glyphs."},
+
+  {n:"Tensor Resonance Engine", k:"midi", t:"Python (Flask) + HTML", d:"2026-10-23", a:[["Open","tens"]], c:["tens"],
+   w:"A 5×5×5 colour × loudness × frequency tensor whose singular values become unaligned microtonal triads. Drives CAYLEY XI, Surge XT, Dexed and DUDLEY, records stems, MIDI and σ, makes whole albums, and changes Surge patches.",
+   g:"Surge XT · Dexed · its own IAC “Tensor” bus · Bluetooth MIDI between the Macs"},
+  {n:"vital_bridge.py", k:"midi", t:"Python", d:"2026-10-24", c:["vital"],
+   w:"Makes Vital wavetables (spectral, glyph-to-wave, audio slices) and plays Vital while sweeping wavetable position from a Lorenz attractor, a random walk or drifting LFOs. --follow lets your existing stream play the notes.",
+   g:"Vital · never writes to IAC Bus 1"},
+  {n:"sn2_gen.py", k:"midi", t:"Python · rtmidi", d:"2026-08-04", c:["sn2a","sn2b"],
+   w:"Generative MIDI for Supernova II Performance Parts 1–8: drift, scatter, drone, pulse and silence, plus 5- and 7-note runs. A live settings menu changes Parts while it plays.",
+   g:"Supernova II · global channel 16 · outputs 3 & 4 · older copies sn2gen1.py and sn2gen2.py sit beside it"},
+  {n:"SN2 Note Generator", k:"midi", t:"Python · rtmidi", d:"2026-08-21",
+   w:"Two-synth engine for the Supernova II and microKORG XL: background chaos on all eight Parts, one 5- or 7-note run at a time, mod-wheel drift, and preset cycling on both synths every 17:17 song unit. Records each session to ~/Music/sn2-recordings.",
+   g:"sn2_chaos8_runs.py · sn2_perpatch_runs.py · sn2_recorder.py · built in a Claude Code session"},
+  {n:"sn2_perf.py", k:"midi", t:"Python · rtmidi", d:"2026-08-31", c:["sn2bak"],
+   w:"Composes eight-part Performances in the Supernova's edit buffer with Bank Select and Program Change, with mutate, freeze, blend between recipes and saved JSON recipes.",
+   g:"Quit nietzsche.py first · port 1, microKORG XL MIDI OUT"},
+  {n:"sn2_backup.py", k:"midi", t:"Python · rtmidi", d:"2026-08-31", c:["sn2bak"],
+   w:"SysEx archive and restore for the Supernova II. You start the dump on the synth, it saves every byte to a .syx file, and it sends archives back at a safe pace."},
+  {n:"nietzsche.py", k:"midi", t:"Python · rtmidi", d:"2026-07-24", c:["nietz"],
+   w:"Walks 28 Wahnzettel sections across all eight Parts with DSP-safe program changes: 6 s floor, 90 s cooldowns, a stale-patch check and a gap audit at the end.",
+   g:"Supernova II"},
+  {n:"powwow_drums.py", k:"midi", t:"Python", d:"2026-09-30", c:["pow","sn2a"],
+   w:"Percussion engine on Drum Maps a–h: heartbeat pulse, honor beats, call-and-response, sneak-up. Parts 5–7 use Bank H drum Programs because maps e, f and g aren't in ROM.",
+   g:"Supernova II · microKORG XL"},
+  {n:"VST MIDI Randomizer", k:"midi", t:"HTML · Web MIDI", d:"2026-03-12", c:["vst"],
+   w:"Random notes and patch changes with the right bank and program logic for each plugin: Vital, Dexed, Surge XT. It began as the Supernova II randomizer and now also sits in tab 5 of the Tensor engine.",
+   g:"vst-midi-randomizer.html · IAC Driver"},
+  {n:"physics_synth.py", k:"midi", t:"Python", d:"2026-09-14", c:["phys"],
+   w:"Masses and springs in 3-D make the sound. String, pendulum, modal, chaotic-orbit and wave-packet patches, with bridges to radiot, Dispatch and gem.bfg.",
+   g:"physics_synth.py · physics_synth_integration.py"},
+  {n:"noodle_network.py", k:"midi", t:"Python", d:"2026-09-12", c:["nood"],
+   w:"32 oscillator cells (LFO, logistic-map chaos, audio-rate) wired by one routing matrix, with entropy from os.urandom."},
+  {n:"noodle_soup_stereo.pd", k:"midi", t:"Pure Data vanilla", d:"2026-09-12", c:["nood"],
+   w:"Pd port of the noodle network: cell_sine~, cell_saw~ and cell_chaos~ abstractions in three layers, in stereo, with entropy streamed from your own WAV. Tested in real Pd.",
+   g:"Keep all five files in one folder, then turn DSP on"},
+
+  {n:"DUDLEY", k:"shape", t:"Python · Tkinter window", d:"2026-09-28", c:["dud"],
+   w:"Sound hybridization: a carrier's grain stream wears a donor's spectral envelope. Transport or cepstral morph, drawn or entropy-walk paths, numbered takes sent straight to Logic Pro. CC0.",
+   g:"Start it with Open DUDLEY.command · 24-bit WAV"},
+  {n:"relaxfft.py", k:"shape", t:"Python", d:"2026-10-13", c:["relax"],
+   w:"Spectral sustain: each FFT bin relaxes toward the input the way the relaxation dark-energy flow does (X′ = −nX)."},
+  {n:"xik6_mosaic.py", k:"shape", t:"Python · OpenCV · ffmpeg", d:"2026-09-27", c:["mosaic"],
+   w:"Reworks each long video's picture to react to its own soundtrack. Runs in the background for days on the Seagate without touching the broadcast.",
+   g:"Cache stays on the Seagate · needs 150 GB free"},
+  {n:"morph_engine.py", k:"shape", t:"Python · OpenCV · librosa", d:"2026-08-02", c:["morph"],
+   w:"Audio-reactive image morphing: ORB-matched meshes and five audio modes that hold on quiet passages, rush on loud ones and snap to beats. Writes a manifest with every render."},
+  {n:"Nested Dimensions", k:"shape", t:"HTML · three.js · Butterchurn", d:"2026-10-18", a:[["Open","nest"]], web:[["Full version","https://m8w.github.io/nested-dimensions/"]], gh:["m8w/nested-dimensions"], c:["nest"],
+   w:"MilkDrop and fractal-stream planes in 3-D, with nonstop crossfaded audio from your archive.org catalogue and a control panel for several windows.",
+   g:"The full version on GitHub Pages takes live BlackHole, camera and MIDI input"},
+  {n:"Chromaflow", k:"shape", t:"HTML · WebGL", d:"2026-09-07", a:[["Open","chroma"]],
+   w:"Audio-reactive VJ page with live-editable shader configs in the spirit of G-Force, an Auto-VJ mode and two MIDI-mappable knobs."},
+
+  {n:"radiot.py", k:"air", t:"Python", d:"2026-09-14", gh:["m8w/newbold-radio"], c:["rbh"],
+   w:"Newbold Radio's mixer: Supernova II, microKORG and Dispatch lanes at EBU R128 loudness, out through BlackHole 16ch to OBS. Duration-lane slots over a 17,000-track index.",
+   g:"also external_radio.py · RadioBlackHole"},
+  {n:"Dispatch", k:"air", t:"Python · macOS say", d:"2026-09-14",
+   w:"The broadcast's announcer and clock: machine-voice announcements, OBS levels, stream cycles every ~11h45m, and resets of MIDI, synth and visual state at each cycle.",
+   g:"dispatch_announcer.py · logs/dispatch_announcer.log"},
+  {n:"Dispatch Replay", k:"air", t:"Python + local control page", d:"2026-10-17", c:["doe"], flag:"not installed",
+   w:"Watches recording folders, plays back and queues finished recordings, and airs them through OBS WebSocket or straight to RTMP with ffmpeg, reconnecting at 11:45.",
+   g:"Dispatch Replay.zip"},
+  {n:"dispatch_aggregate.py", k:"air", t:"Python", d:"2026-10-16", c:["aggr"],
+   w:"Speaks Aggregate Field's piece and section changes in Dispatch's voice, logs JSONL and writes YouTube chapter timestamps. Endless Station now does this for all three endless pages."},
+  {n:"Multi-lane recorder", k:"air", t:"Python · sounddevice", d:"2026-07-19", c:["rec"],
+   w:"USB mixer and BlackHole (radiot) lanes with per-lane gain and meters, EQ voicings, gentle compression, an RF64 working file and two-pass loudnorm to a 2-hour WAV.",
+   g:"48 kHz · 16-bit stereo"},
+  {n:"BlackHole monitor recorder", k:"air", t:"Python · sounddevice", d:"2026-09-18", c:["bhm"],
+   w:"Two-hour BlackHole 2ch capture to WAV and MP3 with live headphone monitoring. Refuses loopback outputs that would feed back.",
+   g:"--list-devices shows the numbering on each Mac"},
+  {n:"wav2mp3.py", k:"air", t:"Python · ffmpeg", d:"2026-10-02", c:["w2m"],
+   w:"Pick a folder and every WAV gets an MP3 beside it (VBR, about 245 kbps). Skips what's already done."},
+  {n:"Video audio extractor", k:"air", t:"Python · ffmpeg", d:"2026-10-09", c:["vid","vid0"],
+   w:"WAV and MP3 from .mov and .mp4 with 3-hour splits, plus frames and 30-second clips. Resumes, skips corrupt files and runs at low CPU priority."}
+];
+
+var CHAIN = '<div class="chain" aria-label="Broadcast signal chain"><span>MIDI archive stream</span><i>→</i><span>Supernova II + microKORG XL</span><i>→</i><span>radiot.py · R128</span><i>→</i><span>BlackHole 16ch</span><i>→</i><span>OBS</span><i>→</i><span>YouTube / RTMP</span>' +
+  '<small>Dispatch announces and resets the cycle every ~11h45m. IAC Bus 1 carries the SN2 and visual MIDI, so newer MIDI tools stay off it.</small></div>';
+
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function fmt(d){ var t = new Date(d + "T12:00:00"); return t.toLocaleDateString("en-US", {month:"short", day:"numeric"}); }
+function kindOf(id){ for (var i=0;i<KINDS.length;i++) if (KINDS[i].id===id) return KINDS[i]; }
+function hay(x){ return [x.n, x.w, x.t, x.g||"", (PUBLIC ? "" : (x.mac||[]).join(" ")), (x.gh||[]).join(" "), kindOf(x.k).name, x.flag||""].join(" ").toLowerCase(); }
+
+var state = {k:"all", q:""};
+try { var saved = localStorage.getItem("rack-kind"); if (saved) state.k = saved; } catch(e) {}
+
+function row(x){
+  var h = '<article class="tool" style="--c:var(--' + x.k + ')"><div class="jack" aria-hidden="true"></div><div class="tb">';
+  h += '<div class="tt"><h3>' + esc(x.n) + '</h3><span class="tech">' + esc(x.t) + '</span>';
+  if (x.flag) h += '<span class="flag' + (x.flag === "new" ? " new" : "") + '">' + esc(x.flag) + '</span>';
+  h += '<time datetime="' + x.d + '">' + fmt(x.d) + '</time></div>';
+  h += '<p>' + esc(x.w) + '</p>';
+  if (x.g) h += '<div class="gear">' + esc(x.g) + '</div>';
+  var w = '';
+  if (!PUBLIC) (x.a||[]).forEach(function(a){ w += '<a class="lk open" href="https://claude.ai/artifact/' + ART[a[1]] + '" target="_blank" rel="noopener">' + esc(a[0]) + ' ↗</a>'; });
+  (x.web||[]).forEach(function(a){ w += '<a class="lk open" href="' + esc(a[1]) + '" target="_blank" rel="noopener">' + esc(a[0]) + ' ↗</a>'; });
+  if (!PUBLIC) (x.c||[]).forEach(function(c, i){ w += '<a class="lk" href="https://claude.ai/chat/' + CHAT[c] + '" target="_blank" rel="noopener"><span class="k">Chat' + (x.c.length>1 ? ' ' + (i+1) : '') + '</span>↗</a>'; });
+  if (!PUBLIC) (x.mac||[]).forEach(function(p){ w += '<button type="button" class="lk path" data-copy="' + esc(p) + '" aria-label="Copy Mac path ' + esc(p) + '"><span class="k">Mac</span><span class="p">' + esc(p) + '</span></button>'; });
+  (x.gh||[]).forEach(function(r){ w += '<a class="lk" href="https://github.com/' + esc(r) + '" target="_blank" rel="noopener"><span class="k">GitHub</span>' + esc(r) + ' ↗</a>'; });
+  if (w) h += '<div class="where">' + w + '</div>';
+  return h + '</div></article>';
+}
+
+function render(){
+  var q = state.q.trim().toLowerCase(), total = 0, html = "";
+  KINDS.forEach(function(K){
+    if (state.k !== "all" && state.k !== K.id) return;
+    var list = TOOLS.filter(function(x){ return x.k === K.id && (!q || hay(x).indexOf(q) >= 0); })
+                    .sort(function(a,b){ return a.d < b.d ? 1 : a.d > b.d ? -1 : 0; });
+    if (!list.length) return;
+    total += list.length;
+    html += '<section class="kind" id="' + K.id + '" style="--c:var(--' + K.id + ')"><div class="kh"><h2>' + esc(K.name) + '</h2><p>' + esc(K.blurb) + '</p><span class="n">' + list.length + '</span></div>';
+    if (K.id === "air" && !q) html += CHAIN;
+    html += list.map(row).join("") + '</section>';
+  });
+  if (!total) html = '<p class="empty">No tools match “' + esc(state.q) + '”. Try a synth name, a file type or a word like drone.</p>';
+  document.getElementById("list").innerHTML = html;
+  document.getElementById("count").textContent = total + " of " + TOOLS.length;
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(b){ b.setAttribute("aria-pressed", String(b.getAttribute("data-k") === state.k)); });
+}
+
+function chips(){
+  var h = '<button type="button" class="chip" id="chip-all" data-k="all" aria-pressed="false">All <span class="ct">' + TOOLS.length + '</span></button>';
+  KINDS.forEach(function(K){
+    var n = TOOLS.filter(function(x){ return x.k === K.id; }).length;
+    h += '<button type="button" class="chip" id="chip-' + K.id + '" data-k="' + K.id + '" style="--c:var(--' + K.id + ')" aria-pressed="false"><span class="dot" aria-hidden="true"></span>' + esc(K.name) + ' <span class="ct">' + n + '</span></button>';
+  });
+  var el = document.getElementById("chips");
+  el.innerHTML = h;
+  el.addEventListener("click", function(e){
+    var b = e.target.closest(".chip"); if (!b) return;
+    state.k = b.getAttribute("data-k");
+    try { localStorage.setItem("rack-kind", state.k); } catch(err) {}
+    render();
+  });
+}
+
+var toastT;
+function toast(msg){ var t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(function(){ t.hidden = true; }, 1800); }
+document.addEventListener("click", function(e){
+  var b = e.target.closest("[data-copy]"); if (!b) return;
+  var p = b.getAttribute("data-copy");
+  function fallback(){
+    var r = document.createRange(); r.selectNodeContents(b.querySelector(".p"));
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    toast("Path selected. Copy it from here.");
+  }
+  try {
+    navigator.clipboard.writeText(p).then(function(){ toast("Copied " + p); }, fallback);
+  } catch(err) { fallback(); }
+});
+document.getElementById("q").addEventListener("input", function(e){ state.q = e.target.value; render(); });
+
+if (["all","play","stream","midi","shape","air"].indexOf(state.k) < 0) state.k = "all";
+if (/^(play|stream|midi|shape|air)$/.test(location.hash.slice(1))) state.k = location.hash.slice(1);
+chips(); render();
+})();
+</script>
+
+
+</body>
+</html>
