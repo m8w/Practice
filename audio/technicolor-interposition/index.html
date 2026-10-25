@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>technicolor interposition · video</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#050507;--panel:#0b0b10;--ink:#c9c9d4;--dim:#54545f;--line:#1b1b22;--r:#ff2b4e;--g:#16e0a0;--b:#2f6bff;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:radial-gradient(1200px 700px at 70% -10%, rgba(47,107,255,0.08), transparent 60%),
+      radial-gradient(900px 600px at 10% 110%, rgba(255,43,78,0.07), transparent 55%),var(--bg);
+    color:var(--ink);font-family:"IBM Plex Mono",monospace;font-weight:300;letter-spacing:0.02em;
+    min-height:100%;padding:clamp(14px,3vw,40px);-webkit-font-smoothing:antialiased;
+  }
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:99;
+    background:repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 3px);mix-blend-mode:overlay;}
+  .wrap{max-width:1000px;margin:0 auto;}
+  h1{font-family:"Major Mono Display",monospace;font-weight:400;font-size:clamp(1.4rem,5vw,2.7rem);line-height:1;position:relative;}
+  h1::before,h1::after{content:attr(data-t);position:absolute;left:0;top:0;width:100%;opacity:0.6;mix-blend-mode:screen;pointer-events:none;}
+  h1::before{color:var(--r);transform:translate(-2px,0);}
+  h1::after{color:var(--b);transform:translate(2px,0);}
+  .sub{color:var(--dim);font-size:0.74rem;margin-top:10px;max-width:66ch;line-height:1.5;}
+  .stage{position:relative;border:1px solid var(--line);background:#020203;margin:20px 0;overflow:hidden;border-radius:2px;}
+  canvas{display:block;width:100%;height:clamp(220px,46vh,460px);background:#000;}
+  .tag{position:absolute;top:8px;left:10px;font-size:0.62rem;color:var(--dim);letter-spacing:0.18em;text-transform:uppercase;z-index:3;}
+  .state{position:absolute;top:8px;right:10px;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;z-index:3;color:var(--dim);}
+  .state.live{color:var(--g);} .state.rec{color:var(--r);}
+  .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#2a2a32;font-size:0.8rem;letter-spacing:0.1em;z-index:2;text-align:center;padding:20px;}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+  button,.filebtn{font-family:inherit;font-weight:400;font-size:0.76rem;letter-spacing:0.12em;text-transform:uppercase;
+    color:var(--ink);background:transparent;border:1px solid var(--line);padding:11px 18px;cursor:pointer;border-radius:2px;
+    transition:border-color .12s,color .12s,background .12s;display:inline-block;}
+  button:hover,.filebtn:hover{border-color:#3a3a46;}
+  .filebtn{border-color:#3a3a46;}
+  button.run{border-color:var(--g);color:var(--g);} button.run.on{background:var(--g);color:#021008;}
+  button.tog.on{border-color:var(--b);color:var(--b);}
+  button.rec{border-color:var(--r);color:var(--r);} button.rec.on{background:var(--r);color:#1a0006;}
+  button:disabled{opacity:0.3;cursor:not-allowed;}
+  input[type=file]{display:none;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:2px;}
+  .cell{background:var(--panel);padding:15px 16px 17px;}
+  .cell label{display:block;font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--dim);}
+  .cell .val{float:right;color:var(--ink);}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;margin-top:14px;background:#23232c;outline:none;border-radius:2px;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:13px;height:13px;border-radius:50%;background:var(--ink);cursor:pointer;border:2px solid var(--bg);box-shadow:0 0 0 1px #3a3a46;}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--ink);cursor:pointer;border:2px solid var(--bg);}
+  .log{margin-top:18px;border:1px solid var(--line);background:#020203;border-radius:2px;height:150px;overflow-y:auto;padding:12px 14px;font-size:0.68rem;line-height:1.7;color:var(--dim);}
+  .log .row{white-space:pre-wrap;word-break:break-word;}
+  .log .hit{color:var(--ink);} .log .hit .src{color:var(--g);}
+  .log .pass{color:#33333c;} .log .save{color:var(--r);}
+  .log a{color:var(--g);text-decoration:underline;}
+  .log::-webkit-scrollbar{width:6px;} .log::-webkit-scrollbar-thumb{background:#23232c;}
+  .note{margin-top:14px;font-size:0.64rem;color:var(--dim);line-height:1.6;} .note b{color:#7a7a86;font-weight:400;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 data-t="technicolor interposition">technicolor interposition</h1>
+  <p class="sub">A loaded video streams constantly underneath — picture and sound both — at a stable depth. Only the synth bed takes the hard occlusion when the two streams collide; the video keeps running through every event. At the collision a frozen copy of the frame tears into bands and hard-cuts in front, blooming additively in the video's own color, while a saturated swell of the video's own audio punches up over its constant layer. Then it lifts, and the video is revealed having moved on. Found, not arranged.</p>
+
+  <div class="bar">
+    <label class="filebtn">load video<input id="file" type="file" accept="video/*"></label>
+    <button id="run" class="run">▶ start</button>
+    <button id="rec" class="rec" disabled>⦿ record</button>
+    <button id="jump" class="tog">⤿ jump on collision · off</button>
+    <button id="manual" disabled>force interpose</button>
+  </div>
+
+  <div class="stage">
+    <span class="tag">stage · contour</span>
+    <span class="state" id="state">idle</span>
+    <canvas id="cv"></canvas>
+    <div class="empty" id="empty">load a video to set the bed</div>
+  </div>
+
+  <div class="grid">
+    <div class="cell"><label>contention rate<span class="val" id="rateV">·</span></label><input id="rate" type="range" min="0.05" max="3" step="0.05" value="0.6"></div>
+    <div class="cell"><label>interpose window<span class="val" id="winV">·</span></label><input id="win" type="range" min="40" max="1400" step="10" value="260"></div>
+    <div class="cell"><label>video level<span class="val" id="vlevV">·</span></label><input id="vlev" type="range" min="0" max="1" step="0.02" value="0.6"></div>
+    <div class="cell"><label>band displacement<span class="val" id="dispV">·</span></label><input id="disp" type="range" min="0" max="120" step="2" value="36"></div>
+    <div class="cell"><label>bloom<span class="val" id="bloomV">·</span></label><input id="bloom" type="range" min="0" max="1" step="0.02" value="0.5"></div>
+    <div class="cell"><label>bed dim<span class="val" id="dimV">·</span></label><input id="dim" type="range" min="0" max="0.85" step="0.01" value="0.4"></div>
+    <div class="cell"><label>occlusion hardness<span class="val" id="hardV">·</span></label><input id="hard" type="range" min="0" max="20" step="0.5" value="1"></div>
+  </div>
+
+  <div class="log" id="log"><div class="row pass">// awaiting first collision …</div></div>
+
+  <p class="note">
+    <b>Constant layer:</b> once started, the video's own audio plays continuously through the synth bed (set with <i>video level</i>); the interposition adds a bloomed, saturated swell of it rather than replacing it — image and sound stay running underneath, only the synth bed is cut for the contour click.<br>
+    <b>Record:</b> captures the canvas and the full engine mix to a <i>.webm</i> (downloads on stop). Chrome muxes vp9/opus cleanly; Safari falls back to whatever it supports.<br>
+    <b>iOS:</b> video is inline; audio unmutes through the graph on <i>start</i>. Local files only, so frames never taint the canvas.
+  </p>
+</div>
+
+<script>
+"use strict";
+(function(){
+  var AC=window.AudioContext||window.webkitAudioContext;
+  var ctx=null,running=false;
+  var master,bedGain,frontGain,shaper,interposeIn,recDest;
+  var internalGain,videoTapGain,videoConstGain,videoSrcNode=null,videoAnalyser=null,vBuf=null,lastLvl=0;
+
+  var streamA=0,streamB=0,slotBusyUntil=0,interposeUntil=0,interposeActive=false;
+
+  var video=document.createElement("video");
+  video.muted=true; video.loop=true; video.playsInline=true; video.setAttribute("playsinline","");
+  var haveVideo=false,vidW=0,vidH=0;
+  var cv=document.getElementById("cv"),cx=cv.getContext("2d");
+  var frozen=document.createElement("canvas"),fcx=frozen.getContext("2d");
+  var bandOffsets=[],flash=0,jumpOnCollision=false;
+
+  // recording
+  var recorder=null,recChunks=[],recording=false,recMime="";
+
+  var $=function(id){return document.getElementById(id);};
+  var E={file:$("file"),run:$("run"),rec:$("rec"),jump:$("jump"),manual:$("manual"),
+    state:$("state"),empty:$("empty"),log:$("log"),
+    rate:$("rate"),win:$("win"),vlev:$("vlev"),disp:$("disp"),bloom:$("bloom"),dim:$("dim"),hard:$("hard"),
+    rateV:$("rateV"),winV:$("winV"),vlevV:$("vlevV"),dispV:$("dispV"),bloomV:$("bloomV"),dimV:$("dimV"),hardV:$("hardV")};
+
+  function P(){return{rate:parseFloat(E.rate.value),win:parseFloat(E.win.value)/1000,vlev:parseFloat(E.vlev.value),
+    disp:parseFloat(E.disp.value),bloom:parseFloat(E.bloom.value),dim:parseFloat(E.dim.value),hard:parseFloat(E.hard.value)/1000};}
+  function labels(){
+    E.rateV.textContent=P().rate.toFixed(2)+"/s"; E.winV.textContent=E.win.value+"ms";
+    E.vlevV.textContent=E.vlev.value; E.dispV.textContent=E.disp.value+"px";
+    E.bloomV.textContent=E.bloom.value; E.dimV.textContent=E.dim.value; E.hardV.textContent=E.hard.value+"ms";
+  }
+  ["rate","win","vlev","disp","bloom","dim","hard"].forEach(function(k){
+    E[k].addEventListener("input",function(){labels();try{applyLive();}catch(e){}});
+  });
+  labels();
+  function applyLive(){ if(!ctx)return; if(videoConstGain)videoConstGain.gain.setTargetAtTime(P().vlev,ctx.currentTime,0.05); }
+
+  function makeCurve(d){var n=1024,c=new Float32Array(n);for(var i=0;i<n;i++){var x=(i/(n-1))*2-1;c[i]=Math.tanh(d*x)/Math.tanh(d);}return c;}
+  function noiseBuffer(s){var len=Math.floor(ctx.sampleRate*s),b=ctx.createBuffer(1,len,ctx.sampleRate),d=b.getChannelData(0);for(var i=0;i<len;i++)d[i]=Math.random()*2-1;return b;}
+
+  function build(){
+    master=ctx.createGain(); master.gain.value=0.9; master.connect(ctx.destination);
+    recDest=ctx.createMediaStreamDestination(); master.connect(recDest); // tap for recording
+    // synth bed (the only layer that gets occluded)
+    bedGain=ctx.createGain(); bedGain.gain.value=0.5; bedGain.connect(master);
+    var bf=ctx.createBiquadFilter(); bf.type="lowpass"; bf.frequency.value=520; bf.Q.value=0.6; bf.connect(bedGain);
+    var oA=ctx.createOscillator(); oA.type="sawtooth"; oA.frequency.value=55;
+    var oB=ctx.createOscillator(); oB.type="sawtooth"; oB.frequency.value=55.4;
+    var og=ctx.createGain(); og.gain.value=0.28; oA.connect(og); oB.connect(og); og.connect(bf);
+    var nz=ctx.createBufferSource(); nz.buffer=noiseBuffer(3); nz.loop=true;
+    var ng=ctx.createGain(); ng.gain.value=0.10; nz.connect(ng); ng.connect(bf);
+    oA.start(); oB.start(); nz.start();
+    // foreground (interpose bloom)
+    frontGain=ctx.createGain(); frontGain.gain.value=0; frontGain.connect(master);
+    shaper=ctx.createWaveShaper(); shaper.curve=makeCurve(12); shaper.oversample="2x"; shaper.connect(frontGain);
+    interposeIn=ctx.createGain(); interposeIn.gain.value=1; interposeIn.connect(shaper);
+    // internal foreground fallback (used only if no video)
+    var iSrc=ctx.createBufferSource(); iSrc.buffer=noiseBuffer(4); iSrc.loop=true;
+    var iF=ctx.createBiquadFilter(); iF.type="bandpass"; iF.frequency.value=900; iF.Q.value=0.7;
+    internalGain=ctx.createGain(); internalGain.gain.value=1; iSrc.connect(iF); iF.connect(internalGain); internalGain.connect(interposeIn); iSrc.start();
+    // video audio nodes (filled by ensureVideoAudio)
+    videoConstGain=ctx.createGain(); videoConstGain.gain.value=0; videoConstGain.connect(master); // constant layer
+    videoTapGain=ctx.createGain(); videoTapGain.gain.value=0; videoTapGain.connect(interposeIn);   // interpose bloom tap
+  }
+
+  function ensureVideoAudio(){
+    if(videoSrcNode||!ctx||!haveVideo) return;
+    try{
+      videoSrcNode=ctx.createMediaElementSource(video);
+      video.muted=false; video.volume=1;
+      videoSrcNode.connect(videoConstGain);
+      videoSrcNode.connect(videoTapGain);
+      videoAnalyser=ctx.createAnalyser(); videoAnalyser.fftSize=512; vBuf=new Uint8Array(videoAnalyser.fftSize);
+      videoSrcNode.connect(videoAnalyser);
+      videoConstGain.gain.setTargetAtTime(P().vlev,ctx.currentTime,0.1);
+      E.state.textContent="running · video"; E.state.className="state live";
+    }catch(e){ console.warn("media source:",e); }
+  }
+
+  function fireInterpose(){
+    var p=P(),t=ctx.currentTime, hasV=!!videoSrcNode;
+    // foreground audio: bloom the video's own audio if present, else internal
+    internalGain.gain.setTargetAtTime(hasV?0:1,t,0.003);
+    videoTapGain.gain.setTargetAtTime(hasV?1:0,t,0.003);
+    // hard occlusion of synth bed only (contour click) — video layer untouched
+    bedGain.gain.cancelScheduledValues(t); bedGain.gain.setValueAtTime(bedGain.gain.value,t);
+    bedGain.gain.setValueAtTime(0.0001,t+Math.max(0.0002,p.hard));
+    frontGain.gain.cancelScheduledValues(t); frontGain.gain.setValueAtTime(0.0001,t);
+    frontGain.gain.exponentialRampToValueAtTime(0.9,t+0.004);
+    // visual freeze + tear
+    if(haveVideo){
+      sizeCanvas(); fcx.clearRect(0,0,frozen.width,frozen.height);
+      coverDraw(fcx,video,frozen.width,frozen.height,vidW,vidH,0,0);
+      bandOffsets=[]; for(var i=0;i<7;i++)bandOffsets.push(Math.random()*2-1);
+      if(jumpOnCollision&&video.duration){ try{video.currentTime=Math.random()*video.duration;}catch(e){} }
+    }
+    flash=1; interposeUntil=t+p.win; interposeActive=true;
+    E.state.textContent="interpose";
+    logHit(p,hasV?"video":"internal");
+  }
+  function releaseInterpose(){
+    if(!ctx)return; var t=ctx.currentTime;
+    frontGain.gain.cancelScheduledValues(t); frontGain.gain.setValueAtTime(frontGain.gain.value,t);
+    frontGain.gain.exponentialRampToValueAtTime(0.0001,t+0.03);
+    videoTapGain.gain.setTargetAtTime(0,t,0.02);
+    bedGain.gain.cancelScheduledValues(t); bedGain.gain.setValueAtTime(0.0001,t);
+    bedGain.gain.exponentialRampToValueAtTime(0.5,t+0.02);
+    interposeActive=false;
+    E.state.textContent=videoSrcNode?"running · video":"running"; E.state.className="state"+(videoSrcNode?" live":"");
+    if(recording){ E.state.textContent="rec"; E.state.className="state rec"; }
+  }
+
+  function rsched(r){return -Math.log(1-Math.random())/Math.max(0.05,r);}
+  function tick(){
+    if(!running)return;
+    try{
+      var now=ctx.currentTime,p=P();
+      if(videoAnalyser){
+        videoAnalyser.getByteTimeDomainData(vBuf);
+        var peak=0; for(var i=0;i<vBuf.length;i+=4){var v=Math.abs(vBuf[i]-128);if(v>peak)peak=v;}
+        var lvl=peak/128; if(lvl-lastLvl>0.18&&now>streamB)streamB=now; lastLvl=lvl;
+      }
+      if(now>=streamA){ slotBusyUntil=now+0.12; streamA=now+rsched(p.rate); if(!interposeActive)logPass("A"); }
+      if(now>=streamB){
+        if(now<slotBusyUntil&&!interposeActive&&now>interposeUntil+0.04) fireInterpose();
+        else if(!interposeActive){ slotBusyUntil=now+0.12; logPass("B"); }
+        streamB=now+rsched(p.rate);
+      }
+      if(interposeActive&&now>=interposeUntil) releaseInterpose();
+    }catch(e){}
+    requestAnimationFrame(tick);
+  }
+
+  function sizeCanvas(){
+    var dpr=Math.min(devicePixelRatio||1,2);
+    var w=Math.floor(cv.clientWidth*dpr),h=Math.floor(cv.clientHeight*dpr);
+    if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;frozen.width=w;frozen.height=h;}
+  }
+  function coverDraw(c,img,cw,ch,iw,ih,ox,oy){
+    if(!iw||!ih)return; var s=Math.max(cw/iw,ch/ih),dw=iw*s,dh=ih*s,dx=(cw-dw)/2+ox,dy=(ch-dh)/2+oy;
+    try{c.drawImage(img,dx,dy,dw,dh);}catch(e){}
+  }
+  function draw(){
+    requestAnimationFrame(draw);
+    try{
+      sizeCanvas(); var W=cv.width,H=cv.height,p=P();
+      cx.globalCompositeOperation="source-over"; cx.globalAlpha=1; cx.fillStyle="#000"; cx.fillRect(0,0,W,H);
+      if(!haveVideo){ if(interposeActive&&flash>0.01){cx.fillStyle="rgba(255,255,255,"+(flash*0.4)+")";cx.fillRect(0,0,W,H);flash*=0.8;} return; }
+      coverDraw(cx,video,W,H,vidW,vidH,0,0); // constant video bed
+      if(!interposeActive){ cx.fillStyle="rgba(0,0,0,"+p.dim+")"; cx.fillRect(0,0,W,H); return; }
+      var n=bandOffsets.length||1,bh=Math.ceil(H/n);
+      for(var i=0;i<n;i++){
+        var sy=i*bh,hh=Math.min(bh,H-sy);
+        var off=(bandOffsets[i]||0)*p.disp+(Math.random()*2-1)*p.disp*0.12;
+        cx.drawImage(frozen,0,sy,W,hh,off,sy,W,hh);
+        cx.fillStyle="rgba(255,255,255,0.10)"; cx.fillRect(0,sy,W,devicePixelRatio>1?2:1);
+      }
+      if(p.bloom>0){
+        cx.globalCompositeOperation="lighter"; cx.globalAlpha=p.bloom*0.6;
+        cx.drawImage(frozen,3,0); cx.drawImage(frozen,-3,2); cx.drawImage(frozen,0,-3);
+        cx.globalAlpha=1; cx.globalCompositeOperation="source-over";
+      }
+      if(flash>0.01){ cx.fillStyle="rgba(255,255,255,"+(flash*0.45)+")"; cx.fillRect(0,0,W,H); flash*=0.8; }
+    }catch(e){}
+  }
+  draw();
+
+  function pad(x){x=x.toFixed(2);while(x.length<7)x=" "+x;return x;}
+  function logHit(p,src){
+    var row=document.createElement("div"); row.className="row hit";
+    row.innerHTML=pad(ctx.currentTime)+"  ✶ INTERPOSE  win="+E.win.value+"ms  disp="+E.disp.value+"px  bloom="+E.bloom.value+"  src=<span class='src'>"+src+"</span>"+(jumpOnCollision?"  +jump":"");
+    E.log.appendChild(row); trim();
+  }
+  var lastPass=0;
+  function logPass(w){var now=ctx.currentTime;if(now-lastPass<0.4)return;lastPass=now;
+    var row=document.createElement("div"); row.className="row pass"; row.textContent=pad(now)+"  · slot "+w+" passes"; E.log.appendChild(row); trim();}
+  function logSave(name,url){
+    var row=document.createElement("div"); row.className="row save";
+    row.innerHTML="● saved  <a href='"+url+"' download='"+name+"'>"+name+"</a>";
+    E.log.appendChild(row); trim();
+  }
+  function trim(){while(E.log.childNodes.length>120)E.log.removeChild(E.log.firstChild);E.log.scrollTop=E.log.scrollHeight;}
+
+  // ---------- file ----------
+  E.file.addEventListener("change",function(e){
+    var f=e.target.files&&e.target.files[0]; if(!f)return;
+    video.src=URL.createObjectURL(f);
+    video.addEventListener("loadedmetadata",function(){
+      vidW=video.videoWidth; vidH=video.videoHeight; haveVideo=true; E.empty.style.display="none";
+      video.play().catch(function(){});
+      if(running) ensureVideoAudio();
+    },{once:true});
+    video.load();
+  });
+
+  // ---------- recording ----------
+  function pickMime(){
+    var list=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm","video/mp4"];
+    if(typeof MediaRecorder==="undefined"||!MediaRecorder.isTypeSupported) return "";
+    for(var i=0;i<list.length;i++){ if(MediaRecorder.isTypeSupported(list[i])) return list[i]; }
+    return "";
+  }
+  function tsName(){
+    var d=new Date(),z=function(x){return(x<10?"0":"")+x;};
+    return "technicolor_interposition_"+d.getFullYear()+z(d.getMonth()+1)+z(d.getDate())+"_"+z(d.getHours())+z(d.getMinutes())+z(d.getSeconds());
+  }
+  function startRec(){
+    if(!ctx||!cv.captureStream){ logSaveErr("canvas capture unsupported in this browser"); return; }
+    recMime=pickMime(); if(!recMime){ logSaveErr("MediaRecorder has no supported format here"); return; }
+    var stream=cv.captureStream(30);
+    var aud=recDest.stream.getAudioTracks();
+    for(var i=0;i<aud.length;i++) stream.addTrack(aud[i]);
+    recChunks=[];
+    try{ recorder=new MediaRecorder(stream,{mimeType:recMime}); }catch(e){ logSaveErr("recorder init failed"); return; }
+    recorder.ondataavailable=function(ev){ if(ev.data&&ev.data.size) recChunks.push(ev.data); };
+    recorder.onstop=function(){
+      var blob=new Blob(recChunks,{type:recMime});
+      var ext=recMime.indexOf("mp4")>=0?".mp4":".webm";
+      var name=tsName()+ext, url=URL.createObjectURL(blob);
+      var a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+      logSave(name,url);
+    };
+    recorder.start();
+    recording=true; E.rec.classList.add("on"); E.rec.textContent="■ stop rec";
+    E.state.textContent="rec"; E.state.className="state rec";
+  }
+  function stopRec(){
+    if(recorder&&recording){ try{recorder.stop();}catch(e){} }
+    recording=false; E.rec.classList.remove("on"); E.rec.textContent="⦿ record";
+    E.state.textContent=videoSrcNode?"running · video":"running"; E.state.className="state"+(videoSrcNode?" live":"");
+  }
+  function logSaveErr(m){var row=document.createElement("div");row.className="row save";row.textContent="× "+m;E.log.appendChild(row);trim();}
+
+  // ---------- transport ----------
+  function start(){
+    if(!ctx){ ctx=new AC(); build(); }
+    if(ctx.state==="suspended") ctx.resume();
+    running=true;
+    streamA=ctx.currentTime+rsched(P().rate); streamB=ctx.currentTime+rsched(P().rate);
+    E.run.classList.add("on"); E.run.textContent="■ stop"; E.manual.disabled=false; E.rec.disabled=false;
+    E.state.textContent="running";
+    if(haveVideo){ video.play().catch(function(){}); ensureVideoAudio(); }
+    requestAnimationFrame(tick);
+  }
+  function stop(){
+    if(recording) stopRec();
+    running=false; if(ctx)frontGain.gain.value=0;
+    E.run.classList.remove("on"); E.run.textContent="▶ start"; E.state.textContent="idle"; E.state.className="state";
+  }
+
+  E.run.addEventListener("click",function(){running?stop():start();});
+  E.rec.addEventListener("click",function(){ if(!running)return; recording?stopRec():startRec(); });
+  E.manual.addEventListener("click",function(){ if(running&&!interposeActive&&ctx.currentTime>interposeUntil+0.04)fireInterpose(); });
+  E.jump.addEventListener("click",function(){ jumpOnCollision=!jumpOnCollision; E.jump.classList.toggle("on",jumpOnCollision); E.jump.textContent="⤿ jump on collision · "+(jumpOnCollision?"on":"off"); });
+})();
+</script>
+</body>
+</html>

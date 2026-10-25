@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APPLIANCE DIAGNOSTIC STATION</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+/* ── THEMES ─────────────────────────────────────── */
+:root {
+  --a1: #c98010; --a2: #e8980a; --adim: #281808;
+  --sc: #18e820;
+  --bg: #060605; --metal: #101010; --border: #1e1c18;
+  --text: #a88838; --dim: #2e2610;
+}
+body[data-m="fridge"] {
+  --a1: #0878a8; --a2: #08b0d8; --adim: #041824;
+  --sc: #10d0e8;
+  --border: #101e28; --text: #3a98b8; --dim: #0c2030;
+}
+body[data-m="ac"] {
+  --a1: #386898; --a2: #50a0c8; --adim: #0c1828;
+  --sc: #88b8d8;
+  --border: #141e28; --text: #5898b8; --dim: #102030;
+}
+
+/* ── RESET + BASE ────────────────────────────────── */
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  background-image: radial-gradient(ellipse 80% 50% at 50% 40%, #0e0e0b, #030303);
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 20px 14px; gap: 12px;
+}
+
+/* CRT scanlines */
+body::after {
+  content: ''; position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px, transparent 1px, transparent 3px);
+  pointer-events: none; z-index: 999;
+}
+
+/* ── HEADER ─────────────────────────────────────── */
+.corp {
+  font-size: 9px; letter-spacing: 5px; color: var(--dim); text-align: center;
+}
+.title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: clamp(24px, 5vw, 38px);
+  letter-spacing: 14px; text-align: center;
+  color: var(--a1);
+  text-shadow: 0 0 28px rgba(0,0,0,0);
+  animation: flick 9s infinite;
+}
+body[data-m="mower"] .title { text-shadow: 0 0 28px rgba(200,128,16,0.35); }
+body[data-m="fridge"] .title { text-shadow: 0 0 28px rgba(8,176,216,0.35); }
+body[data-m="ac"]     .title { text-shadow: 0 0 28px rgba(80,160,200,0.35); }
+
+@keyframes flick {
+  0%,93%,100%{opacity:1} 94%{opacity:.82} 95%{opacity:1} 97%{opacity:.6} 98%{opacity:1}
+}
+
+/* ── MACHINE SELECTOR ───────────────────────────── */
+.sel {
+  display: flex; gap: 8px;
+  width: 100%; max-width: 680px;
+}
+
+.mc {
+  flex: 1; background: var(--metal); border: 1px solid var(--border);
+  color: var(--dim); font-family: 'Share Tech Mono', monospace;
+  padding: 10px 8px; cursor: pointer; text-align: center;
+  transition: border-color .3s, color .3s, box-shadow .3s;
+}
+.mc:hover:not(.on) { border-color: var(--a1); color: var(--text); }
+.mc.on { border-color: var(--a1); color: var(--a1); }
+body[data-m="mower"] .mc.on { box-shadow: 0 0 14px rgba(200,128,16,0.18); }
+body[data-m="fridge"] .mc.on { box-shadow: 0 0 14px rgba(8,176,216,0.18); }
+body[data-m="ac"]    .mc.on { box-shadow: 0 0 14px rgba(80,160,200,0.18); }
+
+.mc-u  { font-size: 8px; letter-spacing: 3px; opacity: .55; margin-bottom: 2px; }
+.mc-n  { font-family: 'Bebas Neue', cursive; font-size: 16px; letter-spacing: 4px; }
+.mc-s  { font-size: 7px; letter-spacing: 2px; opacity: .4; margin-top: 2px; }
+
+/* ── MAIN GRID ──────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 210px;
+  grid-template-rows: auto auto;
+  gap: 10px; width: 100%; max-width: 680px;
+}
+
+.blk {
+  background: var(--metal); border: 1px solid var(--border);
+  padding: 12px; position: relative;
+}
+.blk::before {
+  content: ''; position: absolute; top: 0; left: 12%; right: 12%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+}
+.lbl { font-size: 8px; letter-spacing: 5px; color: var(--dim); margin-bottom: 8px; }
+
+/* ── SCOPE ──────────────────────────────────────── */
+#sc { width:100%; height:108px; display:block; background:#020402; border:1px solid #080f08; }
+
+/* ── GAUGE BLOCK ────────────────────────────────── */
+.gbk { display:flex; flex-direction:column; align-items:center; }
+#gc  { width:196px; height:148px; display:block; }
+
+/* ── STATUS ─────────────────────────────────────── */
+.stblk { grid-column: 1 / -1; }
+
+.srows {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+}
+.sr {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 6px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+  font-size: 10px;
+}
+.sr:nth-child(even) { border-right: none; }
+.sk { color: var(--dim); }
+.sv { color: var(--a2); min-width: 100px; text-align: right; }
+body[data-m="mower"] .sv { text-shadow: 0 0 8px rgba(232,152,10,.35); }
+body[data-m="fridge"] .sv { text-shadow: 0 0 8px rgba(8,176,216,.35); }
+body[data-m="ac"]    .sv { text-shadow: 0 0 8px rgba(80,160,200,.35); }
+
+/* ── WARN LIGHTS ────────────────────────────────── */
+.wrow {
+  display:flex; gap:10px; flex-wrap:wrap;
+  margin-top:10px; padding-top:8px; border-top:1px solid var(--border);
+}
+.wi { display:flex; align-items:center; gap:4px; font-size:8px; letter-spacing:2px; color:var(--dim); }
+.dot { width:8px;height:8px;border-radius:50%;background:#0a0808;border:1px solid #181010;flex-shrink:0;transition:all .07s; }
+.dot.r { background:#ee2200;border-color:#ee2200;box-shadow:0 0 7px #ee2200; }
+.dot.a { background:var(--a2);border-color:var(--a2);box-shadow:0 0 7px var(--a2); }
+
+/* ── BUTTON ─────────────────────────────────────── */
+#sb {
+  font-family:'Bebas Neue',cursive; font-size:16px; letter-spacing:10px;
+  padding:12px 52px; background:transparent; border:1px solid var(--a1);
+  color:var(--a1); cursor:pointer; transition:all .25s;
+}
+#sb:hover { background:rgba(255,255,255,0.04); }
+body[data-m="mower"] #sb:hover { box-shadow:0 0 18px rgba(200,128,16,.15); }
+body[data-m="fridge"] #sb:hover { box-shadow:0 0 18px rgba(8,176,216,.15); }
+body[data-m="ac"]    #sb:hover { box-shadow:0 0 18px rgba(80,160,200,.15); }
+#sb.on { border-color:#cc2200; color:#cc2200; }
+#sb.on:hover { background:rgba(204,34,0,.06); }
+
+.foot { font-size:8px; letter-spacing:3px; color:var(--dim); opacity:.35; text-align:center; }
+
+@media (max-width:520px) {
+  .grid { grid-template-columns:1fr; }
+  .gbk  { display:none; }
+  .srows { grid-template-columns:1fr; }
+  .sr:nth-child(even) { border-right:1px solid var(--border); }
+  .mc-n { font-size:13px; }
+}
+</style>
+</head>
+<body data-m="mower">
+
+<div class="corp">HELIOTROPE DYNAMICS — APPLIANCE DIAGNOSTIC STATION — REV 4.3.0</div>
+<div class="title">FAULT MONITOR</div>
+
+<div class="sel">
+  <button class="mc on" id="bM" onclick="sel('mower')">
+    <div class="mc-u">UNIT 7</div>
+    <div class="mc-n">LAWN MOWER</div>
+    <div class="mc-s">4-STROKE · 1 CYL</div>
+  </button>
+  <button class="mc" id="bF" onclick="sel('fridge')">
+    <div class="mc-u">UNIT 12</div>
+    <div class="mc-n">REFRIGERATOR</div>
+    <div class="mc-s">COMPRESSOR UNIT</div>
+  </button>
+  <button class="mc" id="bA" onclick="sel('ac')">
+    <div class="mc-u">UNIT 4</div>
+    <div class="mc-n">A/C UNIT</div>
+    <div class="mc-s">HVAC · FAN + COMP</div>
+  </button>
+</div>
+
+<div class="grid">
+  <div class="blk">
+    <div class="lbl" id="sclbl">CYLINDER WAVEFORM MONITOR</div>
+    <canvas id="sc" width="400" height="108"></canvas>
+  </div>
+  <div class="blk gbk">
+    <div class="lbl" id="glbl">ENGINE RPM</div>
+    <canvas id="gc" width="196" height="148"></canvas>
+  </div>
+  <div class="blk stblk">
+    <div class="lbl">STATUS READOUT</div>
+    <div class="srows">
+      <div class="sr"><span class="sk" id="k0">ENGINE STATE</span><span class="sv" id="v0">STANDBY</span></div>
+      <div class="sr"><span class="sk" id="k1">IGNITION</span><span class="sv" id="v1">--</span></div>
+      <div class="sr"><span class="sk" id="k2">FUEL MIXTURE</span><span class="sv" id="v2">--</span></div>
+      <div class="sr"><span class="sk" id="k3">VIB INDEX</span><span class="sv" id="v3">--</span></div>
+      <div class="sr"><span class="sk" id="k4">EXHAUST TEMP</span><span class="sv" id="v4">--</span></div>
+      <div class="sr"><span class="sk" id="k5">CYCLE COUNT</span><span class="sv" id="v5">--</span></div>
+    </div>
+    <div class="wrow" id="wrow">
+      <div class="wi"><div class="dot" id="d0"></div><span id="w0">MISFIRE</span></div>
+      <div class="wi"><div class="dot" id="d1"></div><span id="w1">NEAR STALL</span></div>
+      <div class="wi"><div class="dot" id="d2"></div><span id="w2">FUEL FAULT</span></div>
+      <div class="wi"><div class="dot" id="d3"></div><span id="w3">HIGH VIB</span></div>
+      <div class="wi"><div class="dot" id="d4"></div><span id="w4">EXHAUST</span></div>
+      <div class="wi"><div class="dot" id="d5"></div><span id="w5">OVERLOAD</span></div>
+    </div>
+  </div>
+</div>
+
+<button id="sb" onclick="toggle()">START UNIT</button>
+<div class="foot">ALL UNITS REQUIRE SERVICE — FAULT LOGS ACTIVE</div>
+
+<script>
+'use strict';
+// ══ UTILS ══════════════════════════════════════════
+const R   = Math.random;
+const rng = (a,b) => a + R()*(b-a);
+const ri  = (a,b) => Math.floor(rng(a, b+1));
+const cl  = (v,a,b) => Math.max(a, Math.min(b,v));
+const pk  = (...a) => a[Math.floor(R()*a.length)];
+
+function brownBuf(c, secs) {
+  const n = Math.floor(c.sampleRate * secs);
+  const b = c.createBuffer(1, n, c.sampleRate);
+  const d = b.getChannelData(0);
+  let last = 0;
+  for (let i=0;i<n;i++) { d[i]=(last+0.022*(R()*2-1))/1.022; last=d[i]; }
+  let mx=0; for(let i=0;i<n;i++) if(Math.abs(d[i])>mx) mx=Math.abs(d[i]);
+  for(let i=0;i<n;i++) d[i]=d[i]/mx*0.85;
+  return b;
+}
+
+function whiteBuf(c, secs) {
+  const n = Math.floor(c.sampleRate * secs);
+  const b = c.createBuffer(1, n, c.sampleRate);
+  const d = b.getChannelData(0);
+  for(let i=0;i<n;i++) d[i]=R()*2-1;
+  return b;
+}
+
+function nsrc(c, buf) {
+  const s = c.createBufferSource();
+  s.buffer = buf; s.loop = true;
+  s.loopStart = R()*buf.duration*0.6;
+  s.loopEnd = buf.duration;
+  return s;
+}
+
+function osc(c, type, hz, detune) {
+  const o = c.createOscillator();
+  o.type=type; o.frequency.value=hz;
+  if(detune) o.detune.value=detune;
+  return o;
+}
+function gain(c, v) { const g=c.createGain(); g.gain.value=v; return g; }
+function pan(c, v)  { const p=c.createStereoPanner(); p.pan.value=v; return p; }
+function bp(c, hz, q) { const f=c.createBiquadFilter(); f.type='bandpass'; f.frequency.value=hz; f.Q.value=q; return f; }
+function lp(c, hz)    { const f=c.createBiquadFilter(); f.type='lowpass';  f.frequency.value=hz; return f; }
+function hp(c, hz)    { const f=c.createBiquadFilter(); f.type='highpass'; f.frequency.value=hz; return f; }
+
+// Stereo noise layer: L+R with different buffers, panned wide
+function stereoNoise(c, dest, makeBuf, lenL, lenR, filterFn, gVal, panVal) {
+  const bL = nsrc(c, makeBuf(c, lenL));
+  const bR = nsrc(c, makeBuf(c, lenR));
+  const fL = filterFn(c); const fR = filterFn(c);
+  const gL = gain(c, gVal); const gR = gain(c, gVal);
+  const pL = pan(c, -panVal); const pR = pan(c, panVal);
+  bL.connect(fL); fL.connect(gL); gL.connect(pL); pL.connect(dest); bL.start();
+  bR.connect(fR); fR.connect(gR); gR.connect(pR); pR.connect(dest); bR.start();
+  return { gL, gR, fL, fR };
+}
+
+// Stereo osc pair: L+R with detune for chorus width
+function stereoOsc(c, dest, type, hz, detuneCents, panSpread, gVal) {
+  const oL = osc(c, type, hz, -detuneCents);
+  const oR = osc(c, type, hz, +detuneCents);
+  const gL = gain(c, gVal); const gR = gain(c, gVal);
+  const pL = pan(c, -panSpread); const pR = pan(c, panSpread);
+  oL.connect(gL); gL.connect(pL); pL.connect(dest); oL.start();
+  oR.connect(gR); gR.connect(pR); pR.connect(dest); oR.start();
+  return { oL, oR, gL, gR };
+}
+
+function distShape(c, k) {
+  const ws = c.createWaveShaper();
+  const curve = new Float32Array(256);
+  for(let i=0;i<256;i++) { const x=i*2/256-1; curve[i]=((Math.PI+k)*x)/(Math.PI+k*Math.abs(x)); }
+  ws.curve = curve; ws.oversample = '4x';
+  return ws;
+}
+
+// ══ GLOBAL AUDIO STATE ═════════════════════════════
+let actx  = null;
+let mGain = null;
+let anlzr = null;
+let comp  = null;
+let running = false;
+let curMach = 'mower';
+let curEng  = null;
+let animId  = null;
+
+// ══ LIGHT + STATUS HELPERS ═════════════════════════
+function lt(i, m) {
+  const el = document.getElementById('d'+i);
+  if(!el) return;
+  el.className = 'dot';
+  if(m==='r') el.classList.add('r');
+  if(m==='a') el.classList.add('a');
+}
+function st(s) { const el=document.getElementById('v0'); if(el) el.textContent=s; }
+
+// ══ MOWER ENGINE ═══════════════════════════════════
+function mkMower() {
+  let rpm=0, tRpm=2600, tGain=0.68;
+  let rpmT=null, evtT=null, eLock=false, cycles=0;
+  let mg=null, cc=null;
+  let fund, harm2, harm3, nBody, nExh;
+
+  const rpmHz = r => cl(r/120, 3, 30);
+
+  function tick() {
+    if(!cc) return;
+    tRpm = cl(tRpm + rng(-18,18), 380, 3100);
+    rpm += (tRpm - rpm) * (0.035 + rng(0,0.02));
+    rpm = cl(rpm, 180, 3400);
+    cycles += ri(1,4);
+    const hz=rpmHz(rpm), now=cc.currentTime, sm=0.07;
+    if(fund) {
+      fund.oL.frequency.setTargetAtTime(hz,now,sm);
+      fund.oR.frequency.setTargetAtTime(hz,now,sm);
+      harm2.oL.frequency.setTargetAtTime(hz*2,now,sm);
+      harm2.oR.frequency.setTargetAtTime(hz*2,now,sm);
+      harm3.oL.frequency.setTargetAtTime(hz*3,now,sm);
+      harm3.oR.frequency.setTargetAtTime(hz*3,now,sm);
+    }
+    if(nBody) {
+      nBody.fL.frequency.setTargetAtTime(70+rpm*.042+rng(-8,8),now,.09);
+      nBody.fR.frequency.setTargetAtTime(72+rpm*.042+rng(-8,8),now,.09);
+      nExh.fL.frequency.setTargetAtTime(180+rpm*.09+rng(-15,15),now,.09);
+      nExh.fR.frequency.setTargetAtTime(185+rpm*.09+rng(-15,15),now,.09);
+    }
+    if(!eLock && fund) {
+      fund.gL.gain.setTargetAtTime(0.22-rng(0,.05),now,.015);
+      fund.gR.gain.setTargetAtTime(0.22-rng(0,.05),now,.015);
+    }
+  }
+
+  function sched() { if(!running) return; evtT = setTimeout(fire, rng(300,3000)); }
+
+  function fire() {
+    if(!running||!cc) return; eLock=true;
+    const pool=[{w:22,f:eSputter},{w:13,f:eDouble},{w:9,f:eStall},{w:18,f:eRough},{w:7,f:ePop},{w:11,f:eDrag},{w:20,f:eCough}];
+    const tot=pool.reduce((s,p)=>s+p.w,0); let r=R()*tot; let fn=pool[0].f;
+    for(const p of pool){r-=p.w;if(r<=0){fn=p.f;break;}}
+    const dur=fn();
+    setTimeout(()=>{if(!running)return; eLock=false; sched();}, dur*1000+rng(100,600));
+  }
+
+  function eSputter() {
+    const depth=rng(.08,.55),dur=rng(.07,.35),dip=rng(60,280);
+    lt(0,'a'); st('MISFIRING');
+    mg.gain.cancelScheduledValues(cc.currentTime);
+    mg.gain.setTargetAtTime(tGain*depth, cc.currentTime, .018); tRpm-=dip;
+    setTimeout(()=>{ if(!running)return; mg.gain.setTargetAtTime(tGain,cc.currentTime,.10); tRpm+=dip*rng(.5,.9); lt(0,'off'); st('ROUGH IDLE'); }, dur*1000);
+    return dur+rng(.05,.15);
+  }
+
+  function eDouble() {
+    lt(0,'r'); st('CYLINDER FAULT'); tRpm-=rng(120,450);
+    const d1=rng(60,160),d2=rng(80,220),d3=rng(70,180);
+    mg.gain.setTargetAtTime(rng(.06,.25), cc.currentTime, .018);
+    setTimeout(()=>{ if(!running)return; mg.gain.setTargetAtTime(tGain*rng(.4,.75),cc.currentTime,.04);
+      setTimeout(()=>{ if(!running)return; mg.gain.setTargetAtTime(rng(.04,.18),cc.currentTime,.018);
+        setTimeout(()=>{ if(!running)return; mg.gain.setTargetAtTime(tGain,cc.currentTime,.14); tRpm+=rng(80,300); lt(0,'off'); st('RECOVERING'); }, d3);
+      }, d2);
+    }, d1);
+    return (d1+d2+d3)/1000+rng(.05,.2);
+  }
+
+  function eStall() {
+    const pl=rng(400,1700),dt=rng(1,3),ht=rng(.4,1.8),prev=tRpm;
+    lt(1,'r'); lt(2,'a'); st('NEAR STALL');
+    tRpm=cl(tRpm-pl,250,900); tGain=Math.max(.18,tGain*rng(.28,.55));
+    mg.gain.setTargetAtTime(tGain,cc.currentTime,.28);
+    setTimeout(()=>{ if(!running)return; tRpm=cl(prev*rng(.65,.92),800,2800); tGain=rng(.55,.72); mg.gain.setTargetAtTime(tGain,cc.currentTime,rng(.25,.55)); lt(1,'off'); lt(2,'off'); st('RECOVERING'); }, (dt+ht)*1000);
+    return dt+ht+rng(.3,.8);
+  }
+
+  function eRough() {
+    const dur=rng(.9,2.8); lt(3,'a'); st('HIGH VIBRATION');
+    let el=0; const bi=rng(30,70);
+    const go=()=>{ if(!running||el>dur*1000){lt(3,'off');st('ROUGH IDLE');return;} const iv=bi+rng(-12,12); el+=iv; if(mg) mg.gain.setTargetAtTime(tGain*rng(.55,1),cc.currentTime,.018); setTimeout(go,iv); };
+    go(); return dur+.15;
+  }
+
+  function ePop() {
+    lt(4,'r'); st('BACKFIRE');
+    const now=cc.currentTime;
+    mg.gain.cancelScheduledValues(now); mg.gain.setValueAtTime(tGain*rng(1.4,2.2),now);
+    mg.gain.setTargetAtTime(tGain*rng(.2,.5),now+.008,.035); tRpm+=rng(180,900);
+    const pop=rng(120,480);
+    setTimeout(()=>{ if(!running)return; tRpm-=rng(120,700); lt(4,'off'); st('ROUGH IDLE'); }, pop);
+    return pop/1000+rng(.1,.4);
+  }
+
+  function eDrag() {
+    const dur=rng(1.5,4.2); lt(5,'a'); st('LOAD DRAG');
+    tRpm-=rng(200,650); tGain=rng(.42,.62);
+    mg.gain.setTargetAtTime(tGain,cc.currentTime,.32);
+    setTimeout(()=>{ if(!running)return; tRpm+=rng(100,420); tGain=rng(.60,.74); lt(5,'off'); st('ROUGH IDLE'); }, dur*1000);
+    return dur+rng(.1,.3);
+  }
+
+  function eCough() {
+    const cnt=ri(2,7); let i=0; lt(0,'a'); st('COUGHING');
+    const go=()=>{ if(!running||i>=cnt){lt(0,'off');st('ROUGH IDLE');return;} i++;
+      mg.gain.setTargetAtTime(rng(.04,.35),cc.currentTime,.018);
+      setTimeout(()=>{ if(!running)return; mg.gain.setTargetAtTime(tGain*rng(.65,1),cc.currentTime,.045); setTimeout(go,rng(55,210)); }, rng(45,190)); };
+    go(); return cnt*.32+rng(.1,.35);
+  }
+
+  return {
+    start(ctx, master) {
+      cc=ctx; mg=master; rpm=600; tRpm=2500+rng(-200,300); tGain=.68;
+      const hz = rpmHz(rpm);
+      // Stereo fundamental pair (sawtooth, ±5¢, panned ±0.62)
+      fund  = stereoOsc(cc, master, 'sawtooth', hz, 5, .62, .22);
+      harm2 = stereoOsc(cc, master, 'square',   hz*2, 3, .44, .10);
+      harm3 = stereoOsc(cc, master, 'sawtooth', hz*3, 8, .72, .05);
+      // Stereo brown noise (engine body + exhaust) — prime-ish lengths avoid loop alignment
+      nBody = stereoNoise(cc, master, brownBuf, 7.13, 11.29, c=>bp(c,140,.7), .18, .50);
+      nExh  = stereoNoise(cc, master, brownBuf, 8.97, 13.17, c=>bp(c,330,1.1),.09, .70);
+      // White noise (valve tick, slight right)
+      const vSrc=nsrc(cc,whiteBuf(cc,5.71));
+      const vF=hp(cc,2200); const vG=gain(cc,.025); const vP=pan(cc,.3);
+      vSrc.connect(vF);vF.connect(vG);vG.connect(vP);vP.connect(master);vSrc.start();
+      master.gain.setTargetAtTime(tGain,cc.currentTime,.6);
+      rpmT=setInterval(tick,55); sched();
+    },
+    stop() {
+      if(evtT) clearTimeout(evtT); if(rpmT) clearInterval(rpmT);
+      evtT=rpmT=null; eLock=false; rpm=0; tRpm=2600; cycles=0;
+    },
+    metric() { return { val:rpm, max:3500, txt:Math.round(rpm).toString().padStart(4,'0') }; },
+    status() {
+      return {
+        keys:['ENGINE STATE','IGNITION','FUEL MIXTURE','VIB INDEX','EXHAUST TEMP','CYCLE COUNT'],
+        vals:['ROUGH IDLE', pk('IRREGULAR','PARTIAL FIRE','ERRATIC','INTERMITTENT'), pk('LEAN','RICH','FLUCTUATING','UNSTABLE'), rng(18,94).toFixed(1)+' mm/s', ri(280,420)+'°C', cycles.toLocaleString()],
+        warns:['MISFIRE','NEAR STALL','FUEL FAULT','HIGH VIB','EXHAUST','OVERLOAD']
+      };
+    }
+  };
+}
+
+// ══ FRIDGE ENGINE ══════════════════════════════════
+// Amplified compressor hum — runs forever, never dies
+function mkFridge() {
+  let tGain=.72, hum=60, eLock=false, runMs=0;
+  let evtT=null, rpmT=null, mg=null, cc=null;
+  let hFund, hHarm2, nBody, nVib;
+
+  function tick() {
+    if(!cc) return; runMs+=55;
+    hum = cl(hum + rng(-.18,.18), 57, 63);
+    const now=cc.currentTime;
+    if(hFund) {
+      hFund.oL.frequency.setTargetAtTime(hum,now,.2);
+      hFund.oR.frequency.setTargetAtTime(hum,now,.2);
+      hHarm2.oL.frequency.setTargetAtTime(hum*2,now,.2);
+      hHarm2.oR.frequency.setTargetAtTime(hum*2,now,.2);
+    }
+    if(!eLock && hFund) {
+      hFund.gL.gain.setTargetAtTime(.28+rng(-.03,.03),now,.1);
+      hFund.gR.gain.setTargetAtTime(.28+rng(-.03,.03),now,.1);
+    }
+  }
+
+  function sched() { if(!running) return; evtT=setTimeout(fire, rng(400,4000)); }
+
+  function fire() {
+    if(!running||!cc) return; eLock=true;
+    const pool=[{w:20,f:eBuzz},{w:18,f:eRattle},{w:12,f:eGurgle},{w:16,f:eStruggle},{w:10,f:eWhine},{w:24,f:eFlutter}];
+    const tot=pool.reduce((s,p)=>s+p.w,0); let r=R()*tot; let fn=pool[0].f;
+    for(const p of pool){r-=p.w;if(r<=0){fn=p.f;break;}}
+    const dur=fn();
+    setTimeout(()=>{if(!running)return; eLock=false; sched();}, dur*1000+rng(200,800));
+  }
+
+  function eBuzz() {
+    const dur=rng(.5,2.5); lt(0,'r'); st('BUZZ SURGE');
+    const boost=rng(1.2,2.0);
+    mg.gain.setTargetAtTime(tGain*boost,cc.currentTime,.08);
+    if(hHarm2) { hHarm2.gL.gain.setTargetAtTime(.22,cc.currentTime,.05); hHarm2.gR.gain.setTargetAtTime(.22,cc.currentTime,.05); }
+    setTimeout(()=>{ if(!running)return; mg.gain.setTargetAtTime(tGain,cc.currentTime,.15); if(hHarm2){hHarm2.gL.gain.setTargetAtTime(.12,cc.currentTime,.1);hHarm2.gR.gain.setTargetAtTime(.12,cc.currentTime,.1);} lt(0,'off'); st('RUNNING'); }, dur*1000);
+    return dur+.2;
+  }
+
+  function eRattle() {
+    const pn=rng(-1,1), cnt=ri(1,5); let i=0;
+    lt(3,'a'); st('RATTLE');
+    const go=()=>{
+      if(!running||i>=cnt||!cc) return; i++;
+      const src=nsrc(cc,whiteBuf(cc,.08)); src.loop=false;
+      const f=bp(cc,rng(1200,4000),rng(2,8)); const g=gain(cc,rng(.3,.9)); const p=pan(cc,pn+rng(-.2,.2));
+      src.connect(f);f.connect(g);g.connect(p);p.connect(mg);
+      src.start(); src.stop(cc.currentTime+.07);
+      setTimeout(go, rng(30,120));
+    };
+    go();
+    const dur=cnt*.15+.2;
+    setTimeout(()=>{if(!running)return; lt(3,'off'); st('RUNNING');}, dur*1000);
+    return dur;
+  }
+
+  function eGurgle() {
+    const dur=rng(.3,1.2); lt(2,'a'); st('REFRIGERANT CYCLE');
+    const src=nsrc(cc,brownBuf(cc,1.5)); src.loop=false;
+    const f=bp(cc,rng(100,300),1.5); const g=gain(cc,rng(.4,.8)); const p=pan(cc,rng(-.6,-.1));
+    src.connect(f);f.connect(g);g.connect(p);p.connect(mg);
+    src.start(); src.stop(cc.currentTime+dur);
+    setTimeout(()=>{if(!running)return; lt(2,'off'); st('RUNNING');}, dur*1000);
+    return dur+.1;
+  }
+
+  function eStruggle() {
+    const dur=rng(1,3.5); lt(1,'r'); st('COMPRESSOR FAULT');
+    const ph=hum; hum=cl(hum-rng(3,8),48,58);
+    tGain=Math.max(.3,tGain*rng(.5,.75));
+    mg.gain.setTargetAtTime(tGain,cc.currentTime,.2);
+    setTimeout(()=>{ if(!running)return; hum=ph+rng(-1,1); tGain=rng(.65,.80); mg.gain.setTargetAtTime(tGain,cc.currentTime,rng(.3,.6)); lt(1,'off'); st('RUNNING'); }, dur*1000);
+    return dur+.3;
+  }
+
+  function eWhine() {
+    if(!cc) return .2;
+    const freq=rng(1800,4000), pn=rng(-.8,.8), dur=rng(.15,.8);
+    lt(4,'r'); st('ELECTRICAL FAULT');
+    const o=osc(cc,'sine',freq,0); const g=gain(cc,.3); const p=pan(cc,pn);
+    g.gain.setTargetAtTime(0, cc.currentTime+dur, .04);
+    o.connect(g);g.connect(p);p.connect(mg);
+    o.start(); o.stop(cc.currentTime+dur+.2);
+    setTimeout(()=>{if(!running)return; lt(4,'off'); st('RUNNING');}, dur*1000+100);
+    return dur+.3;
+  }
+
+  function eFlutter() {
+    const dur=rng(.6,2.0); lt(0,'a'); st('MOTOR FLUTTER');
+    let el=0; const bi=rng(25,60);
+    const go=()=>{ if(!running||el>dur*1000) return; const iv=bi+rng(-10,10); el+=iv; mg.gain.setTargetAtTime(tGain*rng(.35,1),cc.currentTime,.015); setTimeout(go,iv); };
+    go();
+    setTimeout(()=>{if(!running)return; mg.gain.setTargetAtTime(tGain,cc.currentTime,.1); lt(0,'off'); st('RUNNING');}, dur*1000+200);
+    return dur+.3;
+  }
+
+  return {
+    start(ctx, master) {
+      cc=ctx; mg=master; hum=60; tGain=.72; runMs=0;
+      // Distortion for amplified buzz character
+      const dst = distShape(cc, 120);
+      const dOut = gain(cc, .55);
+      dst.connect(dOut); dOut.connect(master);
+      // Fundamental: 60Hz sawtooth ±2¢ — thick stereo hum
+      hFund  = stereoOsc(cc, dst, 'sawtooth', 60, 2, .50, .28);
+      hHarm2 = stereoOsc(cc, dst, 'square',  120, 3, .35, .12);
+      // 3rd harmonic centered, 5th left (whine quality)
+      const h3=osc(cc,'sawtooth',180,0); const g3=gain(cc,.05); h3.connect(g3);g3.connect(master);h3.start();
+      const h5=osc(cc,'sine',300,-5); const g5=gain(cc,.04); const p5=pan(cc,-.4); h5.connect(g5);g5.connect(p5);p5.connect(master);h5.start();
+      // Stereo brown noise: body (LP) + vibration (BP)
+      nBody = stereoNoise(cc, master, brownBuf, 9.07, 12.31, c=>lp(c,90),  .15, .4);
+      nVib  = stereoNoise(cc, master, brownBuf, 7.43, 10.87, c=>bp(c,510,.8),.06, .65);
+      master.gain.setTargetAtTime(tGain,cc.currentTime,.5);
+      rpmT=setInterval(tick,55); sched();
+    },
+    stop() {
+      if(evtT) clearTimeout(evtT); if(rpmT) clearInterval(rpmT);
+      evtT=rpmT=null; eLock=false; hum=60; runMs=0;
+    },
+    metric() {
+      const load = cl(50 + (hum-60)*8 + (1-tGain)*20 + rng(-5,5), 0, 100);
+      return { val: load/100*3500, max:3500, txt: Math.round(load)+'%' };
+    },
+    status() {
+      const cab = (6+rng(-.5,.5)+(tGain<.4?3:0)).toFixed(1);
+      const frz = (-8+rng(-.5,.5)+(tGain<.4?5:0)).toFixed(1);
+      return {
+        keys:['COMPRESSOR','CABINET TEMP','FREEZER TEMP','VIB INDEX','MOTOR CURRENT','RUNTIME'],
+        vals:['RUNNING', cab+'°C', frz+'°C', rng(1,12).toFixed(1)+' mm/s', rng(2.8,6.5).toFixed(1)+' A', Math.round(runMs/1000)+'s'],
+        warns:['BUZZ SURGE','COMPRESSOR','REFRIGERANT','HIGH VIB','ELECTRICAL','SEAL FAIL']
+      };
+    }
+  };
+}
+
+// ══ AC ENGINE ══════════════════════════════════════
+function mkAC() {
+  let tGain=.70, fanSpd=.7, eLock=false, runMs=0;
+  let evtT=null, rpmT=null, compT=null, compOn=false;
+  let mg=null, cc=null;
+  let fanGL, fanGR, fanFL, fanFR, amLFO, amG;
+  let compGL, compGR, compOL, compOR;
+
+  function tick() {
+    if(!cc) return; runMs+=55;
+    fanSpd = cl(fanSpd+rng(-.01,.01), .5, 1.0);
+    const now=cc.currentTime;
+    if(fanFL) {
+      fanFL.frequency.setTargetAtTime(350+fanSpd*200+rng(-20,20), now, .1);
+      fanFR.frequency.setTargetAtTime(355+fanSpd*200+rng(-20,20), now, .1);
+      fanGL.gain.setTargetAtTime(.28*fanSpd+rng(-.02,.02), now, .05);
+      fanGR.gain.setTargetAtTime(.28*fanSpd+rng(-.02,.02), now, .05);
+    }
+    if(amLFO) amLFO.frequency.setTargetAtTime(10+fanSpd*4+rng(-1,1), now, .3);
+    if(compOn && compGL) {
+      compGL.gain.setTargetAtTime(.18+rng(-.02,.02),now,.05);
+      compGR.gain.setTargetAtTime(.18+rng(-.02,.02),now,.05);
+    }
+  }
+
+  function startComp() {
+    if(!running||!cc||compOn) return; compOn=true;
+    lt(1,'a'); st('COMPRESSOR ON');
+    // Mechanical clunk transient
+    const src=nsrc(cc,brownBuf(cc,.3)); src.loop=false;
+    const f=lp(cc,200); const g=gain(cc,rng(.8,1.4));
+    src.connect(f);f.connect(g);g.connect(mg); src.start(); src.stop(cc.currentTime+.25);
+    // Bring up compressor oscillators
+    compOL.start(); compOR.start();
+    compGL.gain.setTargetAtTime(.18,cc.currentTime,.3);
+    compGR.gain.setTargetAtTime(.18,cc.currentTime,.3);
+    compT = setTimeout(stopComp, rng(8000,25000));
+  }
+
+  function stopComp() {
+    if(!compOn||!cc) return; compOn=false; lt(1,'off');
+    compGL.gain.setTargetAtTime(0,cc.currentTime,.4);
+    compGR.gain.setTargetAtTime(0,cc.currentTime,.4);
+    compT = setTimeout(startComp, rng(3000,12000));
+  }
+
+  function sched() { if(!running) return; evtT=setTimeout(fire, rng(300,2800)); }
+
+  function fire() {
+    if(!running||!cc) return; eLock=true;
+    const pool=[{w:28,f:eTick},{w:18,f:eWobble},{w:14,f:eHousing},{w:10,f:eSurge},{w:15,f:eChatter},{w:15,f:eStrike}];
+    const tot=pool.reduce((s,p)=>s+p.w,0); let r=R()*tot; let fn=pool[0].f;
+    for(const p of pool){r-=p.w;if(r<=0){fn=p.f;break;}}
+    const dur=fn();
+    setTimeout(()=>{if(!running)return; eLock=false; sched();}, dur*1000+rng(50,500));
+  }
+
+  function eTick() {
+    // Metallic tick at random L/R — something hitting fan blade
+    const cnt=ri(1,6); let i=0; lt(0,'a'); st('FAN RATTLE');
+    const go=()=>{
+      if(!running||i>=cnt||!cc) return; i++;
+      const src=nsrc(cc,whiteBuf(cc,.05)); src.loop=false;
+      const f=bp(cc,rng(1500,5000),rng(3,12)); const g=gain(cc,rng(.2,.6)); const p=pan(cc,rng(-1,1));
+      src.connect(f);f.connect(g);g.connect(p);p.connect(mg);
+      src.start(); src.stop(cc.currentTime+.04);
+      setTimeout(go, rng(40,180));
+    };
+    go();
+    const dur=cnt*.18+.1;
+    setTimeout(()=>{if(!running)return; lt(0,'off'); st('FAN RUNNING');}, dur*1000);
+    return dur;
+  }
+
+  function eWobble() {
+    const dur=rng(.5,2); lt(0,'a'); st('FAN SPEED VARY');
+    const prev=fanSpd; fanSpd=cl(fanSpd+rng(-.3,.3),.3,1);
+    setTimeout(()=>{if(!running)return; fanSpd=prev+rng(-.05,.05); lt(0,'off'); st('FAN RUNNING');}, dur*1000);
+    return dur+.1;
+  }
+
+  function eHousing() {
+    // Housing panel vibrating
+    const dur=rng(.3,1.5); lt(4,'a'); st('HOUSING RATTLE');
+    let el=0; const bi=rng(40,80);
+    const go=()=>{
+      if(!running||el>dur*1000||!cc) return; const iv=bi+rng(-15,15); el+=iv;
+      const src=nsrc(cc,brownBuf(cc,.5)); src.loop=false;
+      const f=bp(cc,rng(250,500),2); const g=gain(cc,rng(.1,.5)); const p=pan(cc,rng(-.8,.8));
+      src.connect(f);f.connect(g);g.connect(p);p.connect(mg);
+      src.start(); src.stop(cc.currentTime+.08);
+      setTimeout(go,iv);
+    };
+    go();
+    setTimeout(()=>{if(!running)return; lt(4,'off'); st('FAN RUNNING');}, dur*1000+200);
+    return dur+.3;
+  }
+
+  function eSurge() {
+    const dur=rng(.4,1.8); lt(0,'r'); st('FAN SURGE');
+    const surge=R()>.5 ? rng(1.2,1.6) : rng(.4,.7);
+    mg.gain.setTargetAtTime(tGain*surge,cc.currentTime,.1);
+    setTimeout(()=>{if(!running)return; mg.gain.setTargetAtTime(tGain,cc.currentTime,.2); lt(0,'off'); st('FAN RUNNING');}, dur*1000);
+    return dur+.25;
+  }
+
+  function eChatter() {
+    // Rapid irregular chatter — blade imbalance
+    const dur=rng(.5,2.5); lt(4,'a'); st('BLADE CHATTER');
+    let el=0; const bi=rng(20,50);
+    const go=()=>{ if(!running||el>dur*1000) return; const iv=bi+rng(-8,8); el+=iv; mg.gain.setTargetAtTime(tGain*rng(.5,1),cc.currentTime,.01); setTimeout(go,iv); };
+    go();
+    setTimeout(()=>{if(!running)return; mg.gain.setTargetAtTime(tGain,cc.currentTime,.1); lt(4,'off'); st('FAN RUNNING');}, dur*1000+200);
+    return dur+.3;
+  }
+
+  function eStrike() {
+    // Periodic blade strikes — rhythmic thud
+    const cnt=ri(2,8); let i=0; lt(0,'r'); st('BLADE OBSTRUCTION');
+    const interval=rng(80,300);
+    const go=()=>{
+      if(!running||i>=cnt||!cc) return; i++;
+      const src=nsrc(cc,brownBuf(cc,.15)); src.loop=false;
+      const f=bp(cc,rng(200,600),1.5); const g=gain(cc,rng(.3,.8)); const p=pan(cc,rng(-.9,.9));
+      src.connect(f);f.connect(g);g.connect(p);p.connect(mg);
+      src.start(); src.stop(cc.currentTime+.1);
+      setTimeout(go, interval+rng(-20,20));
+    };
+    go();
+    const dur=cnt*interval/1000+.2;
+    setTimeout(()=>{if(!running)return; lt(0,'off'); st('FAN RUNNING');}, dur*1000);
+    return dur;
+  }
+
+  return {
+    start(ctx, master) {
+      cc=ctx; mg=master; fanSpd=.7; tGain=.70; runMs=0; compOn=false;
+
+      // Fan noise: maximally wide stereo (±0.92) — different buffers L/R
+      const wbL=nsrc(cc,whiteBuf(cc,6.29));
+      fanFL=bp(cc,490,.6); fanGL=gain(cc,.28); const pfL=pan(cc,-.92);
+      const hpL2=hp(cc,800); const hgL=gain(cc,.07); const phpL=pan(cc,-.88);
+      wbL.connect(fanFL);fanFL.connect(fanGL);fanGL.connect(pfL);pfL.connect(master);
+      wbL.connect(hpL2);hpL2.connect(hgL);hgL.connect(phpL);phpL.connect(master);
+      wbL.start();
+
+      const wbR=nsrc(cc,whiteBuf(cc,9.71));
+      fanFR=bp(cc,505,.6); fanGR=gain(cc,.28); const pfR=pan(cc,.92);
+      const hpR2=hp(cc,820); const hgR=gain(cc,.07); const phpR=pan(cc,.88);
+      wbR.connect(fanFR);fanFR.connect(fanGR);fanGR.connect(pfR);pfR.connect(master);
+      wbR.connect(hpR2);hpR2.connect(hgR);hgR.connect(phpR);phpR.connect(master);
+      wbR.start();
+
+      // Fan blade chop LFO — AM modulates fan gains
+      amLFO=osc(cc,'sine',11.5,0); amG=gain(cc,.11);
+      amLFO.connect(amG); amG.connect(fanGL.gain); amG.connect(fanGR.gain); amLFO.start();
+
+      // Compressor osc pair (starts silent, gains set later)
+      compOL=osc(cc,'sawtooth',120,-3); compGL=gain(cc,0); const pcL=pan(cc,-.3);
+      compOR=osc(cc,'sawtooth',120,3);  compGR=gain(cc,0); const pcR=pan(cc,.3);
+      compOL.connect(compGL);compGL.connect(pcL);pcL.connect(master);
+      compOR.connect(compGR);compGR.connect(pcR);pcR.connect(master);
+      // Don't call .start() here — startComp() does it the first time
+      // Actually we need to pre-start at 0 gain to avoid scheduling issues
+      compOL.start(); compOR.start();
+
+      // Low rumble — stereo brown noise LP
+      stereoNoise(cc, master, brownBuf, 8.11, 13.53, c=>lp(c,100), .10, .2);
+
+      master.gain.setTargetAtTime(tGain,cc.currentTime,.4);
+      rpmT=setInterval(tick,55); sched();
+      compT=setTimeout(startComp, rng(2000,6000));
+    },
+    stop() {
+      if(evtT) clearTimeout(evtT); if(rpmT) clearInterval(rpmT); if(compT) clearTimeout(compT);
+      evtT=rpmT=compT=null; eLock=false; compOn=false; fanSpd=.7; runMs=0;
+      try { if(amLFO) amLFO.stop(); } catch(e) {}
+    },
+    metric() {
+      const v = cl(fanSpd*2000 + (compOn?900:0) + rng(-40,40), 0, 3500);
+      return { val:v, max:3500, txt: Math.round(fanSpd*100)+'%' };
+    },
+    status() {
+      return {
+        keys:['FAN STATE','COMPRESSOR','EVAP TEMP','VIB INDEX','AMPS DRAW','RUNTIME'],
+        vals:['RUNNING', compOn?'ON':'STANDBY', (-2+rng(-.5,.5)+(compOn?-3:0)).toFixed(1)+'°C', rng(5,40).toFixed(1)+' mm/s', (compOn?rng(8,12):rng(1,3)).toFixed(1)+' A', Math.round(runMs/1000)+'s'],
+        warns:['FAN FAULT','COMPRESSOR','FILTER CLOG','HIGH TEMP','VIB','DRAINAGE']
+      };
+    }
+  };
+}
+
+// ══ ENGINES COLLECTION ═════════════════════════════
+const engines = { mower: mkMower(), fridge: mkFridge(), ac: mkAC() };
+
+// ══ MACHINE SELECTION ══════════════════════════════
+const mcBtns = { mower:'bM', fridge:'bF', ac:'bA' };
+const scopeLabels = { mower:'CYLINDER WAVEFORM MONITOR', fridge:'COMPRESSOR WAVEFORM MONITOR', ac:'FAN / COMPRESSOR WAVEFORM' };
+const gaugeLabels = { mower:'ENGINE RPM', fridge:'MOTOR LOAD', ac:'SYSTEM LOAD' };
+const scopeColors = { mower:'#18e820', fridge:'#10d0e8', ac:'#88b8d8' };
+
+function sel(id) {
+  if(running) { kill(); }
+  curMach = id;
+  curEng  = engines[id];
+  document.body.setAttribute('data-m', id);
+  Object.keys(mcBtns).forEach(k => document.getElementById(mcBtns[k]).classList.toggle('on', k===id));
+  document.getElementById('sclbl').textContent = scopeLabels[id];
+  document.getElementById('glbl').textContent  = gaugeLabels[id];
+  document.getElementById('v0').textContent = 'STANDBY';
+  const s = curEng.status();
+  for(let i=0;i<6;i++) {
+    document.getElementById('k'+i).textContent = s.keys[i];
+    document.getElementById('v'+i).textContent = '--';
+    document.getElementById('w'+i).textContent = s.warns[i];
+    const d=document.getElementById('d'+i); if(d) d.className='dot';
+  }
+  document.getElementById('v0').textContent = 'STANDBY';
+  drawGauge(0);
+}
+
+// ══ START / STOP ════════════════════════════════════
+function toggle() {
+  const btn = document.getElementById('sb');
+  running = !running;
+  if(running) {
+    btn.textContent = 'KILL UNIT'; btn.classList.add('on');
+    startAudio(); drawLoop();
+  } else {
+    kill();
+  }
+}
+
+function kill() {
+  const btn = document.getElementById('sb');
+  btn.textContent = 'START UNIT'; btn.classList.remove('on');
+  running = false;
+  stopAudio();
+  if(animId) cancelAnimationFrame(animId);
+}
+
+function startAudio() {
+  actx  = new (window.AudioContext || window.webkitAudioContext)();
+  anlzr = actx.createAnalyser(); anlzr.fftSize=2048; anlzr.smoothingTimeConstant=.26;
+  mGain = actx.createGain(); mGain.gain.value=0;
+  comp  = actx.createDynamicsCompressor();
+  comp.threshold.value=-16; comp.knee.value=8; comp.ratio.value=4;
+  comp.attack.value=.004; comp.release.value=.15;
+  mGain.connect(comp); comp.connect(anlzr); anlzr.connect(actx.destination);
+  curEng = engines[curMach];
+  curEng.start(actx, mGain);
+}
+
+function stopAudio() {
+  if(curEng) curEng.stop();
+  if(mGain && actx) {
+    const now=actx.currentTime;
+    mGain.gain.cancelScheduledValues(now);
+    mGain.gain.setTargetAtTime(0,now,.25);
+  }
+  setTimeout(()=>{ if(actx){actx.close();actx=null;} }, 700);
+  for(let i=0;i<6;i++){const d=document.getElementById('d'+i);if(d)d.className='dot';}
+  document.getElementById('v0').textContent='STANDBY';
+}
+
+// ══ VISUALIZATION ═══════════════════════════════════
+const scCv = document.getElementById('sc');
+const scC  = scCv.getContext('2d');
+const gcCv = document.getElementById('gc');
+const gcC  = gcCv.getContext('2d');
+
+function drawScope() {
+  const W=scCv.width, H=scCv.height;
+  const col = scopeColors[curMach] || '#18e820';
+
+  // Phosphor persistence
+  scC.fillStyle = 'rgba(2,4,3,0.20)';
+  scC.fillRect(0,0,W,H);
+
+  // Grid
+  const gc0 = col==='#18e820' ? '12,50,14' : col==='#10d0e8' ? '8,40,50' : '28,38,55';
+  scC.strokeStyle = `rgba(${gc0},0.32)`; scC.lineWidth=.5;
+  for(let x=0;x<=W;x+=W/8){scC.beginPath();scC.moveTo(x,0);scC.lineTo(x,H);scC.stroke();}
+  for(let y=0;y<=H;y+=H/4){scC.beginPath();scC.moveTo(0,y);scC.lineTo(W,y);scC.stroke();}
+
+  if(!anlzr||!running){
+    scC.strokeStyle=col+'22'; scC.lineWidth=1;
+    scC.beginPath(); scC.moveTo(0,H/2); scC.lineTo(W,H/2); scC.stroke();
+    return;
+  }
+
+  const buf = new Float32Array(anlzr.frequencyBinCount);
+  anlzr.getFloatTimeDomainData(buf);
+
+  let start=0;
+  for(let i=1;i<buf.length-1;i++){if(buf[i]<0&&buf[i+1]>=0){start=i;break;}}
+
+  const samps=Math.min(W, buf.length-start), sw=W/samps;
+  scC.shadowBlur=5; scC.shadowColor=col;
+  scC.strokeStyle=col; scC.lineWidth=1.4;
+  scC.beginPath();
+  for(let i=0;i<samps;i++){
+    const v=buf[start+i], x=i*sw, y=(1-(v+1)*.5)*H;
+    i===0 ? scC.moveTo(x,y) : scC.lineTo(x,y);
+  }
+  scC.stroke(); scC.shadowBlur=0;
+}
+
+// Gauge theme colors per machine
+const gTheme = {
+  mower: { bg1:'#1a2008', bg2:'#2a0808', c0:'#22a808', c1:'#ee2200', c2:'#c98010' },
+  fridge:{ bg1:'#081828', bg2:'#081018', c0:'#0ab0d8', c1:'#10d8f0', c2:'#0878a8' },
+  ac:    { bg1:'#101828', bg2:'#101428', c0:'#5aaac8', c1:'#80c8e8', c2:'#3878a0' }
+};
+
+function drawGauge(overrideVal) {
+  const W=gcCv.width, H=gcCv.height;
+  const cx=W/2, cy=H*.54, r=Math.min(W,H)*.40;
+  const th = gTheme[curMach] || gTheme.mower;
+  gcC.clearRect(0,0,W,H);
+
+  let val=0, max=3500, txt='----', lbl='----';
+  if(curEng && running) {
+    const m=curEng.metric(); val=m.val; max=m.max; txt=m.txt;
+  }
+  lbl = gaugeLabels[curMach];
+  if(overrideVal!==undefined) val=overrideVal;
+
+  // Background track
+  gcC.beginPath(); gcC.arc(cx,cy,r,Math.PI*.75,Math.PI*2.25);
+  gcC.strokeStyle='#0e0e0c'; gcC.lineWidth=11; gcC.stroke();
+
+  // Zone fill
+  const z1=( 2000/max)*Math.PI*1.5+Math.PI*.75;
+  gcC.beginPath(); gcC.arc(cx,cy,r,Math.PI*.75,z1);
+  gcC.strokeStyle=th.bg1; gcC.lineWidth=8; gcC.stroke();
+  gcC.beginPath(); gcC.arc(cx,cy,r,z1,Math.PI*2.25);
+  gcC.strokeStyle=th.bg2; gcC.lineWidth=8; gcC.stroke();
+
+  // Live arc
+  const rA=(cl(val,0,max)/max)*Math.PI*1.5+Math.PI*.75;
+  const col=val>max*.7?th.c1:val>max*.4?th.c2:th.c0;
+  gcC.beginPath(); gcC.arc(cx,cy,r,Math.PI*.75,rA);
+  gcC.strokeStyle=col; gcC.lineWidth=4; gcC.shadowBlur=7; gcC.shadowColor=col;
+  gcC.stroke(); gcC.shadowBlur=0;
+
+  // Ticks
+  for(let i=0;i<=7;i++){
+    const a=(i/7)*Math.PI*1.5+Math.PI*.75;
+    const x1=cx+Math.cos(a)*(r-12),y1=cy+Math.sin(a)*(r-12);
+    const x2=cx+Math.cos(a)*(r+2), y2=cy+Math.sin(a)*(r+2);
+    gcC.beginPath();gcC.moveTo(x1,y1);gcC.lineTo(x2,y2);gcC.strokeStyle='#2a2818';gcC.lineWidth=1;gcC.stroke();
+    const rv=Math.round((i/7)*max/100)*100;
+    gcC.fillStyle='#2a2818'; gcC.font='7px Share Tech Mono'; gcC.textAlign='center'; gcC.textBaseline='middle';
+    gcC.fillText(rv>=1000?(rv/1000).toFixed(1)+'k':rv, cx+Math.cos(a)*(r-22), cy+Math.sin(a)*(r-22));
+  }
+
+  // Needle
+  const na=(cl(val,0,max)/max)*Math.PI*1.5+Math.PI*.75;
+  gcC.beginPath(); gcC.moveTo(cx+Math.cos(na+Math.PI)*13, cy+Math.sin(na+Math.PI)*13);
+  gcC.lineTo(cx+Math.cos(na)*(r-6), cy+Math.sin(na)*(r-6));
+  gcC.strokeStyle=col; gcC.lineWidth=2; gcC.shadowBlur=5; gcC.shadowColor=col;
+  gcC.stroke(); gcC.shadowBlur=0;
+
+  // Center cap
+  gcC.beginPath();gcC.arc(cx,cy,5,0,Math.PI*2);
+  gcC.fillStyle='#1a1a18';gcC.fill();gcC.strokeStyle='#2a2818';gcC.lineWidth=1;gcC.stroke();
+
+  // Readout
+  gcC.font='14px Share Tech Mono'; gcC.fillStyle=col; gcC.textAlign='center'; gcC.textBaseline='middle';
+  gcC.shadowBlur=5; gcC.shadowColor=col;
+  gcC.fillText(running ? txt : '----', cx, cy+r*.54); gcC.shadowBlur=0;
+  gcC.font='7px Share Tech Mono'; gcC.fillStyle='#2a2818';
+  gcC.fillText(lbl, cx, cy+r*.54+13);
+}
+
+let frameN=0;
+function drawLoop() {
+  animId = requestAnimationFrame(drawLoop);
+  frameN++;
+  drawScope();
+  drawGauge();
+  if(frameN%5===0 && curEng && running) {
+    const s=curEng.status();
+    for(let i=1;i<6;i++) document.getElementById('v'+i).textContent=s.vals[i];
+  }
+}
+
+// ── INIT ──
+sel('mower');
+drawGauge(0);
+drawScope();
+</script>
+</body>
+</html>

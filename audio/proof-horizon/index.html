@@ -1,0 +1,1905 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Proof Horizon</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=IBM+Plex+Serif:ital,wght@1,400&display=swap">
+<!--
+  PROOF HORIZON — every note is a theorem.
+  -----------------------------------------
+  Each source paper drives one part of the instrument, using its own equations:
+
+  PROOF    Wolfram, "The Empirical Metamathematics of Euclid and Beyond" (arXiv 2107.07337).
+           465 theorems in 13 books (48 14 37 16 25 33 39 27 36 115 39 18 18) on 10 axioms.
+           The dependency graph is rebuilt to the paper's published counts: BFS layers from the
+           axioms 71/244/119/26/5, 4.3 references per proof on average (max 21, at 12.17),
+           13.18 resting on 219 theorems + all 10 axioms. Real edges kept from the paper:
+           1.5 <- 1.3 1.4 P1 P2 CN3 ; 1.14 <- 1.13 P2 P4 CN1 CN3 ; 12.18 <- 12.17 12.2 5.14 5.16.
+           Other edges are synthetic (preferential attachment), matched to those statistics.
+
+  LATTICE  Viazovska, "The sphere packing problem in dimension 8" (arXiv 1603.04246) and
+           Hariharan et al., "Progress in Formalizing Sphere Packing in Dimension 8" (2604.23468).
+           E8 = {x in Z^8 u (Z+1/2)^8 : sum x = 0 mod 2}; 240 roots of norm^2 2. Theta series
+           = E4 = 1 + 240 sum sigma3(n) q^n (checked by counting lattice points). Each proved
+           theorem walks the 8-voice chord by one root: integer roots move two voices a whole
+           tone, half-integer roots move all eight a semitone. The walk never leaves E8.
+
+  MAGIC    Viazovska's magic function g and its Fourier transform g^, computed from the paper's
+           Laplace forms (62),(70) with the A(t), B(t) expansions on p.20-22:
+             g(r) = (pi/2160) sin^2(pi r^2/2) Int_0^inf A(t) e^{-pi r^2 t} dt,  A<0, B>0.
+           Checked: g(0)=g^(0)=1, g<=0 for r>=sqrt2, g^>=0, double zeros at r^2 = 2n.
+           Used as the note envelope: left ear hears g, right ear hears g^.
+
+  SHOCK    Gorard & Hakim, "Shock with Confidence" (arXiv 2503.13877). Finite-volume update
+           U_i^{n+1} = U_i^n - dt/dx (F_{i+1/2} - F_{i-1/2}) with Lax-Friedrichs (10) or Roe (14)
+           fluxes, MUSCL-Hancock extrapolation (19-24), minmod / MC / superbee / van Leer limiters
+           (35-38), CFL |a|dt/dx <= 1 (12). Systems: linear advection, inviscid Burgers,
+           isothermal Euler. The evolving solution is the voices' wavetable.
+
+  HORIZON  Gorard, "General Relativistic Hydrodynamics in Discrete Spacetime" (arXiv 2402.02331).
+           Michel transonic accretion: r_trans = M / (2 u_trans^2), (96); flow profile from
+           r^2 rho u = const and h^2 (1 - 2M/r + u^2) = h_inf^2 for a polytrope. Kerr (a = J/M):
+           r+ = M + sqrt(M^2 - a^2), equatorial lapse alpha = sqrt(Delta r^2 / A) (redshift),
+           frame dragging omega = 2 a M r / A (stereo swirl). The Michel profile is rescaled so its
+           2M endpoint lands on the Kerr horizon.
+           Note: eq (97) as printed gives h_trans < 1; the physical root of the critical-point
+           cubic h^3 - (3G-2) h_inf^2 h + 3(G-1) h_inf^2 = 0 is used instead.
+
+  ScriptProcessor on the main thread by design (same as SHIFT / CAYLEY): the proof clock,
+  lattice, PDE, horizon and visuals share state with no plumbing. Crackles? BUFSIZE = 4096.
+  Console: window.PH = { P, core, nodes }.   MIT license. wvn / xik6, with Claude. 2026.
+-->
+<style>
+/* layout: one 720px column; scopes grid on top (horizon square + E8 rose + magic), wide strips (proof graph, shock), invariant badges, then controls */
+:root{
+  --bg:#fff9e6; --panel:#ffffff; --line:#ff006e; --fg:#14003d; --dim:#b8410a; --faint:#f3d98a;
+  --acc:#ff006e; --acc2:#2a76ef; --acc3:#00a86b; --ghost:#ff4d00; --good:#0a8f4f; --bad:#d4002a;
+  --mono:'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  --math:'IBM Plex Serif', 'Times New Roman', Georgia, serif;
+  color-scheme: light;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--fg)}
+body{margin:0;font-family:var(--mono);font-size:13px;-webkit-text-size-adjust:100%}
+#wrap{max-width:720px;margin:0 auto;padding-inline:16px;padding-block:14px 48px}
+header{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:space-between;align-items:baseline;
+  border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px}
+h1{font-size:15px;font-weight:600;letter-spacing:.16em;margin:0;text-wrap:balance}
+h1 span{color:var(--acc)}
+#sub{color:var(--dim);font-size:10px;letter-spacing:.08em}
+.m{font-family:var(--math);font-style:italic;letter-spacing:0;font-size:1.08em}
+#themerow{display:flex;gap:6px;margin-bottom:12px}
+.swatch{flex:1;min-width:0;height:26px;border:1px solid var(--line);cursor:pointer;font:inherit;
+  font-size:8px;letter-spacing:.06em;display:flex;align-items:center;justify-content:center;
+  color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7);padding:0}
+.swatch.on{outline:2px solid var(--acc3);outline-offset:-2px}
+#scopes{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:10px;margin-bottom:10px}
+#side{display:flex;flex-direction:column;gap:10px;min-width:0}
+canvas{display:block;width:100%;background:var(--panel);border:1px solid var(--line)}
+.cap{font-size:9px;letter-spacing:.14em;color:var(--dim);margin:2px 0 0}
+.strip{margin-bottom:10px}
+#badges{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
+.badge{font-size:9.5px;letter-spacing:.06em;padding:4px 7px;border:1px solid var(--good);color:var(--good);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.badge.bad{border-color:var(--bad);color:var(--bad);background:color-mix(in srgb, var(--bad) 10%, transparent)}
+.badge.na{border-color:var(--faint);color:var(--dim)}
+#status{font-size:10px;color:var(--dim);letter-spacing:.06em;min-height:14px}
+#log{font-size:10px;color:var(--dim);letter-spacing:.04em;min-height:42px;padding:2px 0 8px;line-height:1.45;
+  font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#log .new{color:var(--acc2)}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+button{font-family:inherit;font-size:11px;letter-spacing:.1em;color:var(--dim);background:var(--panel);
+  border:1px solid var(--line);padding:10px 4px;flex:1 1 0;min-width:64px;cursor:pointer;user-select:none;
+  -webkit-user-select:none;border-radius:0}
+button.on{color:var(--bg);background:var(--acc);border-color:var(--acc);font-weight:600}
+button.rec{color:#fff;background:var(--bad);border-color:var(--bad);font-weight:600}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,.swatch:focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
+.sect{font-size:9px;letter-spacing:.22em;color:var(--dim);padding:14px 0 3px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.sect .m{letter-spacing:0;font-size:11px;color:var(--fg)}
+.ctl{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px dashed var(--faint)}
+.ctl label{flex:0 0 78px;font-size:10px;letter-spacing:.1em;color:var(--dim)}
+.ctl input[type=range]{flex:1;min-width:0;-webkit-appearance:none;appearance:none;height:26px;background:transparent;margin:0}
+.ctl input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--faint)}
+.ctl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;margin-top:-8px;
+  background:var(--bg);border:2px solid var(--acc);border-radius:0}
+.ctl input[type=range]::-moz-range-track{height:2px;background:var(--faint)}
+.ctl input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--bg);border:2px solid var(--acc);border-radius:0}
+.ctl .val{flex:0 0 96px;text-align:right;font-size:11px;font-variant-numeric:tabular-nums}
+.ctl:focus-within .val{color:var(--acc2)}
+select{font-family:inherit;font-size:12px;color:var(--fg);background:var(--panel);border:1px solid var(--line);
+  padding:6px 8px;flex:1;min-width:0;border-radius:0}
+.ctl .wbtn{flex:0 0 58px;min-width:58px;padding:6px 0}
+textarea{width:100%;height:76px;margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--dim);
+  background:var(--panel);border:1px solid var(--line);border-radius:0;padding:8px;resize:vertical}
+footer{margin-top:20px;color:var(--dim);font-size:10px;line-height:1.7;letter-spacing:.03em}
+footer b{color:var(--acc);font-weight:400}
+footer a{color:var(--acc2)}
+@media (max-width:600px){
+  #scopes{grid-template-columns:minmax(0,1fr)}
+  .ctl label{flex-basis:70px}
+  .ctl .val{flex-basis:84px}
+}
+@media (prefers-reduced-motion:reduce){ *{scroll-behavior:auto} }
+</style>
+
+<div id="wrap">
+  <header>
+    <h1>PROOF HORIZON <span>//</span> every note a theorem</h1>
+    <div id="sub">euclid &middot; E8 &middot; shock &middot; kerr</div>
+  </header>
+
+  <div id="themerow" role="group" aria-label="Color theme"></div>
+
+  <div id="scopes">
+    <div>
+      <canvas id="hz" aria-label="Black hole view: notes fall toward the horizon; left and right on screen are left and right in your ears"></canvas>
+      <div class="cap">HORIZON &middot; left/right on screen = left/right in your ears</div>
+    </div>
+    <div id="side">
+      <div><canvas id="e8" aria-label="E8 roots in the Coxeter plane"></canvas>
+        <div class="cap">E8 &middot; 240 ROOTS &middot; COXETER PLANE <span class="m">h</span>=30</div></div>
+      <div><canvas id="mg" aria-label="Viazovska magic function and its Fourier transform"></canvas>
+        <div class="cap"><span class="m">g</span>(r) LEFT &middot; <span class="m">&#285;</span>(r) RIGHT &middot; SHELLS AT <span class="m">r</span>&sup2;=2n</div></div>
+    </div>
+  </div>
+  <div class="strip"><canvas id="pf" aria-label="Euclid's 465 theorems arranged by book and by distance from the axioms"></canvas>
+    <div class="cap">EUCLID &middot; 465 THEOREMS BY BOOK (ACROSS) AND STEPS FROM THE AXIOMS (DOWN)</div></div>
+  <div class="strip"><canvas id="sk" aria-label="Live solution of the hyperbolic PDE used as the wavetable"></canvas>
+    <div class="cap" id="skcap">SHOCK &middot; WAVETABLE = LIVE PDE SOLUTION</div></div>
+
+  <div id="badges" aria-live="polite"></div>
+  <div id="status">Tap POWER. Each theorem Euclid proves becomes a chord that falls into the black hole.</div>
+  <div id="log"></div>
+
+  <div class="btnrow">
+    <button id="power">POWER</button>
+    <button id="recBtn">&#9679; RECORD</button>
+    <button id="strikeBtn">STRIKE</button>
+    <button id="qedBtn">RESTART</button>
+  </div>
+
+  <div class="sect">PRESETS &amp; MORPH</div>
+  <div class="ctl"><label for="presetSel">PRESET</label><select id="presetSel"></select></div>
+  <div class="ctl"><label for="sMorph">MORPH</label>
+    <input type="range" id="sMorph" min="0" max="1" step="0.001" value="0"><span class="val" id="vMorph"></span></div>
+  <div class="btnrow">
+    <button id="presetLoad">LOAD PRESET</button>
+    <button id="m30">30s</button><button id="m60">1m</button><button id="m300">5m</button>
+    <button id="morphStop">STOP</button>
+  </div>
+
+  <div class="sect">PROOF &mdash; <span class="m">Euclid's Elements, 475 nodes</span></div>
+  <div class="ctl"><label for="orderSel">ORDER</label><select id="orderSel">
+    <option value="0">Euclid's order, 1.1 to 13.18</option>
+    <option value="1">layers out from the axioms</option>
+    <option value="2">proof cones, book by book</option></select></div>
+  <div class="ctl"><label for="sRate">RATE</label>
+    <input type="range" id="sRate" min="0" max="1" step="0.001" value="0.48"><span class="val" id="vRate"></span></div>
+  <div class="ctl"><label for="sMaxv">VOICES</label>
+    <input type="range" id="sMaxv" min="0" max="1" step="0.001" value="0.57"><span class="val" id="vMaxv"></span></div>
+
+  <div class="sect">LATTICE &mdash; <span class="m">x</span> &isin; E8, one root per theorem</div>
+  <div class="ctl"><label for="sRoot">ROOT</label>
+    <input type="range" id="sRoot" min="0" max="1" step="0.001" value="0.42"><span class="val" id="vRoot"></span></div>
+  <div class="ctl"><label for="voiceSel">VOICING</label><select id="voiceSel">
+    <option value="0">shell radii &radic;n</option><option value="1">harmonics n</option><option value="2">stacked fifths</option></select></div>
+  <div class="ctl"><label for="sUnit">STEP</label>
+    <input type="range" id="sUnit" min="0" max="1" step="0.001" value="0.25"><span class="val" id="vUnit"></span></div>
+  <div class="ctl"><label for="sRange">RANGE</label>
+    <input type="range" id="sRange" min="0" max="1" step="0.001" value="0.4"><span class="val" id="vRange"></span></div>
+  <div class="ctl"><label for="sTheta">THETA BED</label>
+    <input type="range" id="sTheta" min="0" max="1" step="0.001" value="0.18"><span class="val" id="vTheta"></span></div>
+  <div class="ctl"><label for="sContrast">&sigma;&#8323; CONTRAST</label>
+    <input type="range" id="sContrast" min="0" max="1" step="0.001" value="0.5"><span class="val" id="vContrast"></span></div>
+
+  <div class="sect">MAGIC &mdash; <span class="m">g</span> left, <span class="m">&#285;</span> right</div>
+  <div class="ctl"><label for="sShells">SHELLS</label>
+    <input type="range" id="sShells" min="0" max="1" step="0.001" value="0.33"><span class="val" id="vShells"></span></div>
+  <div class="ctl"><label for="sTail">TAIL</label>
+    <input type="range" id="sTail" min="0" max="1" step="0.001" value="0.7"><span class="val" id="vTail"></span></div>
+  <div class="ctl"><label for="sSign">SIGN</label>
+    <input type="range" id="sSign" min="0" max="1" step="0.001" value="1"><span class="val" id="vSign"></span></div>
+
+  <div class="sect">SHOCK &mdash; <span class="m">&part;U/&part;t + &part;F(U)/&part;x = 0</span></div>
+  <div class="ctl"><label for="sysSel">SYSTEM</label><select id="sysSel">
+    <option value="0">linear advection</option><option value="1" selected>inviscid Burgers</option><option value="2">isothermal Euler</option>
+    <option value="3">Maxwell, perfectly hyperbolic (8 fields)</option><option value="4">relativistic Euler (Valencia)</option>
+    <option value="5">Bondi accretion (sonic horizon)</option><option value="6">radial wave in R&#8312;</option></select></div>
+  <div class="ctl"><label for="fluxSel">FLUX</label><select id="fluxSel">
+    <option value="0">Lax-Friedrichs</option><option value="1" selected>Roe</option></select></div>
+  <div class="ctl"><label for="limSel">LIMITER</label><select id="limSel">
+    <option value="0">first order</option><option value="1">minmod</option><option value="2" selected>monotonized centered</option>
+    <option value="3">superbee</option><option value="4">van Leer</option></select></div>
+  <div class="ctl"><label for="initSel">STRIKE SHAPE</label><select id="initSel">
+    <option value="0">sine</option><option value="1">magic function slice</option><option value="2">pulse / blast</option><option value="3">Riemann step</option>
+    <option value="4">E8 theta series E&#8324;</option><option value="5">Michel inflow profile</option></select></div>
+  <div class="ctl"><label for="strikeSel">STRIKE ON</label><select id="strikeSel">
+    <option value="0">theorems citing axioms</option><option value="1">every theorem</option><option value="2">STRIKE button only</option></select></div>
+  <div class="ctl"><label for="sCfl">CFL</label>
+    <input type="range" id="sCfl" min="0" max="1" step="0.001" value="0.52"><span class="val" id="vCfl"></span></div>
+  <div class="ctl"><label for="sClean">CLEANING</label>
+    <input type="range" id="sClean" min="0" max="1" step="0.001" value="0.5"><span class="val" id="vClean"></span></div>
+  <div class="ctl"><label for="sEvo">EVOLVE</label>
+    <input type="range" id="sEvo" min="0" max="1" step="0.001" value="0.45"><span class="val" id="vEvo"></span></div>
+  <div class="ctl"><label for="sAmp">AMPLITUDE</label>
+    <input type="range" id="sAmp" min="0" max="1" step="0.001" value="0.5"><span class="val" id="vAmp"></span></div>
+  <div class="ctl"><label for="sWmix">SINE/PDE</label>
+    <input type="range" id="sWmix" min="0" max="1" step="0.001" value="0.8"><span class="val" id="vWmix"></span></div>
+
+  <div class="sect">HORIZON &mdash; <span class="m">Michel flow into Kerr</span></div>
+  <div class="ctl"><label for="sSpin">SPIN a/M</label>
+    <input type="range" id="sSpin" min="0" max="1" step="0.001" value="0.5"><span class="val" id="vSpin"></span></div>
+  <div class="ctl"><label for="sGamma">GAMMA &Gamma;</label>
+    <input type="range" id="sGamma" min="0" max="1" step="0.001" value="0.42"><span class="val" id="vGamma"></span></div>
+  <div class="ctl"><label for="sTemp">TEMP c&#8734;</label>
+    <input type="range" id="sTemp" min="0" max="1" step="0.001" value="0.55"><span class="val" id="vTemp"></span></div>
+  <div class="ctl"><label for="sR0">START r&#8320;</label>
+    <input type="range" id="sR0" min="0" max="1" step="0.001" value="0.6"><span class="val" id="vR0"></span></div>
+  <div class="ctl"><label for="sFall">FALL</label>
+    <input type="range" id="sFall" min="0" max="1" step="0.001" value="0.59"><span class="val" id="vFall"></span></div>
+  <div class="ctl"><label for="sRed">REDSHIFT</label>
+    <input type="range" id="sRed" min="0" max="1" step="0.001" value="0.6"><span class="val" id="vRed"></span></div>
+  <div class="ctl"><label for="sDrag">FRAME DRAG</label>
+    <input type="range" id="sDrag" min="0" max="1" step="0.001" value="0.5"><span class="val" id="vDrag"></span></div>
+  <div class="ctl"><label for="sSonic">SONIC CRACK</label>
+    <input type="range" id="sSonic" min="0" max="1" step="0.001" value="0.5"><span class="val" id="vSonic"></span></div>
+
+  <div class="sect">SPACE</div>
+  <div class="ctl"><label for="sWidth">WIDTH</label>
+    <input type="range" id="sWidth" min="0" max="1" step="0.001" value="0.85"><span class="val" id="vWidth"></span></div>
+  <div class="ctl"><label for="sEchoT">ECHO TIME</label>
+    <input type="range" id="sEchoT" min="0" max="1" step="0.001" value="0.55"><span class="val" id="vEchoT"></span></div>
+  <div class="ctl"><label for="sEchoFb">ECHO FB</label>
+    <input type="range" id="sEchoFb" min="0" max="1" step="0.001" value="0.45"><span class="val" id="vEchoFb"></span></div>
+  <div class="ctl"><label for="sEchoMix">ECHO MIX</label>
+    <input type="range" id="sEchoMix" min="0" max="1" step="0.001" value="0.3"><span class="val" id="vEchoMix"></span></div>
+  <div class="ctl"><label for="sOut">OUT</label>
+    <input type="range" id="sOut" min="0" max="1" step="0.001" value="0.7"><span class="val" id="vOut"></span></div>
+
+  <div class="sect">MODULATORS</div>
+  <div class="ctl"><label for="lfo0targ">LFO 1</label><select id="lfo0targ"></select><button class="wbtn" id="lfo0wave">sin</button></div>
+  <div class="ctl"><label for="sLfo0rate">&nbsp;&nbsp;RATE</label>
+    <input type="range" id="sLfo0rate" min="0" max="1" step="0.001" value="0.35"><span class="val" id="vLfo0rate"></span></div>
+  <div class="ctl"><label for="sLfo0depth">&nbsp;&nbsp;DEPTH</label>
+    <input type="range" id="sLfo0depth" min="0" max="1" step="0.001" value="0"><span class="val" id="vLfo0depth"></span></div>
+  <div class="ctl"><label for="lfo1targ">LFO 2</label><select id="lfo1targ"></select><button class="wbtn" id="lfo1wave">sin</button></div>
+  <div class="ctl"><label for="sLfo1rate">&nbsp;&nbsp;RATE</label>
+    <input type="range" id="sLfo1rate" min="0" max="1" step="0.001" value="0.25"><span class="val" id="vLfo1rate"></span></div>
+  <div class="ctl"><label for="sLfo1depth">&nbsp;&nbsp;DEPTH</label>
+    <input type="range" id="sLfo1depth" min="0" max="1" step="0.001" value="0"><span class="val" id="vLfo1depth"></span></div>
+
+  <div class="sect">MIDI &mdash; notes set ROOT</div>
+  <div class="btnrow"><button id="midiBtn">ENABLE MIDI</button></div>
+  <div class="ctl"><label for="midiSel">MOD WHEEL</label><select id="midiSel"></select></div>
+
+  <div class="sect">PATCH</div>
+  <input type="file" id="patchFile" accept=".json,application/json" hidden>
+  <div class="btnrow">
+    <button id="patchExport">EXPORT</button>
+    <button id="patchImport">IMPORT FILE</button>
+    <button id="patchLoad">LOAD PASTE</button>
+  </div>
+  <textarea id="patchText" spellcheck="false" aria-label="Patch JSON" placeholder="EXPORT puts the patch here. Paste a patch and press LOAD PASTE."></textarea>
+
+  <footer>
+    <b>How it plays.</b> The clock proves Euclid's theorems in turn. Each proof moves the 8-voice chord one root through E8
+    (theorems that cite axioms shift all eight voices a semitone; the rest move two voices a whole tone), re-strikes the PDE
+    whose live solution is the waveform, and drops one note per reference into the black hole. Notes redshift with the lapse,
+    swirl with frame dragging, crack where the inflow goes supersonic, and pass through the magic function's shells on the way in.
+    Beyond the second shell <span class="m">g</span> and <span class="m">&#285;</span> are mirror images, so the two ears end in anti-phase.<br>
+    <b>Seven systems.</b> Advection, Burgers and isothermal Euler, plus Maxwell's equations in perfectly hyperbolic form, where each of the
+    eight voices plays its own field (E left, its partner right); relativistic Euler in Valencia form, sharing &Gamma; with the black hole;
+    Bondi accretion, where a disturbance struck inside the sonic point is carried in and cannot climb back out; and the radial wave equation
+    in eight dimensions, released from the magic function itself with a wall at the last shell, so it rings at Bessel-zero ratios
+    1 : 1.53 : 2.04 : 2.54. The E8 theta series E&#8324; and the Michel inflow profile are strike shapes too.<br>
+    <b>Sources.</b>
+    Viazovska, <a href="https://arxiv.org/abs/1603.04246" target="_blank" rel="noopener">arXiv:1603.04246</a> ·
+    Hariharan et al., <a href="https://arxiv.org/abs/2604.23468" target="_blank" rel="noopener">arXiv:2604.23468</a> ·
+    Hariharan, MSci thesis (Imperial College) on the magic function ·
+    Gorard &amp; Hakim, <a href="https://arxiv.org/abs/2503.13877" target="_blank" rel="noopener">arXiv:2503.13877</a> ·
+    Gorard, <a href="https://arxiv.org/abs/2402.02331" target="_blank" rel="noopener">arXiv:2402.02331</a> ·
+    Wolfram, <a href="https://arxiv.org/abs/2107.07337" target="_blank" rel="noopener">arXiv:2107.07337</a>.
+    The Euclid graph matches Wolfram's published counts; apart from 1.5, 1.14 and 12.18 its edges are reconstructed, not Euclid's own.
+  </footer>
+</div>
+
+<script>
+var MAGIC={s1:20,n:801,g:[1,0.93515,0.8749,0.81918,0.76727,0.71913,0.67418,0.63239,0.59329,0.55686,0.5227,0.49081,0.46087,0.43287,0.40653,0.38188,0.35866,0.33689,0.31638,0.29713,0.27896,0.26191,0.24581,0.23068,0.21639,0.20296,0.19027,0.17833,0.16706,0.15645,0.14643,0.13701,0.12811,0.11974,0.11184,0.10441,0.097394,0.090804,0.084585,0.078747,0.073241,0.068075,0.063207,0.058644,0.054348,0.050324,0.046539,0.042999,0.039673,0.036566,0.033649,0.030929,0.028379,0.026004,0.023782,0.021716,0.019785,0.017993,0.016323,0.014775,0.013335,0.012005,0.010769,0.0096305,0.0085759,0.0076066,0.0067114,0.0058913,0.0051362,0.004447,0.0038147,0.00324,0.0027149,0.0022398,0.0018079,0.0014193,0.001068,0.00075409,0.00047221,0.00022241,1.2788e-34,-0.00019505,-0.00036684,-0.00051546,-0.00064445,-0.00075398,-0.00084707,-0.00092395,-0.00098721,-0.0010371,-0.0010758,-0.0011037,-0.0011224,-0.0011325,-0.0011353,-0.0011313,-0.0011216,-0.0011066,-0.0010874,-0.0010641,-0.0010378,-0.0010086,-0.00097725,-0.00094399,-0.00090936,-0.00087361,-0.00083715,-0.0008002,-0.00076306,-0.00072595,-0.00068906,-0.00065261,-0.0006167,-0.00058153,-0.00054716,-0.00051375,-0.00048131,-0.00044999,-0.00041976,-0.00039076,-0.00036292,-0.00033636,-0.00031099,-0.00028691,-0.00026403,-0.00024243,-0.000222,-0.00020281,-0.00018474,-0.00016786,-0.00015204,-0.00013734,-0.00012363,-0.00011096,-9.9199e-05,-8.8392e-05,-7.8422e-05,-6.9313e-05,-6.0959e-05,-5.3378e-05,-4.6471e-05,-4.0249e-05,-3.4622e-05,-2.9597e-05,-2.509e-05,-2.1107e-05,-1.757e-05,-1.4481e-05,-1.1774e-05,-9.4452e-06,-7.4367e-06,-5.7444e-06,-4.3169e-06,-3.1489e-06,-2.1963e-06,-1.4526e-06,-8.8042e-07,-4.726e-07,-1.9796e-07,-4.8965e-08,-1.7265e-36,-4.3477e-08,-1.5874e-07,-3.3837e-07,-5.661e-07,-8.3484e-07,-1.1322e-06,-1.4514e-06,-1.7835e-06,-2.1224e-06,-2.4616e-06,-2.7959e-06,-3.1211e-06,-3.4325e-06,-3.7281e-06,-4.0036e-06,-4.2586e-06,-4.4895e-06,-4.6971e-06,-4.8784e-06,-5.0352e-06,-5.165e-06,-5.2701e-06,-5.3488e-06,-5.4037e-06,-5.4337e-06,-5.4415e-06,-5.4265e-06,-5.3915e-06,-5.3363e-06,-5.2636e-06,-5.1735e-06,-5.0687e-06,-4.9495e-06,-4.8184e-06,-4.6759e-06,-4.5243e-06,-4.3643e-06,-4.1977e-06,-4.0255e-06,-3.8493e-06,-3.6699e-06,-3.4888e-06,-3.3068e-06,-3.125e-06,-2.9445e-06,-2.7658e-06,-2.5901e-06,-2.4177e-06,-2.2495e-06,-2.0859e-06,-1.9277e-06,-1.7749e-06,-1.6284e-06,-1.4879e-06,-1.3542e-06,-1.2269e-06,-1.1068e-06,-9.9334e-07,-8.8715e-07,-7.8765e-07,-6.9534e-07,-6.096e-07,-5.3083e-07,-4.5837e-07,-3.9255e-07,-3.3266e-07,-2.7897e-07,-2.3078e-07,-1.8827e-07,-1.5076e-07,-1.1836e-07,-9.0424e-08,-6.7009e-08,-4.7492e-08,-3.1894e-08,-1.9636e-08,-1.0697e-08,-4.55e-09,-1.1409e-09,-9.1945e-38,-1.0451e-09,-3.8663e-09,-8.3605e-09,-1.4178e-08,-2.12e-08,-2.9136e-08,-3.786e-08,-4.7135e-08,-5.6832e-08,-6.6767e-08,-7.681e-08,-8.6827e-08,-9.6693e-08,-1.0631e-07,-1.1558e-07,-1.2442e-07,-1.3275e-07,-1.4053e-07,-1.4767e-07,-1.5418e-07,-1.5997e-07,-1.6508e-07,-1.6943e-07,-1.7308e-07,-1.7596e-07,-1.7813e-07,-1.7956e-07,-1.8031e-07,-1.8035e-07,-1.7975e-07,-1.7851e-07,-1.7669e-07,-1.7429e-07,-1.7139e-07,-1.6798e-07,-1.6414e-07,-1.5989e-07,-1.5528e-07,-1.5034e-07,-1.4513e-07,-1.3967e-07,-1.3402e-07,-1.2821e-07,-1.2228e-07,-1.1626e-07,-1.102e-07,-1.0412e-07,-9.8052e-08,-9.2034e-08,-8.6088e-08,-8.0246e-08,-7.4522e-08,-6.8948e-08,-6.3533e-08,-5.8305e-08,-5.3267e-08,-4.8446e-08,-4.3837e-08,-3.9466e-08,-3.5323e-08,-3.1431e-08,-2.7774e-08,-2.4374e-08,-2.1212e-08,-1.8305e-08,-1.5632e-08,-1.3209e-08,-1.101e-08,-9.0489e-09,-7.3003e-09,-5.7735e-09,-4.4433e-09,-3.3164e-09,-2.3676e-09,-1.6012e-09,-9.9295e-10,-5.4463e-10,-2.3334e-10,-5.8882e-11,-8.4994e-39,-5.4743e-11,-2.038e-10,-4.4375e-10,-7.5744e-10,-1.1403e-09,-1.5774e-09,-2.0633e-09,-2.5854e-09,-3.1377e-09,-3.7098e-09,-4.2954e-09,-4.8863e-09,-5.476e-09,-6.0587e-09,-6.6277e-09,-7.1791e-09,-7.7066e-09,-8.2082e-09,-8.6779e-09,-9.1151e-09,-9.5144e-09,-9.8768e-09,-1.0197e-08,-1.0478e-08,-1.0714e-08,-1.091e-08,-1.1061e-08,-1.1171e-08,-1.1237e-08,-1.1264e-08,-1.1249e-08,-1.1197e-08,-1.1106e-08,-1.0982e-08,-1.0822e-08,-1.0633e-08,-1.0413e-08,-1.0168e-08,-9.8976e-09,-9.6057e-09,-9.2935e-09,-8.9649e-09,-8.6209e-09,-8.2652e-09,-7.8991e-09,-7.5258e-09,-7.1469e-09,-6.765e-09,-6.3819e-09,-5.9998e-09,-5.6206e-09,-5.2458e-09,-4.8774e-09,-4.5166e-09,-4.1652e-09,-3.8239e-09,-3.4946e-09,-3.1775e-09,-2.8743e-09,-2.5849e-09,-2.3109e-09,-2.0518e-09,-1.809e-09,-1.5817e-09,-1.3713e-09,-1.1765e-09,-9.9863e-10,-8.3624e-10,-6.9038e-10,-5.5951e-10,-4.4447e-10,-3.4361e-10,-2.5759e-10,-1.8472e-10,-1.2547e-10,-7.8154e-11,-4.3049e-11,-1.8526e-11,-4.6936e-12,-1.0635e-39,-4.4041e-12,-1.646e-11,-3.5996e-11,-6.1694e-11,-9.3273e-11,-1.2956e-10,-1.7018e-10,-2.1411e-10,-2.6093e-10,-3.0976e-10,-3.6012e-10,-4.1131e-10,-4.6282e-10,-5.1411e-10,-5.6464e-10,-6.1405e-10,-6.6178e-10,-7.0762e-10,-7.5105e-10,-7.9196e-10,-8.2988e-10,-8.648e-10,-8.963e-10,-9.2449e-10,-9.4897e-10,-9.6995e-10,-9.8708e-10,-1.0006e-09,-1.0103e-09,-1.0165e-09,-1.0189e-09,-1.018e-09,-1.0134e-09,-1.0057e-09,-9.9475e-10,-9.809e-10,-9.6412e-10,-9.448e-10,-9.2293e-10,-8.9891e-10,-8.7278e-10,-8.4489e-10,-8.1533e-10,-7.8442e-10,-7.5229e-10,-7.1922e-10,-6.8537e-10,-6.5098e-10,-6.1622e-10,-5.8131e-10,-5.4641e-10,-5.117e-10,-4.7737e-10,-4.4354e-10,-4.1039e-10,-3.7802e-10,-3.4661e-10,-3.162e-10,-2.8697e-10,-2.5892e-10,-2.3223e-10,-2.0685e-10,-1.8297e-10,-1.6049e-10,-1.3959e-10,-1.2014e-10,-1.023e-10,-8.5938e-11,-7.1171e-11,-5.7862e-11,-4.6107e-11,-3.5757e-11,-2.6887e-11,-1.9342e-11,-1.3177e-11,-8.2336e-12,-4.5487e-12,-1.9636e-12,-4.9888e-13,-1.6331e-40,-4.7115e-13,-1.7658e-12,-3.8733e-12,-6.6578e-12,-1.0096e-11,-1.4064e-11,-1.8528e-11,-2.3379e-11,-2.8574e-11,-3.402e-11,-3.9665e-11,-4.5434e-11,-5.1271e-11,-5.7115e-11,-6.2908e-11,-6.8606e-11,-7.4149e-11,-7.9508e-11,-8.4624e-11,-8.9483e-11,-9.4028e-11,-9.8257e-11,-1.0212e-10,-1.0562e-10,-1.0871e-10,-1.1142e-10,-1.137e-10,-1.1557e-10,-1.1701e-10,-1.1804e-10,-1.1864e-10,-1.1884e-10,-1.1863e-10,-1.1804e-10,-1.1706e-10,-1.1573e-10,-1.1405e-10,-1.1206e-10,-1.0975e-10,-1.0717e-10,-1.0433e-10,-1.0125e-10,-9.7961e-11,-9.449e-11,-9.085e-11,-8.7078e-11,-8.319e-11,-7.9216e-11,-7.5174e-11,-7.1093e-11,-6.6992e-11,-6.2893e-11,-5.8819e-11,-5.4786e-11,-5.0817e-11,-4.6924e-11,-4.313e-11,-3.9441e-11,-3.5882e-11,-3.2454e-11,-2.9178e-11,-2.6053e-11,-2.31e-11,-2.0311e-11,-1.7707e-11,-1.5277e-11,-1.3039e-11,-1.0979e-11,-9.1139e-12,-7.4271e-12,-5.932e-12,-4.6112e-12,-3.4753e-12,-2.5059e-12,-1.7111e-12,-1.0716e-12,-5.9336e-13,-2.5675e-13,-6.5367e-14,-2.9196e-41,-6.2035e-14,-2.3298e-13,-5.1223e-13,-8.8238e-13,-1.3411e-12,-1.8723e-12,-2.4721e-12,-3.1262e-12,-3.8293e-12,-4.569e-12,-5.339e-12,-6.1288e-12,-6.9313e-12,-7.7379e-12,-8.5414e-12,-9.335e-12,-1.0111e-11,-1.0865e-11,-1.1589e-11,-1.228e-11,-1.2931e-11,-1.3542e-11,-1.4103e-11,-1.4618e-11,-1.5077e-11,-1.5485e-11,-1.5834e-11,-1.6129e-11,-1.6363e-11,-1.6542e-11,-1.666e-11,-1.6723e-11,-1.6727e-11,-1.6678e-11,-1.6573e-11,-1.6418e-11,-1.6213e-11,-1.5961e-11,-1.5664e-11,-1.5327e-11,-1.4949e-11,-1.4538e-11,-1.4093e-11,-1.3621e-11,-1.3122e-11,-1.2602e-11,-1.2063e-11,-1.1509e-11,-1.0943e-11,-1.0369e-11,-9.7901e-12,-9.209e-12,-8.6289e-12,-8.0528e-12,-7.4837e-12,-6.9236e-12,-6.3759e-12,-5.8418e-12,-5.3247e-12,-4.825e-12,-4.3462e-12,-3.8881e-12,-3.4537e-12,-3.0425e-12,-2.6573e-12,-2.2969e-12,-1.964e-12,-1.6569e-12,-1.3779e-12,-1.1249e-12,-9.0012e-13,-7.0099e-13,-5.2927e-13,-3.8233e-13,-2.6154e-13,-1.641e-13,-9.1018e-14,-3.9457e-14,-1.0062e-14,-5.8812e-42,-9.586e-15,-3.606e-14,-7.9426e-14,-1.3706e-13,-2.0868e-13,-2.9184e-13,-3.8602e-13,-4.89e-13,-6.0004e-13,-7.1718e-13,-8.3951e-13,-9.6534e-13,-1.0936e-12,-1.223e-12,-1.3523e-12,-1.4805e-12,-1.6063e-12,-1.729e-12,-1.8473e-12,-1.9609e-12,-2.0683e-12,-2.1696e-12,-2.2634e-12,-2.3498e-12,-2.4278e-12,-2.4976e-12,-2.5582e-12,-2.6101e-12,-2.6524e-12,-2.6857e-12,-2.7093e-12,-2.724e-12,-2.7291e-12,-2.7256e-12,-2.7129e-12,-2.692e-12,-2.6625e-12,-2.6255e-12,-2.5807e-12,-2.5292e-12,-2.4709e-12,-2.4068e-12,-2.3368e-12,-2.2621e-12,-2.1827e-12,-2.0995e-12,-2.0129e-12,-1.9235e-12,-1.8318e-12,-1.7385e-12,-1.6439e-12,-1.5487e-12,-1.4534e-12,-1.3585e-12,-1.2644e-12,-1.1716e-12,-1.0806e-12,-9.916e-13,-9.0519e-13,-8.2151e-13,-7.411e-13,-6.64e-13,-5.9071e-13,-5.2117e-13,-4.5587e-13,-3.9464e-13,-3.3794e-13,-2.8553e-13,-2.378e-13,-1.9444e-13,-1.5581e-13,-1.2152e-13,-9.1886e-14,-6.6476e-14,-4.5538e-14,-2.8616e-14,-1.5895e-14,-6.9006e-15,-1.7621e-15,-1.3056e-42,-1.684e-15,-6.3432e-15,-1.3993e-14,-2.4179e-14,-3.6868e-14,-5.1633e-14,-6.8394e-14,-8.6763e-14,-1.0662e-13,-1.2761e-13,-1.4959e-13,-1.7225e-13,-1.9542e-13,-2.1885e-13,-2.4233e-13,-2.6567e-13,-2.8864e-13,-3.1113e-13,-3.3288e-13,-3.5383e-13,-3.7374e-13,-3.9257e-13,-4.1011e-13,-4.2636e-13,-4.4111e-13,-4.5441e-13,-4.6608e-13,-4.7617e-13,-4.8454e-13,-4.9129e-13,-4.9629e-13,-4.9966e-13,-5.0127e-13,-5.013e-13,-4.9963e-13,-4.9643e-13,-4.9166e-13,-4.8549e-13,-4.7781e-13,-4.689e-13,-4.587e-13,-4.4738e-13,-4.3496e-13,-4.2161e-13,-4.0733e-13,-3.9232e-13,-3.7662e-13,-3.6037e-13,-3.4362e-13,-3.2654e-13,-3.0918e-13,-2.9165e-13,-2.7407e-13,-2.5648e-13,-2.3904e-13,-2.2177e-13,-2.048e-13,-1.8817e-13,-1.72e-13,-1.563e-13,-1.4117e-13,-1.2665e-13,-1.1281e-13,-9.9655e-14,-8.7275e-14,-7.5652e-14,-6.4862e-14,-5.4868e-14,-4.5757e-14,-3.746e-14,-3.0054e-14,-2.3469e-14,-1.7768e-14,-1.287e-14,-8.827e-15,-5.5534e-15,-3.0884e-15,-1.3425e-15,-3.4321e-16,-3.1435e-43],gh:[1,0.96179,0.92259,0.88276,0.84271,0.80276,0.76315,0.72414,0.68585,0.64852,0.61217,0.577,0.54297,0.51025,0.47877,0.44865,0.4198,0.39234,0.36613,0.34129,0.31767,0.29535,0.2742,0.25429,0.23548,0.21783,0.2012,0.18564,0.17102,0.15738,0.14461,0.13272,0.12161,0.1113,0.10169,0.092807,0.084544,0.076922,0.069854,0.063353,0.057341,0.051827,0.046743,0.042095,0.037821,0.033925,0.030355,0.027112,0.024149,0.021467,0.019026,0.016825,0.014829,0.013037,0.011419,0.0099728,0.0086727,0.0075172,0.0064836,0.0055704,0.0047582,0.0040455,0.0034159,0.0028677,0.0023874,0.0019732,0.0016137,0.0013072,0.0010445,0.00082393,0.00063778,0.00048459,0.00035815,0.00025708,0.00017639,0.00011484,6.8494e-05,3.6211e-05,1.4927e-05,3.6403e-06,3.1566e-35,3.1285e-06,1.1266e-05,2.3652e-05,3.9008e-05,5.6684e-05,7.5786e-05,9.5769e-05,0.00011604,0.00013615,0.00015575,0.00017446,0.00019212,0.00020844,0.00022337,0.0002367,0.00024847,0.00025853,0.00026699,0.00027374,0.00027895,0.00028253,0.00028467,0.00028533,0.00028471,0.00028279,0.00027976,0.00027563,0.00027058,0.00026464,0.00025796,0.00025059,0.00024266,0.00023423,0.00022542,0.00021628,0.0002069,0.00019736,0.00018772,0.00017804,0.00016838,0.00015879,0.00014932,0.00014002,0.00013091,0.00012205,0.00011344,0.00010513,9.7113e-05,8.9435e-05,8.2081e-05,7.509e-05,6.844e-05,6.2164e-05,5.6233e-05,5.0677e-05,4.5463e-05,4.0614e-05,3.6097e-05,3.193e-05,2.8077e-05,2.4553e-05,2.1321e-05,1.8393e-05,1.5734e-05,1.3351e-05,1.1209e-05,9.3152e-06,7.6356e-06,6.1736e-06,4.8988e-06,3.8123e-06,2.8864e-06,2.1204e-06,1.4895e-06,9.9177e-07,6.0523e-07,3.2695e-07,1.3786e-07,3.4296e-08,1.2173e-36,3.0852e-08,1.1326e-07,2.4284e-07,4.085e-07,6.0578e-07,8.2588e-07,1.0644e-06,1.3146e-06,1.5724e-06,1.8327e-06,2.0916e-06,2.346e-06,2.5921e-06,2.8281e-06,3.0506e-06,3.2591e-06,3.4506e-06,3.6253e-06,3.7808e-06,3.9179e-06,4.0349e-06,4.1329e-06,4.2106e-06,4.2698e-06,4.3091e-06,4.3309e-06,4.3341e-06,4.3211e-06,4.2913e-06,4.2469e-06,4.1878e-06,4.1162e-06,4.032e-06,3.9374e-06,3.8325e-06,3.7193e-06,3.5982e-06,3.4708e-06,3.3378e-06,3.2005e-06,3.0597e-06,2.9165e-06,2.7716e-06,2.626e-06,2.4805e-06,2.3358e-06,2.1927e-06,2.0517e-06,1.9135e-06,1.7785e-06,1.6474e-06,1.5202e-06,1.3977e-06,1.2799e-06,1.1673e-06,1.0599e-06,9.5807e-07,8.6161e-07,7.7103e-07,6.8589e-07,6.0667e-07,5.3287e-07,4.6488e-07,4.0216e-07,3.4503e-07,2.9291e-07,2.4607e-07,2.0391e-07,1.6663e-07,1.3365e-07,1.051e-07,8.0423e-08,5.9691e-08,4.2372e-08,2.8498e-08,1.7572e-08,9.5863e-09,4.0838e-09,1.0253e-09,8.2761e-38,9.4211e-10,3.4897e-09,7.5567e-09,1.2831e-08,1.9212e-08,2.6438e-08,3.4397e-08,4.2877e-08,5.1762e-08,6.0884e-08,7.0127e-08,7.9365e-08,8.8485e-08,9.7401e-08,1.0601e-07,1.1425e-07,1.2202e-07,1.2931e-07,1.3603e-07,1.4217e-07,1.4767e-07,1.5254e-07,1.5671e-07,1.6024e-07,1.6306e-07,1.6524e-07,1.6672e-07,1.6757e-07,1.6776e-07,1.6736e-07,1.6635e-07,1.648e-07,1.627e-07,1.6013e-07,1.5707e-07,1.5361e-07,1.4975e-07,1.4555e-07,1.4103e-07,1.3625e-07,1.3123e-07,1.2602e-07,1.2064e-07,1.1515e-07,1.0956e-07,1.0392e-07,9.8254e-08,9.2595e-08,8.6972e-08,8.1409e-08,7.5934e-08,7.0565e-08,6.5329e-08,6.0237e-08,5.5316e-08,5.0567e-08,4.6019e-08,4.1666e-08,3.7534e-08,3.3614e-08,2.9927e-08,2.6461e-08,2.3235e-08,2.0232e-08,1.7469e-08,1.4926e-08,1.2619e-08,1.0524e-08,8.654e-09,6.9853e-09,5.5272e-09,4.2559e-09,3.178e-09,2.27e-09,1.5359e-09,9.5292e-10,5.2291e-10,2.2414e-10,5.6585e-11,8.1718e-39,5.2659e-11,1.9612e-10,4.2722e-10,7.2953e-10,1.0987e-09,1.5206e-09,1.9898e-09,2.4943e-09,3.0283e-09,3.582e-09,4.149e-09,4.7216e-09,5.2934e-09,5.8588e-09,6.4115e-09,6.9475e-09,7.4607e-09,7.9491e-09,8.407e-09,8.8336e-09,9.2238e-09,9.5784e-09,9.8925e-09,1.0168e-08,1.0401e-08,1.0594e-08,1.0744e-08,1.0855e-08,1.0922e-08,1.0952e-08,1.0941e-08,1.0893e-08,1.0808e-08,1.069e-08,1.0538e-08,1.0357e-08,1.0146e-08,9.9097e-09,9.6486e-09,9.3667e-09,9.0647e-09,8.7465e-09,8.4131e-09,8.068e-09,7.7127e-09,7.35e-09,6.9817e-09,6.6103e-09,6.2376e-09,5.8655e-09,5.4961e-09,5.1308e-09,4.7716e-09,4.4196e-09,4.0767e-09,3.7435e-09,3.4219e-09,3.112e-09,2.8158e-09,2.5328e-09,2.2648e-09,2.0112e-09,1.7737e-09,1.5511e-09,1.345e-09,1.1542e-09,9.7989e-10,8.2071e-10,6.777e-10,5.4933e-10,4.3647e-10,3.3749e-10,2.5305e-10,1.815e-10,1.233e-10,7.6817e-11,4.232e-11,1.8215e-11,4.6157e-12,1.046e-39,4.3326e-12,1.6195e-11,3.5423e-11,6.0721e-11,9.1817e-11,1.2756e-10,1.6757e-10,2.1087e-10,2.5701e-10,3.0516e-10,3.5482e-10,4.0533e-10,4.5615e-10,5.0677e-10,5.5667e-10,6.0546e-10,6.5262e-10,6.9792e-10,7.4086e-10,7.8132e-10,8.1883e-10,8.5341e-10,8.8461e-10,9.1255e-10,9.3683e-10,9.5767e-10,9.747e-10,9.8821e-10,9.9792e-10,1.0041e-09,1.0066e-09,1.0058e-09,1.0014e-09,9.9395e-10,9.8322e-10,9.6964e-10,9.5315e-10,9.3416e-10,9.1264e-10,8.8899e-10,8.6323e-10,8.3574e-10,8.0658e-10,7.7609e-10,7.4437e-10,7.1173e-10,6.7829e-10,6.4433e-10,6.0998e-10,5.7548e-10,5.4098e-10,5.0667e-10,4.7272e-10,4.3925e-10,4.0647e-10,3.7444e-10,3.4336e-10,3.1326e-10,2.8433e-10,2.5656e-10,2.3013e-10,2.05e-10,1.8135e-10,1.5909e-10,1.3837e-10,1.1911e-10,1.0143e-10,8.5211e-11,7.0575e-11,5.7382e-11,4.5728e-11,3.5465e-11,2.667e-11,1.9187e-11,1.3073e-11,8.169e-12,4.5133e-12,1.9485e-12,4.9508e-13,1.6207e-40,4.6763e-13,1.7527e-12,3.8449e-12,6.6093e-12,1.0023e-11,1.3963e-11,1.8397e-11,2.3215e-11,2.8376e-11,3.3785e-11,3.9395e-11,4.5127e-11,5.0927e-11,5.6736e-11,6.2494e-11,6.8158e-11,7.367e-11,7.8999e-11,8.4088e-11,8.892e-11,9.3442e-11,9.765e-11,1.0149e-10,1.0498e-10,1.0806e-10,1.1076e-10,1.1303e-10,1.149e-10,1.1633e-10,1.1736e-10,1.1796e-10,1.1817e-10,1.1796e-10,1.1739e-10,1.1642e-10,1.151e-10,1.1344e-10,1.1146e-10,1.0917e-10,1.0661e-10,1.0378e-10,1.0073e-10,9.7461e-11,9.4012e-11,9.0394e-11,8.6646e-11,8.278e-11,7.8829e-11,7.4811e-11,7.0752e-11,6.6673e-11,6.2597e-11,5.8544e-11,5.4532e-11,5.0583e-11,4.671e-11,4.2935e-11,3.9265e-11,3.5723e-11,3.2311e-11,2.9051e-11,2.5941e-11,2.3001e-11,2.0225e-11,1.7632e-11,1.5213e-11,1.2985e-11,1.0934e-11,9.0769e-12,7.3972e-12,5.9083e-12,4.5929e-12,3.4617e-12,2.4962e-12,1.7045e-12,1.0676e-12,5.9111e-13,2.5578e-13,6.5124e-14,2.9088e-41,6.1808e-14,2.3213e-13,5.1039e-13,8.7923e-13,1.3363e-12,1.8657e-12,2.4635e-12,3.1154e-12,3.8163e-12,4.5535e-12,5.3211e-12,6.1083e-12,6.9084e-12,7.7126e-12,8.5137e-12,9.3049e-12,1.0079e-11,1.083e-11,1.1552e-11,1.2242e-11,1.2892e-11,1.35e-11,1.4061e-11,1.4574e-11,1.5032e-11,1.5439e-11,1.5788e-11,1.6082e-11,1.6316e-11,1.6494e-11,1.6612e-11,1.6676e-11,1.668e-11,1.6632e-11,1.6527e-11,1.6374e-11,1.6169e-11,1.5919e-11,1.5623e-11,1.5287e-11,1.4911e-11,1.4501e-11,1.4057e-11,1.3586e-11,1.3089e-11,1.2571e-11,1.2033e-11,1.1481e-11,1.0917e-11,1.0344e-11,9.7666e-12,9.1871e-12,8.6086e-12,8.0339e-12,7.4663e-12,6.9076e-12,6.3613e-12,5.8286e-12,5.3127e-12,4.8143e-12,4.3366e-12,3.8795e-12,3.4462e-12,3.0359e-12,2.6516e-12,2.292e-12,1.9599e-12,1.6534e-12,1.375e-12,1.1226e-12,8.9828e-13,6.9957e-13,5.2821e-13,3.8157e-13,2.6102e-13,1.6378e-13,9.0841e-14,3.9381e-14,1.0043e-14,5.8701e-42,9.568e-15,3.5992e-14,7.9279e-14,1.3681e-13,2.083e-13,2.9131e-13,3.8533e-13,4.8813e-13,5.9898e-13,7.1593e-13,8.3805e-13,9.6368e-13,1.0918e-12,1.2209e-12,1.35e-12,1.478e-12,1.6036e-12,1.7262e-12,1.8443e-12,1.9577e-12,2.065e-12,2.1661e-12,2.2598e-12,2.3461e-12,2.424e-12,2.4937e-12,2.5543e-12,2.6061e-12,2.6484e-12,2.6817e-12,2.7053e-12,2.72e-12,2.7251e-12,2.7216e-12,2.709e-12,2.6881e-12,2.6587e-12,2.6218e-12,2.5771e-12,2.5257e-12,2.4675e-12,2.4035e-12,2.3337e-12,2.2591e-12,2.1798e-12,2.0968e-12,2.0102e-12,1.921e-12,1.8294e-12,1.7362e-12,1.6418e-12,1.5468e-12,1.4516e-12,1.3568e-12,1.2629e-12,1.1702e-12,1.0793e-12,9.9039e-13,9.041e-13,8.2054e-13,7.4023e-13,6.6322e-13,5.9003e-13,5.2057e-13,4.5535e-13,3.9419e-13,3.3757e-13,2.8521e-13,2.3754e-13,1.9422e-13,1.5564e-13,1.2139e-13,9.1788e-14,6.6406e-14,4.5491e-14,2.8585e-14,1.5878e-14,6.8935e-15,1.7603e-15,1.3043e-42,1.6823e-15,6.3369e-15,1.3978e-14,2.4155e-14,3.6831e-14,5.1583e-14,6.8328e-14,8.6679e-14,1.0652e-13,1.2749e-13,1.4945e-13,1.7209e-13,1.9524e-13,2.1865e-13,2.4211e-13,2.6542e-13,2.8838e-13,3.1084e-13,3.3259e-13,3.5351e-13,3.7341e-13,3.9222e-13,4.0975e-13,4.2599e-13,4.4074e-13,4.5402e-13,4.6567e-13,4.7577e-13,4.8414e-13,4.9089e-13,4.9588e-13,4.9924e-13,5.0085e-13,5.0089e-13,4.9921e-13,4.9603e-13,4.9126e-13,4.8508e-13,4.7744e-13,4.6854e-13,4.5834e-13,4.4703e-13,4.3462e-13,4.2128e-13,4.0702e-13,3.9203e-13,3.7634e-13,3.601e-13,3.4337e-13,3.2631e-13,3.0895e-13,2.9144e-13,2.7386e-13,2.5631e-13,2.3886e-13,2.2161e-13,2.0466e-13,1.8804e-13,1.7188e-13,1.5618e-13,1.4108e-13,1.2656e-13,1.1273e-13,9.9584e-14,8.7215e-14,7.5598e-14,6.4819e-14,5.4833e-14,4.5725e-14,3.7433e-14,3.0033e-14,2.3453e-14,1.7755e-14,1.2862e-14,8.8212e-15,5.5499e-15,3.0864e-15,1.3417e-15,3.4298e-16,3.1414e-43]};
+var E8={roots2:[[2,2,0,0,0,0,0,0],[2,-2,0,0,0,0,0,0],[-2,2,0,0,0,0,0,0],[-2,-2,0,0,0,0,0,0],[2,0,2,0,0,0,0,0],[2,0,-2,0,0,0,0,0],[-2,0,2,0,0,0,0,0],[-2,0,-2,0,0,0,0,0],[2,0,0,2,0,0,0,0],[2,0,0,-2,0,0,0,0],[-2,0,0,2,0,0,0,0],[-2,0,0,-2,0,0,0,0],[2,0,0,0,2,0,0,0],[2,0,0,0,-2,0,0,0],[-2,0,0,0,2,0,0,0],[-2,0,0,0,-2,0,0,0],[2,0,0,0,0,2,0,0],[2,0,0,0,0,-2,0,0],[-2,0,0,0,0,2,0,0],[-2,0,0,0,0,-2,0,0],[2,0,0,0,0,0,2,0],[2,0,0,0,0,0,-2,0],[-2,0,0,0,0,0,2,0],[-2,0,0,0,0,0,-2,0],[2,0,0,0,0,0,0,2],[2,0,0,0,0,0,0,-2],[-2,0,0,0,0,0,0,2],[-2,0,0,0,0,0,0,-2],[0,2,2,0,0,0,0,0],[0,2,-2,0,0,0,0,0],[0,-2,2,0,0,0,0,0],[0,-2,-2,0,0,0,0,0],[0,2,0,2,0,0,0,0],[0,2,0,-2,0,0,0,0],[0,-2,0,2,0,0,0,0],[0,-2,0,-2,0,0,0,0],[0,2,0,0,2,0,0,0],[0,2,0,0,-2,0,0,0],[0,-2,0,0,2,0,0,0],[0,-2,0,0,-2,0,0,0],[0,2,0,0,0,2,0,0],[0,2,0,0,0,-2,0,0],[0,-2,0,0,0,2,0,0],[0,-2,0,0,0,-2,0,0],[0,2,0,0,0,0,2,0],[0,2,0,0,0,0,-2,0],[0,-2,0,0,0,0,2,0],[0,-2,0,0,0,0,-2,0],[0,2,0,0,0,0,0,2],[0,2,0,0,0,0,0,-2],[0,-2,0,0,0,0,0,2],[0,-2,0,0,0,0,0,-2],[0,0,2,2,0,0,0,0],[0,0,2,-2,0,0,0,0],[0,0,-2,2,0,0,0,0],[0,0,-2,-2,0,0,0,0],[0,0,2,0,2,0,0,0],[0,0,2,0,-2,0,0,0],[0,0,-2,0,2,0,0,0],[0,0,-2,0,-2,0,0,0],[0,0,2,0,0,2,0,0],[0,0,2,0,0,-2,0,0],[0,0,-2,0,0,2,0,0],[0,0,-2,0,0,-2,0,0],[0,0,2,0,0,0,2,0],[0,0,2,0,0,0,-2,0],[0,0,-2,0,0,0,2,0],[0,0,-2,0,0,0,-2,0],[0,0,2,0,0,0,0,2],[0,0,2,0,0,0,0,-2],[0,0,-2,0,0,0,0,2],[0,0,-2,0,0,0,0,-2],[0,0,0,2,2,0,0,0],[0,0,0,2,-2,0,0,0],[0,0,0,-2,2,0,0,0],[0,0,0,-2,-2,0,0,0],[0,0,0,2,0,2,0,0],[0,0,0,2,0,-2,0,0],[0,0,0,-2,0,2,0,0],[0,0,0,-2,0,-2,0,0],[0,0,0,2,0,0,2,0],[0,0,0,2,0,0,-2,0],[0,0,0,-2,0,0,2,0],[0,0,0,-2,0,0,-2,0],[0,0,0,2,0,0,0,2],[0,0,0,2,0,0,0,-2],[0,0,0,-2,0,0,0,2],[0,0,0,-2,0,0,0,-2],[0,0,0,0,2,2,0,0],[0,0,0,0,2,-2,0,0],[0,0,0,0,-2,2,0,0],[0,0,0,0,-2,-2,0,0],[0,0,0,0,2,0,2,0],[0,0,0,0,2,0,-2,0],[0,0,0,0,-2,0,2,0],[0,0,0,0,-2,0,-2,0],[0,0,0,0,2,0,0,2],[0,0,0,0,2,0,0,-2],[0,0,0,0,-2,0,0,2],[0,0,0,0,-2,0,0,-2],[0,0,0,0,0,2,2,0],[0,0,0,0,0,2,-2,0],[0,0,0,0,0,-2,2,0],[0,0,0,0,0,-2,-2,0],[0,0,0,0,0,2,0,2],[0,0,0,0,0,2,0,-2],[0,0,0,0,0,-2,0,2],[0,0,0,0,0,-2,0,-2],[0,0,0,0,0,0,2,2],[0,0,0,0,0,0,2,-2],[0,0,0,0,0,0,-2,2],[0,0,0,0,0,0,-2,-2],[1,1,1,1,1,1,1,1],[1,1,1,1,1,1,-1,-1],[1,1,1,1,1,-1,1,-1],[1,1,1,1,1,-1,-1,1],[1,1,1,1,-1,1,1,-1],[1,1,1,1,-1,1,-1,1],[1,1,1,1,-1,-1,1,1],[1,1,1,1,-1,-1,-1,-1],[1,1,1,-1,1,1,1,-1],[1,1,1,-1,1,1,-1,1],[1,1,1,-1,1,-1,1,1],[1,1,1,-1,1,-1,-1,-1],[1,1,1,-1,-1,1,1,1],[1,1,1,-1,-1,1,-1,-1],[1,1,1,-1,-1,-1,1,-1],[1,1,1,-1,-1,-1,-1,1],[1,1,-1,1,1,1,1,-1],[1,1,-1,1,1,1,-1,1],[1,1,-1,1,1,-1,1,1],[1,1,-1,1,1,-1,-1,-1],[1,1,-1,1,-1,1,1,1],[1,1,-1,1,-1,1,-1,-1],[1,1,-1,1,-1,-1,1,-1],[1,1,-1,1,-1,-1,-1,1],[1,1,-1,-1,1,1,1,1],[1,1,-1,-1,1,1,-1,-1],[1,1,-1,-1,1,-1,1,-1],[1,1,-1,-1,1,-1,-1,1],[1,1,-1,-1,-1,1,1,-1],[1,1,-1,-1,-1,1,-1,1],[1,1,-1,-1,-1,-1,1,1],[1,1,-1,-1,-1,-1,-1,-1],[1,-1,1,1,1,1,1,-1],[1,-1,1,1,1,1,-1,1],[1,-1,1,1,1,-1,1,1],[1,-1,1,1,1,-1,-1,-1],[1,-1,1,1,-1,1,1,1],[1,-1,1,1,-1,1,-1,-1],[1,-1,1,1,-1,-1,1,-1],[1,-1,1,1,-1,-1,-1,1],[1,-1,1,-1,1,1,1,1],[1,-1,1,-1,1,1,-1,-1],[1,-1,1,-1,1,-1,1,-1],[1,-1,1,-1,1,-1,-1,1],[1,-1,1,-1,-1,1,1,-1],[1,-1,1,-1,-1,1,-1,1],[1,-1,1,-1,-1,-1,1,1],[1,-1,1,-1,-1,-1,-1,-1],[1,-1,-1,1,1,1,1,1],[1,-1,-1,1,1,1,-1,-1],[1,-1,-1,1,1,-1,1,-1],[1,-1,-1,1,1,-1,-1,1],[1,-1,-1,1,-1,1,1,-1],[1,-1,-1,1,-1,1,-1,1],[1,-1,-1,1,-1,-1,1,1],[1,-1,-1,1,-1,-1,-1,-1],[1,-1,-1,-1,1,1,1,-1],[1,-1,-1,-1,1,1,-1,1],[1,-1,-1,-1,1,-1,1,1],[1,-1,-1,-1,1,-1,-1,-1],[1,-1,-1,-1,-1,1,1,1],[1,-1,-1,-1,-1,1,-1,-1],[1,-1,-1,-1,-1,-1,1,-1],[1,-1,-1,-1,-1,-1,-1,1],[-1,1,1,1,1,1,1,-1],[-1,1,1,1,1,1,-1,1],[-1,1,1,1,1,-1,1,1],[-1,1,1,1,1,-1,-1,-1],[-1,1,1,1,-1,1,1,1],[-1,1,1,1,-1,1,-1,-1],[-1,1,1,1,-1,-1,1,-1],[-1,1,1,1,-1,-1,-1,1],[-1,1,1,-1,1,1,1,1],[-1,1,1,-1,1,1,-1,-1],[-1,1,1,-1,1,-1,1,-1],[-1,1,1,-1,1,-1,-1,1],[-1,1,1,-1,-1,1,1,-1],[-1,1,1,-1,-1,1,-1,1],[-1,1,1,-1,-1,-1,1,1],[-1,1,1,-1,-1,-1,-1,-1],[-1,1,-1,1,1,1,1,1],[-1,1,-1,1,1,1,-1,-1],[-1,1,-1,1,1,-1,1,-1],[-1,1,-1,1,1,-1,-1,1],[-1,1,-1,1,-1,1,1,-1],[-1,1,-1,1,-1,1,-1,1],[-1,1,-1,1,-1,-1,1,1],[-1,1,-1,1,-1,-1,-1,-1],[-1,1,-1,-1,1,1,1,-1],[-1,1,-1,-1,1,1,-1,1],[-1,1,-1,-1,1,-1,1,1],[-1,1,-1,-1,1,-1,-1,-1],[-1,1,-1,-1,-1,1,1,1],[-1,1,-1,-1,-1,1,-1,-1],[-1,1,-1,-1,-1,-1,1,-1],[-1,1,-1,-1,-1,-1,-1,1],[-1,-1,1,1,1,1,1,1],[-1,-1,1,1,1,1,-1,-1],[-1,-1,1,1,1,-1,1,-1],[-1,-1,1,1,1,-1,-1,1],[-1,-1,1,1,-1,1,1,-1],[-1,-1,1,1,-1,1,-1,1],[-1,-1,1,1,-1,-1,1,1],[-1,-1,1,1,-1,-1,-1,-1],[-1,-1,1,-1,1,1,1,-1],[-1,-1,1,-1,1,1,-1,1],[-1,-1,1,-1,1,-1,1,1],[-1,-1,1,-1,1,-1,-1,-1],[-1,-1,1,-1,-1,1,1,1],[-1,-1,1,-1,-1,1,-1,-1],[-1,-1,1,-1,-1,-1,1,-1],[-1,-1,1,-1,-1,-1,-1,1],[-1,-1,-1,1,1,1,1,-1],[-1,-1,-1,1,1,1,-1,1],[-1,-1,-1,1,1,-1,1,1],[-1,-1,-1,1,1,-1,-1,-1],[-1,-1,-1,1,-1,1,1,1],[-1,-1,-1,1,-1,1,-1,-1],[-1,-1,-1,1,-1,-1,1,-1],[-1,-1,-1,1,-1,-1,-1,1],[-1,-1,-1,-1,1,1,1,1],[-1,-1,-1,-1,1,1,-1,-1],[-1,-1,-1,-1,1,-1,1,-1],[-1,-1,-1,-1,1,-1,-1,1],[-1,-1,-1,-1,-1,1,1,-1],[-1,-1,-1,-1,-1,1,-1,1],[-1,-1,-1,-1,-1,-1,1,1],[-1,-1,-1,-1,-1,-1,-1,-1]],proj:[[-0.1045,-0.4918],[0.1045,0.3217],[-0.1045,-0.3217],[0.1045,0.4918],[-0.1691,-0.2929],[0.1691,0.1229],[-0.1691,-0.1229],[0.1691,0.2929],[-0.191,-0.085],[0.191,-0.085],[-0.191,0.085],[0.191,0.085],[-0.1691,0.1229],[0.1691,-0.2929],[-0.1691,0.2929],[0.1691,-0.1229],[-0.1045,0.3217],[0.1045,-0.4918],[-0.1045,0.4918],[0.1045,-0.3217],[-0.0,0.5028],[0.0,-0.6728],[-0.0,0.6728],[0.0,-0.5028],[-0.809,-0.085],[0.809,-0.085],[-0.809,0.085],[0.809,0.085],[-0.2737,-0.6146],[0.0646,-0.1988],[-0.0646,0.1988],[0.2737,0.6146],[-0.2955,-0.4067],[0.0865,-0.4067],[-0.0865,0.4067],[0.2955,0.4067],[-0.2737,-0.1988],[0.0646,-0.6146],[-0.0646,0.6146],[0.2737,0.1988],[-0.2091,-0.0],[0.0,-0.8135],[-0.0,0.8135],[0.2091,0.0],[-0.1045,0.181],[-0.1045,-0.9945],[0.1045,0.9945],[0.1045,-0.181],[-0.9135,-0.4067],[0.7045,-0.4067],[-0.7045,0.4067],[0.9135,0.4067],[-0.3601,-0.2079],[0.0219,-0.2079],[-0.0219,0.2079],[0.3601,0.2079],[-0.3383,-0.0],[0.0,-0.4158],[-0.0,0.4158],[0.3383,0.0],[-0.2737,0.1988],[-0.0646,-0.6146],[0.0646,0.6146],[0.2737,-0.1988],[-0.1691,0.3799],[-0.1691,-0.7957],[0.1691,0.7957],[0.1691,-0.3799],[-0.9781,-0.2079],[0.6399,-0.2079],[-0.6399,0.2079],[0.9781,0.2079],[-0.3601,0.2079],[-0.0219,-0.2079],[0.0219,0.2079],[0.3601,-0.2079],[-0.2955,0.4067],[-0.0865,-0.4067],[0.0865,0.4067],[0.2955,-0.4067],[-0.191,0.5878],[-0.191,-0.5878],[0.191,0.5878],[0.191,-0.5878],[-1.0,-0.0],[0.618,0.0],[-0.618,-0.0],[1.0,0.0],[-0.2737,0.6146],[-0.0646,-0.1988],[0.0646,0.1988],[0.2737,-0.6146],[-0.1691,0.7957],[-0.1691,-0.3799],[0.1691,0.3799],[0.1691,-0.7957],[-0.9781,0.2079],[0.6399,0.2079],[-0.6399,-0.2079],[0.9781,-0.2079],[-0.1045,0.9945],[-0.1045,-0.181],[0.1045,0.181],[0.1045,-0.9945],[-0.9135,0.4067],[0.7045,0.4067],[-0.7045,-0.4067],[0.9135,-0.4067],[-0.809,0.5878],[0.809,0.5878],[-0.809,-0.5878],[0.809,-0.5878],[-0.7737,0.2514],[0.0354,-0.3364],[0.1399,-0.1554],[-0.6691,-0.7431],[0.2045,0.0435],[-0.6045,-0.5443],[-0.5,-0.3633],[0.309,-0.9511],[0.2263,0.2514],[-0.5827,-0.3364],[-0.4781,-0.1554],[0.3309,-0.7431],[-0.4135,0.0435],[0.3955,-0.5443],[0.5,-0.3633],[-0.309,-0.9511],[0.2045,0.4593],[-0.6045,-0.1285],[-0.5,0.0526],[0.309,-0.5352],[-0.4354,0.2514],[0.3736,-0.3364],[0.4781,-0.1554],[-0.3309,-0.7431],[-0.4135,0.4593],[0.3955,-0.1285],[0.5,0.0526],[-0.309,-0.5352],[0.5646,0.2514],[-0.2444,-0.3364],[-0.1399,-0.1554],[0.6691,-0.7431],[0.1399,0.6581],[-0.6691,0.0703],[-0.5646,0.2514],[0.2444,-0.3364],[-0.5,0.4502],[0.309,-0.1376],[0.4135,0.0435],[-0.3955,-0.5443],[-0.4781,0.6581],[0.3309,0.0703],[0.4354,0.2514],[-0.3736,-0.3364],[0.5,0.4502],[-0.309,-0.1376],[-0.2045,0.0435],[0.6045,-0.5443],[-0.5,0.866],[0.309,0.2782],[0.4135,0.4593],[-0.3955,-0.1285],[0.4781,0.6581],[-0.3309,0.0703],[-0.2263,0.2514],[0.5827,-0.3364],[0.5,0.866],[-0.309,0.2782],[-0.2045,0.4593],[0.6045,-0.1285],[-0.1399,0.6581],[0.6691,0.0703],[0.7737,0.2514],[-0.0354,-0.3364],[0.0354,0.3364],[-0.7737,-0.2514],[-0.6691,-0.0703],[0.1399,-0.6581],[-0.6045,0.1285],[0.2045,-0.4593],[0.309,-0.2782],[-0.5,-0.866],[-0.5827,0.3364],[0.2263,-0.2514],[0.3309,-0.0703],[-0.4781,-0.6581],[0.3955,0.1285],[-0.4135,-0.4593],[-0.309,-0.2782],[0.5,-0.866],[-0.6045,0.5443],[0.2045,-0.0435],[0.309,0.1376],[-0.5,-0.4502],[0.3736,0.3364],[-0.4354,-0.2514],[-0.3309,-0.0703],[0.4781,-0.6581],[0.3955,0.5443],[-0.4135,-0.0435],[-0.309,0.1376],[0.5,-0.4502],[-0.2444,0.3364],[0.5646,-0.2514],[0.6691,-0.0703],[-0.1399,-0.6581],[-0.6691,0.7431],[0.1399,0.1554],[0.2444,0.3364],[-0.5646,-0.2514],[0.309,0.5352],[-0.5,-0.0526],[-0.3955,0.1285],[0.4135,-0.4593],[0.3309,0.7431],[-0.4781,0.1554],[-0.3736,0.3364],[0.4354,-0.2514],[-0.309,0.5352],[0.5,-0.0526],[0.6045,0.1285],[-0.2045,-0.4593],[0.309,0.9511],[-0.5,0.3633],[-0.3955,0.5443],[0.4135,-0.0435],[-0.3309,0.7431],[0.4781,0.1554],[0.5827,0.3364],[-0.2263,-0.2514],[-0.309,0.9511],[0.5,0.3633],[0.6045,0.5443],[-0.2045,-0.0435],[0.6691,0.7431],[-0.1399,0.1554],[-0.0354,0.3364],[0.7737,-0.2514]]};
+var EUCLID={refs:[[3,8],[3,10],[1,7,10,11],[3,9,11],[12,13,0,1,7],[1],[4,8],[4],[1,7,10,11],[6,8,16],[3,5,7,8,18,19],[0,7,9,10,11,18,19],[4,7],[22,1,3,5,7],[0,4,11,15,19],[1,3,10],[3,11,16,24],[0,2,4,11,13,15,18,19,25],[3,10,11,18,21],[0,3,9,10,11,12],[7,10,11,15,18,20,22,24,26],[0,3,10],[9,10],[0,2,4,18],[3],[10,15,18,22],[3,9,10,11,17,18,23,24],[5],[0,5,9,11,16,18,19,20,23],[7,8,9,15,16],[1,3,4,8],[10,13,40],[11,18,21,25,38],[10,11,18,22,28],[9,10,12,16,18,19],[11,18,36],[6,9],[2,9,18],[11,15,16,19,22,25,29,32,33,36,40,46],[11,18,24,39],[15,33,34],[19,25,34],[0],[19,34,38,48,52],[10,15,22,25,34,52],[10,46,52],[12,16,18,34,38,47],[10,11,12,13,16,24,34,46],[6,8,11,15,21,34],[6,13,19,28,34,40],[11,16,18,23,34],[1,6,11,17],[15],[10,11,15,18,19],[10,18,33,39,47,52],[12,13,19,22,34,47,60],[24,52],[11,34,47],[42,51,54],[11,23,39,45,46],[50,51,54,60,67],[35,41,51,55],[8],[24],[19,21],[16,18,20,25,33,51,58,59],[15,16,72],[19],[11,18,19,22,34,38,47,51],[11,16,20,23,24,25,28,46,47,52],[10,21,24,38,52],[15,18,24,26,41,52],[25,38],[11],[10,24,27,48,52],[15,16,22,25,39,50],[26,29,35,47],[11,18,24,40,47],[18,23,36,47],[13,16,18,24,47,82],[18,29,33,39,81],[52],[16,34,37,40,72],[10,18,32,51,92],[11,24],[16,18,19,46,52,89],[18,24,51],[22,34,52,58,96],[16,21,36,39,47,51],[11,15,18,20,89],[22,32,60],[42,79,93],[22,24,31,34,39,46,52,96,97],[23],[46,52],[51,62,90,104],[35,51,57,63,81,96,97,99],[35,54,93,104],[48,51,60,71,87,105],[12,20,58,72],[22,25,34,59],[16],[15,29,40,89],[18,40,52],[12,19,33,34,36,109],[51,82,91,96,114],[43,54,83,91,99],[18,44,92],[60,73],[82,98],[43,45,95],[83,120],[48,71,81,97,110,121],[54,81,89,106],[81,86,89,91,99],[2,10,34],[4,5,10,18,24,61],[5,6,19],[9,16,18,21],[4,9],[10,11,12,19,22,23],[5,7,21,36],[0,1,4,5,52],[2,8,9,10,11,19,23,31,36,52],[8,9,10,11,18,34,52,128],[0,2],[2,5,127],[11,22,61,96],[9,10],[29,34,46],[23,36,52,110],[21,34,47,109,114,129],[29,47,91,95,129],[28,52,87],[12,17,18,97],[11,34],[12,25,61,128],[36,129],[10,47,99,127],[36,148],[11,19,45,52,78,127],[128],[20,23,110],[10,23,138],[32,44,89,110,127],[34,47,75,114,137],[22,47,134,155],[42,52,128],[46,59],[23,51,52,72,136,150],[34],[23,34,36,54,59,127,134,136],[128],[13,72],[110,152,159],[37,72,131,141],[29,36,96,128,129,137,155],[23,25,96,152],[10,19,72,73,104,114,125,126,127,146],[23],[18,127],[87,163],[91,93,111,113,120],[28,110,155],[24,39,81,150],[65,80,111,123],[150,163],[79,152,173],[32,34,95,96,125,159],[115,123,172],[145,152,156,178],[92],[71,108,116,120,123,175,176],[7,9,24,125,128,134],[3],[0,2],[1,7,8],[3,6,8,127,135,183],[2,13,16,135,136,184],[2,5,7,186],[0,1,3,24,36,184,187],[4,9],[36,52,73,155,191],[7],[0,6,185,186,187],[21,127,165,183,184,186,189,194],[1,7],[0,4,8,39,183,185],[0,1,6,72,185,188],[0,3],[11,32,52,185,187,189],[1,3,6,185,186,187,198],[7,183,189],[128,187,198],[190],[127,187,190],[128,184,186,194],[3,183,201],[1,2,4,7],[46,126,189],[185,189,195],[2,3,186,198],[184,211],[183,191,198],[127,185,186,203,204,208],[187,195,207],[185,186,191,192,194,211],[190,199,203],[23,136,183,185,188,189,191,192,211,213],[211],[185,193,200,208,214],[23,189],[201,208],[185,189,194,201],[52,127,128,201],[187,191],[183,189,209,214,215],[127,199],[191,196,199,202],[132,185,189,190,194,199,201,208,222],[91,173,192,195,203,213,216,219,227,228],[191,211],[184,189,191,200,201,202,208,210,211],[185],[52,186,198,202],[183,185,208],[129,132,183,191,201,216,224],[201,204,207,208,211],[189,194,195,208,211,227],[187,211],[183,184,185,191,202],[215,219,225,240],[198,207,211],[184,193],[200,213,215,219],[166,192,210,213,214,218,219,225,240,242],[209,215,219,238],[97,203,236,238,242],[204,206,213],[184,191,203],[92,187,190,191,192,201,216],[188,198,204,208,211,213],[186,211],[186,187,201],[211],[190,196],[96,184,189,198,201,211,219,251],[186,191,198,211,228],[186],[184,189,198],[146,189,190,196],[211],[191,198,201,207,226,261],[185,189,201,253],[16,199],[131,135,183,207],[189,191,197,234],[252,257],[229],[235,240],[203,219,239,248,254],[183,194,199,204,215,253,261],[188,189,204,259],[200,213,219,228],[189,191,208,215],[215,262],[195,203,206,214,221,237,254,268],[208,219,227],[191,193,199,242],[225,239,259],[213],[195,203,216,226,263],[258,261],[180,241,269,275,279,280],[236,266],[34,201],[201,219],[185,186,189,198,201,215,235,260],[183,187,189,204,223,234,251],[185,186,187,190,196,197,208,211,255,258,262],[206,208,211,256,266,278],[189,191,289],[201],[184,190,198,249],[183,207,228,259,263,277],[190,198,202,242,292],[184,201,208,215,274],[187,198],[189,201],[211,274],[39,184],[44,137,184,203,208,211,250,274],[194,195,208,239,293],[184,263],[197,213],[186,198,256],[208,211,251],[189,201,271,289],[185,221],[187,189,191,201],[187,190,194,201,204,293,304],[189,223,254,302],[191,193,211,256,295,304],[46,186,189,190,201,211,215,226,298],[187,191,198,208,211,224,237,300,303],[190,208],[194,208,293,307],[186,189,194,213],[252,290,292,311],[219],[184,186,201,208,209,211,254,293,303,306,309],[194,198,201,208,262,299],[199,201,215,264,278,285],[185],[186,194,207,304,311],[183,186,194,198,200,211],[183,188,194,227,292],[254,302,321],[201],[187,191,199,208,227,250,264,298,303],[278,293,307,320,325,328],[262,307,325],[215,222,242,273,278,299,311,316],[226,238,240,263],[192,195,228,255,287,298,305,313,317,321,322],[214,216],[219,226,304],[183,187,189,295],[213,329],[194,208,211,238],[188,292],[191,278],[228,254,289,304,310,313,314],[322,323,325],[226,307,328],[186,262,298],[258,265,268,271,291,298,311,320,326,341],[213,231,242,253,307,319,326],[213,221,240,263,264,295,307,311,326,339],[235,274,278,291,310],[213,262,293],[264,304,317,339],[264,286,303,307,345],[191],[319,320,339],[192,206],[194,313,341,345],[216,298],[186,189,211,311,312,326,341],[211,300],[226,227,254,292,319,320],[242],[195,242,251,298,306,317,325,329],[243,260,268,321,334,341],[239,252,260,271,279,287,294,353,360],[63],[303,306,341,364],[256,321],[237,293,323],[302],[234,242,287,293,296,299,305,311,321,338,360],[271,295,298,304,310,316,341,356],[238,260,290,333,368],[204,260,266,278,300,310,342],[234,298,329],[223,304,319,321,329,367],[301,361],[184],[188,189,191,198,216,227,307],[259,306,353],[304],[348,371],[279,350],[357],[239,254,271,360],[292,293,307,315],[343,365],[325],[279,327,364,370,371,387],[331,333,334,367,372,379,385],[343,364],[331,342,380],[311],[227,291,323],[219,223,226,227,305,311,319,340,342],[180,279,343,364,394],[333,357,360,372,385,387],[280,342,343,361,362,376,387],[332,342,343,351,364,366,385,397],[336,350,355,360],[186,189,190,191,195,203,211,218,293,311,314,316,320,345],[198,201,209,400],[0,4,8,198,208],[201,254,263,400,402],[208,256,323],[211],[207,295,328,401,403],[183,201,339,400,401],[298,310,339,402],[339,402,406,408],[307,329,400,402,403,407],[400,402,410],[263,278,285,353,356,400,401,402,403,408],[402,406],[402,403,405,410],[185,211,408,414],[402,410],[211,402,403,413],[291,306,325,328,401,402,403,407,409,413],[402,403,405,415],[134,300,400,401,402,404,413,414,416],[198,402,405,407,410,420],[400,402,407],[402,408,410],[400,402,408,410,419],[403,407,417],[289,403,405,408,409,416,422],[294,323,401,402,410,413,415,418],[402,405,406,418],[401,408,418],[393,406,414],[298,339,403,408,409,410,415],[402,403,416],[408],[418],[263,353,360,409,415,417,428],[266,400,402,405,407,408,409,415],[362,411,416,428],[400,407,413,415,416,422],[401,402,408,413],[402,408],[402,403,405,411,416],[405,418],[402,407,410,416,428],[401,403,418],[401,403,407,413,436],[404,406,410,421],[400,401,418,419,422],[422],[430,433,437,445,446],[430,442],[334,376,386,431,437],[450,451],[360],[384,389,433,435,437,438,445,450],[268,342,357,360,362,368,379,430,433,434,435,437,438,442,444,445,446,447,448,450,454],[455,440,138,140],[321,373,404,407,437,446],[307,311],[311,407,408,409],[405,408,416,423,428],[433,434,438,445,447,460],[407,413,416,419],[413,414,415,428],[401,418],[400,403,412,414,416,462],[410,423],[437,447,461,465],[396,398,450,453],[333,419,432,439],[343,429,430,433,437,438,447,448,463],[382,450,454,455,461],[435,445,446,460,465],[449,450,455],[449,453,454,455,471,473]],dist:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,1,1,1,1,1,2,2,2,1,2,1,1,2,2,2,2,1,2,2,2,2,2,1,1,2,1,2,2,2,2,2,2,3,2,3,3,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,2,2,2,3,3,3,3,2,2,2,2,2,2,3,3,2,3,3,3,3,3,3,3,1,1,1,1,1,2,1,1,1,1,1,1,2,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,2,2,2,2,2,2,3,3,2,2,3,3,3,2,4,3,3,4,1,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,2,1,1,2,2,2,2,1,1,2,2,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,2,2,2,2,2,2,2,2,2,2,3,2,2,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,2,2,3,2,3,3,2,2,3,3,3,3,4,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,3,2,2,2,2,2,2,2,3,2,2,3,3,3,3,3,3,3,2,3,2,2,2,3,3,3,2,3,3,3,3,3,3,3,2,3,3,2,3,2,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,3,3,4,4,4,3,3,4,3,4,4,4,4,3,3,3,4,4,4,4,4,2,2,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,3,2,2,3,3,3,2,3,3,3,2,3,3,2,2,2,3,2,3,3,3,3,3,4,4,4,5,4,4,4,2,3,3,3,3,4,3,3,3,3,3,4,5,3,4,5,4,5,5]};
+</script>
+<script>
+(function(){
+'use strict';
+var AC = window.AudioContext || window.webkitAudioContext;
+var ctx = null, running = false;
+var N = {};
+var BUFSIZE = 2048;
+var TAU = Math.PI * 2;
+function $(id){ return document.getElementById(id); }
+function clamp(x, a, b){ return x < a ? a : (x > b ? b : x); }
+function logMap(v, lo, hi){ return lo * Math.pow(hi / lo, v); }
+
+// ===================================================================
+// THEMES (house family) + book colours
+// ===================================================================
+var THEMES = [
+  { name:'VOID',     dark:1, bg:'#0a0a0c', panel:'#101014', line:'#24242e', fg:'#c9c9ce', dim:'#7a7a86', faint:'#2c2c36', acc:'#ffb347', acc2:'#47d7ff', acc3:'#ffe66d', ghost:'#ff5566', good:'#3ddc84', bad:'#ff4d5e' },
+  { name:'DUSK',     dark:1, bg:'#0d0a14', panel:'#171226', line:'#2f2346', fg:'#e8e2f5', dim:'#9a8bb5', faint:'#3a2f52', acc:'#ff6ec7', acc2:'#34e5c8', acc3:'#ffd23f', ghost:'#ff5e7e', good:'#4be3a0', bad:'#ff5e7e' },
+  { name:'NEON',     dark:1, bg:'#0a0014', panel:'#150726', line:'#34115a', fg:'#f5eaff', dim:'#b394d6', faint:'#3d1d63', acc:'#ff2e88', acc2:'#00f0ff', acc3:'#c6ff00', ghost:'#ff3860', good:'#5dff9d', bad:'#ff3860' },
+  { name:'CANDY',    dark:0, bg:'#fff4fb', panel:'#ffffff', line:'#f7b6db', fg:'#3a1249', dim:'#8e4ea1', faint:'#ffd9ef', acc:'#ff3d81', acc2:'#0089c2', acc3:'#c97f00', ghost:'#ff5c8a', good:'#0a8f4f', bad:'#d4002a' },
+  { name:'FUNHOUSE', dark:0, bg:'#fff9e6', panel:'#ffffff', line:'#ff006e', fg:'#14003d', dim:'#b8410a', faint:'#f3d98a', acc:'#ff006e', acc2:'#2a76ef', acc3:'#00a86b', ghost:'#ff4d00', good:'#0a8f4f', bad:'#d4002a' }
+];
+var curTheme = THEMES[4], themeIdx = 4;
+var BOOKCOL = [];
+function hexToRgb(h){ return parseInt(h.substr(1,2),16) + ',' + parseInt(h.substr(3,2),16) + ',' + parseInt(h.substr(5,2),16); }
+function rgba(h, a){ return 'rgba(' + hexToRgb(h) + ',' + a + ')'; }
+function makeBookColours(){
+  // 2D geometry books 1-6: red -> yellow-green; numbers 7-10: teal -> blue; 3D 11-13: violet -> magenta
+  var hues = [0, 22, 40, 56, 78, 104, 168, 188, 208, 228, 268, 292, 318], i, L = curTheme.dark ? 62 : 44, S = curTheme.dark ? 88 : 92;
+  BOOKCOL = [];
+  for (i = 0; i < 13; i++) BOOKCOL.push('hsl(' + hues[i] + ',' + S + '%,' + L + '%)');
+}
+function applyTheme(idx){
+  themeIdx = idx; curTheme = THEMES[idx];
+  var r = document.documentElement.style, k, keys = ['bg','panel','line','fg','dim','faint','acc','acc2','acc3','ghost','good','bad'];
+  for (k = 0; k < keys.length; k++) r.setProperty('--' + keys[k], curTheme[keys[k]]);
+  r.setProperty('color-scheme', curTheme.dark ? 'dark' : 'light');
+  makeBookColours();
+  try { localStorage.setItem('proofHorizonTheme', String(idx)); } catch (e) {}
+  var row = $('themerow'), i;
+  for (i = 0; i < row.children.length; i++){ row.children[i].className = 'swatch' + (i === idx ? ' on' : ''); row.children[i].setAttribute('aria-pressed', i === idx ? 'true' : 'false'); }
+  staticDirty = true;
+}
+var staticDirty = true;
+(function(){
+  var row = $('themerow'), i;
+  for (i = 0; i < THEMES.length; i++){
+    (function(i){
+      var b = document.createElement('button');
+      b.className = 'swatch'; b.textContent = THEMES[i].name; b.style.background = THEMES[i].acc;
+      b.addEventListener('click', function(){ applyTheme(i); });
+      row.appendChild(b);
+    })(i);
+  }
+  var saved = -1;
+  try { var sv = localStorage.getItem('proofHorizonTheme'); if (sv !== null) saved = parseInt(sv, 10); } catch (e) {}
+  if (!(saved >= 0 && saved < THEMES.length)){
+    var darkPref = false;
+    try { darkPref = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    saved = darkPref ? 0 : 4;
+  }
+  applyTheme(saved);
+})();
+
+// ===================================================================
+// DATA: Euclid, E8, magic function
+// ===================================================================
+var BOOKS = [48,14,37,16,25,33,39,27,36,115,39,18,18];
+var AXN = ['P1','P2','P3','P4','P5','CN1','CN2','CN3','CN4','CN5'];
+var TH = [];
+(function(){
+  var b, i, k = 0;
+  for (b = 0; b < 13; b++) for (i = 1; i <= BOOKS[b]; i++){
+    TH.push({ name:(b + 1) + '.' + i, book:b, refs:EUCLID.refs[k], dist:EUCLID.dist[k] });
+    k++;
+  }
+})();
+var NTH = TH.length;
+var BOOKSTART = []; (function(){ var s = 0, b; for (b = 0; b < 13; b++){ BOOKSTART.push(s); s += BOOKS[b]; } })();
+function refName(r){ return r < 10 ? AXN[r] : TH[r - 10].name; }
+var coneCache = {};
+function coneOf(k){                       // backward light cone: every theorem k rests on, in proof order
+  if (coneCache[k]) return coneCache[k];
+  var seen = {}, stack = [k], out = [], j, r, t;
+  while (stack.length){
+    t = stack.pop();
+    for (j = 0; j < TH[t].refs.length; j++){
+      r = TH[t].refs[j];
+      if (r >= 10 && !seen[r - 10]){ seen[r - 10] = 1; stack.push(r - 10); }
+    }
+  }
+  for (j in seen) out.push(+j);
+  out.sort(function(a, b){ return a - b; });
+  out.push(k);
+  coneCache[k] = out;
+  return out;
+}
+
+var ROOTS2 = E8.roots2;                   // 240 roots, coordinates x2 (integers): 112 integer roots, then 128 half-integer
+var PROJ = E8.proj;
+var MG = new Float32Array(MAGIC.g), MGH = new Float32Array(MAGIC.gh), MN = MAGIC.n, MS1 = MAGIC.s1;
+var SHMAXG = [], SHMAXGH = [];
+(function(){
+  var k, i, s, mg, mh;
+  for (k = 0; k < 10; k++){
+    mg = 0; mh = 0;
+    for (i = 0; i < MN; i++){
+      s = i * MS1 / (MN - 1);
+      if (s >= 2 * k && s <= 2 * k + 2){ mg = Math.max(mg, Math.abs(MG[i])); mh = Math.max(mh, Math.abs(MGH[i])); }
+    }
+    SHMAXG.push(mg || 1); SHMAXGH.push(mh || 1);
+  }
+})();
+// Cohn-Elkies sign conditions, re-checked on the shipped table at load
+var MAGIC_OK = (function(){
+  var i, s, ok = true;
+  for (i = 0; i < MN; i++){ s = i * MS1 / (MN - 1); if (s >= 2 && MG[i] > 1e-12) ok = false; if (MGH[i] < -1e-12) ok = false; }
+  return ok && Math.abs(MG[0] - 1) < 1e-6 && Math.abs(MGH[0] - 1) < 1e-6;
+})();
+var magicTail = 0.7;
+function magicAt(tab, maxes, s){           // s = r^2, TAIL rescales each shell toward its own peak
+  if (s <= 0) return tab[0];
+  if (s >= MS1) return 0;
+  var x = s * (MN - 1) / MS1, i0 = x | 0, f = x - i0;
+  var v = tab[i0] * (1 - f) + tab[i0 + 1] * f;
+  var sh = (s / 2) | 0; if (sh > 9) sh = 9;
+  return magicTail > 0 ? v / Math.pow(maxes[sh], magicTail) : v;
+}
+
+// sigma_3 for the theta bed: E8 theta series = E4 = 1 + 240 sum sigma3(n) q^n
+function sigma3(n){ var s = 0, d; for (d = 1; d <= n; d++) if (n % d === 0) s += d * d * d; return s; }
+var NTHETA = 12, THETA_RATIO = [];
+(function(){ var n; for (n = 1; n <= NTHETA; n++) THETA_RATIO.push(sigma3(n) / (n * n * n)); })();
+
+// ===================================================================
+// PARAMETERS
+// ===================================================================
+var P = {
+  order:0, rate:2.5, maxv:5, root:110, voicing:0, unit:2, range:2, theta:0.18, contrast:12,
+  shells:4, tail:0.7, sign:1,
+  sys:1, flux:1, lim:2, init:0, strike:0, cfl:0.9, evo:60, amp:1, wmix:0.8,
+  spin:0.5, gamma:4/3, temp:0.12, r0:30, fall:12, red:0.8, drag:12, sonic:0.5,
+  width:0.85, echoT:0.33, echoFb:0.45, echoMix:0.3, out:0.7
+};
+
+// ===================================================================
+// HORIZON: Michel transonic profile (Schwarzschild, M = 1) + Kerr lapse / frame dragging
+// ===================================================================
+var MICH = { nr:220, lr0:Math.log(2.0004), lr1:Math.log(600), u:new Float64Array(220), cs:new Float64Array(220), rc:28, uc:0.13, hInf:1, hc:1, mdot:0, ok:false };
+function computeMichel(G, cinf){
+  var thInf = cinf * cinf / (G * (1 - cinf * cinf / (G - 1)));
+  var hInf = 1 + G * thInf / (G - 1);
+  // critical point: physical root of h^3 - (3G-2) hInf^2 h + 3(G-1) hInf^2 = 0  (from eq. 96 + polytrope)
+  var p = -(3 * G - 2) * hInf * hInf, q = 3 * (G - 1) * hInf * hInf;
+  var X = 3 * (G - 1) / (2 * hInf * Math.pow(Math.sqrt(G - 2 / 3), 3));
+  var hc = 2 * hInf * Math.sqrt(G - 2 / 3) * Math.cos(Math.acos(clamp(-X, -1, 1)) / 3);
+  var j, f, df;
+  for (j = 0; j < 6; j++){ f = hc * hc * hc + p * hc + q; df = 3 * hc * hc + p; if (Math.abs(df) > 1e-14) hc -= f / df; }
+  var uc2 = (1 / 3) * (1 - hInf * hInf / (hc * hc));          // eq. (96)
+  if (!(uc2 > 0)) return false;
+  var rc = 1 / (2 * uc2);                                      // r_trans = M / (2 u^2)
+  var thc = (hc - 1) * (G - 1) / G;
+  function rho(th){ return Math.pow(th / thInf, 1 / (G - 1)); }
+  function hh(th){ return 1 + G * th / (G - 1); }
+  var C = rc * rc * rho(thc) * Math.sqrt(uc2);
+  var lo = Math.log(thInf * 1e-7), hi = Math.log(thc * 1e5), NG = 140, i, k;
+  for (i = 0; i < MICH.nr; i++){
+    var r = Math.exp(MICH.lr0 + (MICH.lr1 - MICH.lr0) * i / (MICH.nr - 1));
+    var F = function(lt){ var th = Math.exp(lt), rr = rho(th), hv = hh(th), u = C / (r * r * rr); return hv * hv * (1 - 2 / r + u * u) - hInf * hInf; };
+    var best = lo, bv = Infinity, x, v;
+    for (k = 0; k <= NG; k++){ x = lo + (hi - lo) * k / NG; v = F(x); if (v < bv){ bv = v; best = x; } }
+    var a, b;
+    if (r > rc){ a = best; b = hi; } else { a = lo; b = best; }   // subsonic outside r_c, supersonic inside
+    var fa = F(a), fb = F(b), m = a, fm;
+    if (fa * fb > 0){ m = best; }
+    else for (k = 0; k < 60; k++){ m = 0.5 * (a + b); fm = F(m); if (fa * fm <= 0){ b = m; fb = fm; } else { a = m; fa = fm; } }
+    var th = Math.exp(m);
+    MICH.u[i] = C / (r * r * rho(th));
+    MICH.cs[i] = Math.sqrt(G * th / hh(th));
+  }
+  MICH.rc = rc; MICH.uc = Math.sqrt(uc2); MICH.hInf = hInf; MICH.hc = hc;
+  MICH.mdot = 4 * Math.PI * C; MICH.ok = true;
+  return true;
+}
+function michelU(reff){
+  var x = (Math.log(reff) - MICH.lr0) / (MICH.lr1 - MICH.lr0) * (MICH.nr - 1);
+  if (x <= 0) return MICH.u[0];
+  if (x >= MICH.nr - 1) return MICH.u[MICH.nr - 1];
+  var i0 = x | 0, f = x - i0;
+  return MICH.u[i0] * (1 - f) + MICH.u[i0 + 1] * f;
+}
+var KERR = { a:0.5, rp:1.866 };
+function setSpin(a){ KERR.a = a; KERR.rp = 1 + Math.sqrt(Math.max(0, 1 - a * a)); }
+function lapse(r){ var a = KERR.a, D = r * r - 2 * r + a * a, A = (r * r + a * a) * (r * r + a * a) - a * a * D; return D <= 0 ? 0 : Math.sqrt(D * r * r / A); }
+function omegaFD(r){ var a = KERR.a, D = r * r - 2 * r + a * a, A = (r * r + a * a) * (r * r + a * a) - a * a * D; return 2 * a * r / A; }
+var michelDirty = true, michelLast = 0;
+
+// ===================================================================
+// SHOCK: finite-volume solver (Gorard & Hakim eqs 3, 10, 14, 19-24, 35-38)
+// ===================================================================
+var NX = 128;
+var U0 = new Float64Array(NX), U1 = new Float64Array(NX);           // scalar u, or Euler rho
+var M0 = new Float64Array(NX), M1 = new Float64Array(NX);           // Euler momentum
+var fUL = new Float64Array(NX), fUR = new Float64Array(NX), fML = new Float64Array(NX), fMR = new Float64Array(NX);
+var FU = new Float64Array(NX), FM = new Float64Array(NX);
+var TABL = new Float32Array(NX), TABR = new Float32Array(NX), TABLo = new Float32Array(NX), TABRo = new Float32Array(NX);
+var pde = { A0:1, sum0:0, sumM0:0, drift:0, tvBad:0, tvLast:0, hypOK:true, clipped:false, cflNow:0.9, t:0, pending:true, stepAcc:0, steps:0 };
+var C_ISO = 1;
+function limiter(r){
+  var L = P.lim; if (P.sys === 6 && L === 3) L = 2;           // superbee grows energy near r = 0 in R^8: MC stands in
+  switch (L){
+    case 1: return Math.max(0, Math.min(1, r));                                  // minmod (35)
+    case 2: return Math.max(0, Math.min(2 * r, 0.5 * (1 + r), 2));               // monotonized centered (36)
+    case 3: return Math.max(0, Math.min(2 * r, 1), Math.min(r, 2));              // superbee (37)
+    case 4: return (r + Math.abs(r)) / (1 + Math.abs(r));                        // van Leer (38)
+  }
+  return 0;
+}
+function slopeOf(um, u0, up){ var dr = up - u0; if (dr === 0) return 0; return limiter((u0 - um) / dr) * dr; }
+function fScal(u){ return P.sys === 0 ? u : 0.5 * u * u; }
+function magicSlice(x){ var y = 2 * Math.abs(x - 0.5); return magicAt(MG, SHMAXG, 2 * P.shells * y * y); }
+function initProfile(x){
+  switch (P.init){
+    case 1: return magicSlice(x);
+    case 2: var d = (x - 0.5) / 0.06; return Math.exp(-d * d);
+    case 3: return x < 0.5 ? 1 : -1;
+    case 4: var xi = x * 1024, i0 = xi | 0, fr = xi - i0; return THSHAPE[i0 & 1023] * (1 - fr) + THSHAPE[(i0 + 1) & 1023] * fr;
+    case 5: var y = Math.abs(2 * x - 1), rr = Math.exp(MICH.lr0 + (Math.log(80) - MICH.lr0) * y); return 2 * michelU(rr) / MICH.u[0] - 1;
+  }
+  return Math.sin(TAU * x);
+}
+// E8 theta series = E4 (Viazovska eq. 10) along the line Im z = 1/5: Re E4(x + i/5) - 1, normalised
+var THSHAPE = new Float64Array(1024);
+(function(){
+  var i, n, s, m = 0;
+  for (i = 0; i < 1024; i++){ s = 0; for (n = 1; n <= 16; n++) s += 240 * sigma3(n) * Math.exp(-2 * Math.PI * n / 5) * Math.cos(TAU * n * i / 1024); THSHAPE[i] = s; }
+  for (i = 0; i < 1024; i++) m += THSHAPE[i]; m /= 1024;
+  var mx = 0; for (i = 0; i < 1024; i++){ THSHAPE[i] -= m; mx = Math.max(mx, Math.abs(THSHAPE[i])); }
+  for (i = 0; i < 1024; i++) THSHAPE[i] /= mx;
+})();
+function strikePDE(){
+  var i, x, A = P.amp;
+  pde.A0 = A;
+  if (P.sys >= 3){ pde.tvBad = 0; pde.tvLogged = false; pde.clipped = false; pde.hypOK = true; pde.t = 0; pde.steps = 0; gStrike(); writeTables(true); return; }
+  for (i = 0; i < NX; i++){
+    x = (i + 0.5) / NX;
+    if (P.sys === 2){
+      var v = initProfile(x);
+      U0[i] = P.init === 3 ? (v > 0 ? 1 + A : 1) : Math.max(0.05, 1 + 0.45 * A * v);
+      M0[i] = 0;
+    } else { U0[i] = A * initProfile(x); M0[i] = 0; }
+  }
+  pde.sum0 = 0; pde.sumM0 = 0;
+  for (i = 0; i < NX; i++){ pde.sum0 += U0[i]; pde.sumM0 += M0[i]; }
+  pde.tvLast = tv(); pde.tvBad = 0; pde.tvLogged = false; pde.clipped = false; pde.hypOK = true; pde.t = 0; pde.steps = 0;
+  writeTables(true);
+}
+function tv(){ var s = 0, i; for (i = 0; i < NX; i++) s += Math.abs(U0[(i + 1) % NX] - U0[i]); return s; }
+function stepScalar(){
+  var dx = 1 / NX, i, amax = 1e-9, a;
+  for (i = 0; i < NX; i++){ a = P.sys === 0 ? 1 : Math.abs(U0[i]); if (a > amax) amax = a; }
+  var dt = P.cfl * dx / amax, lam = dt / dx, second = P.lim > 0;
+  for (i = 0; i < NX; i++){
+    var um = U0[(i - 1 + NX) % NX], u0 = U0[i], up = U0[(i + 1) % NX];
+    var s = second ? slopeOf(um, u0, up) : 0;
+    var L = u0 - 0.5 * s, R = u0 + 0.5 * s;                    // left / right face values of cell i
+    if (second){ var du = 0.5 * lam * (fScal(L) - fScal(R)); L += du; R += du; }   // Hancock half step (23-24)
+    fUL[i] = L; fUR[i] = R;
+  }
+  for (i = 0; i < NX; i++){                                    // face i+1/2: left state = fUR[i], right = fUL[i+1]
+    var aL = fUR[i], aR = fUL[(i + 1) % NX], fl = fScal(aL), fr = fScal(aR);
+    if (P.flux === 0) FU[i] = 0.5 * (fl + fr) - (dx / (2 * dt)) * (aR - aL);          // Lax-Friedrichs (10)
+    else { var ah = P.sys === 0 ? 1 : 0.5 * (aL + aR); FU[i] = 0.5 * (fl + fr) - 0.5 * Math.abs(ah) * (aR - aL); }  // Roe (14)
+  }
+  for (i = 0; i < NX; i++) U1[i] = U0[i] - lam * (FU[i] - FU[(i - 1 + NX) % NX]);   // conservative update (3)
+  var t = U0; U0 = U1; U1 = t;
+  pde.cflNow = P.cfl; pde.t += dt;
+}
+function eulerFlux(rho, m, out, k){ out[0] = m; out[1] = m * m / rho + C_ISO * C_ISO * rho; }
+var fb0 = [0, 0], fb1 = [0, 0];
+function stepEuler(){
+  var dx = 1 / NX, i, amax = 1e-9, a;
+  for (i = 0; i < NX; i++){ a = Math.abs(M0[i] / U0[i]) + C_ISO; if (a > amax) amax = a; }
+  var dt = P.cfl * dx / amax, lam = dt / dx, second = P.lim > 0;
+  for (i = 0; i < NX; i++){
+    var im = (i - 1 + NX) % NX, ip = (i + 1) % NX;
+    var sr = second ? slopeOf(U0[im], U0[i], U0[ip]) : 0, sm = second ? slopeOf(M0[im], M0[i], M0[ip]) : 0;
+    var rL = Math.max(1e-6, U0[i] - 0.5 * sr), rR = Math.max(1e-6, U0[i] + 0.5 * sr), mL = M0[i] - 0.5 * sm, mR = M0[i] + 0.5 * sm;
+    if (second){
+      eulerFlux(rL, mL, fb0); eulerFlux(rR, mR, fb1);
+      var d0 = 0.5 * lam * (fb0[0] - fb1[0]), d1 = 0.5 * lam * (fb0[1] - fb1[1]);
+      rL = Math.max(1e-6, rL + d0); rR = Math.max(1e-6, rR + d0); mL += d1; mR += d1;
+    }
+    fUL[i] = rL; fUR[i] = rR; fML[i] = mL; fMR[i] = mR;
+  }
+  for (i = 0; i < NX; i++){
+    var j = (i + 1) % NX;
+    var rl = fUR[i], ml = fMR[i], rr = fUL[j], mr = fML[j];
+    eulerFlux(rl, ml, fb0); eulerFlux(rr, mr, fb1);
+    var dr = rr - rl, dm = mr - ml;
+    if (P.flux === 0){
+      FU[i] = 0.5 * (fb0[0] + fb1[0]) - (dx / (2 * dt)) * dr;
+      FM[i] = 0.5 * (fb0[1] + fb1[1]) - (dx / (2 * dt)) * dm;
+    } else {                                                    // Roe for isothermal Euler: sqrt(rho)-weighted velocity
+      var sl = Math.sqrt(rl), srr = Math.sqrt(rr), ut = (ml / sl + mr / srr) / (sl + srr), c = C_ISO;
+      var a2 = (dm - (ut - c) * dr) / (2 * c), a1 = dr - a2;
+      var l1 = Math.abs(ut - c), l2 = Math.abs(ut + c);
+      FU[i] = 0.5 * (fb0[0] + fb1[0]) - 0.5 * (l1 * a1 + l2 * a2);
+      FM[i] = 0.5 * (fb0[1] + fb1[1]) - 0.5 * (l1 * a1 * (ut - c) + l2 * a2 * (ut + c));
+    }
+  }
+  var hyp = true;
+  for (i = 0; i < NX; i++){
+    var im2 = (i - 1 + NX) % NX;
+    U1[i] = U0[i] - lam * (FU[i] - FU[im2]);
+    M1[i] = M0[i] - lam * (FM[i] - FM[im2]);
+    if (!(U1[i] > 0)){ hyp = false; U1[i] = 1e-4; }          // rho <= 0: hyperbolicity lost (real eigenvalues need rho > 0)
+  }
+  var t = U0; U0 = U1; U1 = t; t = M0; M0 = M1; M1 = t;
+  if (!hyp) pde.hypOK = false;
+  pde.cflNow = P.cfl; pde.t += dt;
+}
+function stepPDE(){
+  if (P.sys >= 3){ gStep(); pde.steps++; return; }
+  if (P.sys === 2) stepEuler(); else stepScalar();
+  var i, lim = 6 * Math.max(0.2, pde.A0) + 2, bad = false;
+  for (i = 0; i < NX; i++){                                    // past CFL 1 the scheme blows up: catch it
+    if (!(Math.abs(U0[i]) < 1e9) || !(Math.abs(M0[i]) < 1e9)){ bad = true; break; }
+    if (P.sys !== 2 && Math.abs(U0[i]) > lim){ U0[i] = lim * Math.tanh(U0[i] / lim); pde.clipped = true; }
+    if (P.sys === 2 && Math.abs(M0[i]) > lim * 4){ M0[i] = lim * 4 * Math.tanh(M0[i] / (lim * 4)); pde.clipped = true; }
+  }
+  if (bad){ strikePDE(); pde.clipped = true; return; }
+  if (P.sys !== 2){ var t2 = tv(); if (t2 > pde.tvLast * (1 + 1e-9) + 1e-12) pde.tvBad++; pde.tvLast = t2; }
+  pde.steps++;
+}
+function writeTables(snap){
+  if (P.sys >= 3){ gTables(snap); return; }
+  var i, mean = 0, meanR = 0, g = 1 / Math.max(0.15, pde.A0), v, w;
+  TABLo.set(TABL); TABRo.set(TABR);
+  if (P.sys === 2){                                            // Riemann invariants: left-going to L, right-going to R
+    for (i = 0; i < NX; i++){ v = M0[i] / U0[i]; fUL[i] = v - C_ISO * Math.log(U0[i]); fUR[i] = v + C_ISO * Math.log(U0[i]); mean += fUL[i]; meanR += fUR[i]; }
+    mean /= NX; meanR /= NX;
+    for (i = 0; i < NX; i++){ TABL[i] = clamp((fUL[i] - mean) * g * 1.6, -1.5, 1.5); TABR[i] = clamp((fUR[i] - meanR) * g * 1.6, -1.5, 1.5); }
+  } else {
+    for (i = 0; i < NX; i++) mean += U0[i];
+    mean /= NX;
+    for (i = 0; i < NX; i++){
+      w = (U0[i] - mean) * g;
+      TABL[i] = clamp(w, -1.5, 1.5);
+      v = (U0[(i + NX / 8) % NX] - mean) * g;                   // right ear reads an eighth of a period ahead
+      TABR[i] = clamp(v, -1.5, 1.5);
+    }
+  }
+  if (snap){ TABLo.set(TABL); TABRo.set(TABR); }
+}
+
+// ===================================================================
+// MORE HYPERBOLIC SYSTEMS: one finite-volume engine with ghost cells, same scheme as above
+// (conservative update (3), LF flux (10), Roe flux (14), MUSCL-Hancock (19-24), limiters (35-38))
+//   3  Maxwell, perfectly hyperbolic (Gorard & Hakim eqs 6-7): 8 fields, one per voice
+//   4  relativistic Euler, Valencia form, flat spacetime (Gorard 2402.02331), ideal gas, Gamma from HORIZON
+//   5  Bondi accretion, time-dependent form of Gorard eq. (86) with gravity: a sonic horizon
+//   6  radial wave equation in R^8, u_tt = u_rr + (7/r) u_r, released from the magic function
+// Where no closed-form Roe matrix exists (4, 5) the "Roe" setting uses HLL; Maxwell and the
+// 8-D wave are linear, so Roe there is exact upwinding, 1/2 |A| dU with |A| known per wave pair.
+// ===================================================================
+var NGH = 2, NT = NX + 2 * NGH;
+function mk64(n, len){ var a = [], i; for (i = 0; i < n; i++) a.push(new Float64Array(len)); return a; }
+function mk32(n, len){ var a = [], i; for (i = 0; i < n; i++) a.push(new Float32Array(len)); return a; }
+var GQ = mk64(8, NT), GQ1 = mk64(8, NT), GLF = mk64(8, NT), GRF = mk64(8, NT), GFX = mk64(8, NT), GBASE = mk64(8, NT);
+var ga = new Float64Array(8), gb = new Float64Array(8), gfa = new Float64Array(8), gfb = new Float64Array(8), gd = new Float64Array(8), gq = new Float64Array(8), gsrc = new Float64Array(8);
+var gsA = [0, 0], gsB = [0, 0];
+var COMP = mk32(8, NX), COMPo = mk32(8, NX);
+var PARTNER = [6, 5, 4, 7, 2, 1, 0, 3];                      // Ex<->phi, Ey<->Bz, Ez<->By, Bx<->psi
+var MX = { chi:1, gam:1.618 };
+var SR = { G:4 / 3, P:new Float64Array(NT), prim:new Float64Array(6), fails:0 };
+var BD = { G:4/3, cinf:0.1, rs:25, rin:7.5, rout:75, lam:0, key:'', mdotA:0, mdotIn:0, mdotOut:0, K:0.0075 };
+var W8 = { R:2.828, E0:1, E:1, geoExp:0.5 };
+var GEN = { sums0:new Float64Array(8) };
+
+function c2p(D, S, tau, Pguess, out){                         // conserved -> primitive, Newton on pressure
+  var G = SR.G, Plo = Math.max(1e-12, Math.abs(S) - tau - D + 1e-12), P = Pguess > Plo ? Pguess : Plo * 1.5 + 1e-8;
+  var it, v, W, rho, eps, f, h, cs2, Pn;
+  if (!(D > 0) || !(tau + D > 0)) return false;
+  for (it = 0; it < 40; it++){
+    v = S / (tau + D + P);
+    if (!(Math.abs(v) < 1)){ P = P * 2 + 1e-8; continue; }
+    W = 1 / Math.sqrt(1 - v * v); rho = D / W;
+    eps = (tau + D * (1 - W) + P * (1 - W * W)) / (D * W);
+    f = (G - 1) * rho * eps - P;
+    h = 1 + eps + P / rho; cs2 = G * P / (rho * h);
+    Pn = P - f / (v * v * cs2 - 1);
+    if (!(Pn > Plo)) Pn = 0.5 * (P + Plo);
+    if (Math.abs(Pn - P) < 1e-11 * P){ P = Pn; break; }
+    P = Pn;
+  }
+  v = S / (tau + D + P);
+  if (!(Math.abs(v) < 1) || !(P > 0)) return false;
+  W = 1 / Math.sqrt(1 - v * v); rho = D / W; h = 1 + G / (G - 1) * P / rho;
+  if (!(rho > 0) || !(h > 0)) return false;
+  out[0] = rho; out[1] = v; out[2] = P; out[3] = W; out[4] = h; out[5] = Math.min(G * P / (rho * h), 0.999);
+  return true;
+}
+function p2c(rho, v, P, q){ var G = SR.G, W = 1 / Math.sqrt(1 - v * v), h = 1 + G / (G - 1) * P / rho; q[0] = rho * W; q[1] = rho * h * W * W * v; q[2] = rho * h * W * W - P - rho * W; }
+
+var SYSD = {};
+SYSD[3] = {                                                   // Maxwell, c = 1
+  nv:8, periodic:true, geo:false, x0:0, dx:1 / NX, hll:false,
+  flux:function(q, r, f){ f[0] = MX.chi * q[6]; f[1] = q[5]; f[2] = -q[4]; f[3] = MX.gam * q[7]; f[4] = -q[2]; f[5] = q[1]; f[6] = MX.chi * q[0]; f[7] = MX.gam * q[3]; },
+  speed:function(){ return Math.max(1, MX.chi, MX.gam); },
+  roe:function(L, R, d){
+    d[0] = 0.5 * MX.chi * (R[0] - L[0]); d[6] = 0.5 * MX.chi * (R[6] - L[6]);
+    d[1] = 0.5 * (R[1] - L[1]); d[5] = 0.5 * (R[5] - L[5]); d[2] = 0.5 * (R[2] - L[2]); d[4] = 0.5 * (R[4] - L[4]);
+    d[3] = 0.5 * MX.gam * (R[3] - L[3]); d[7] = 0.5 * MX.gam * (R[7] - L[7]);
+  },
+  valid:function(){ return true; }
+};
+var SRW = { rho:new Float64Array(NT), v:new Float64Array(NT), p:new Float64Array(NT) };
+SYSD[4] = {                                                   // relativistic Euler: U = (D, S, tau)
+  nv:3, periodic:true, geo:false, x0:0, dx:1 / NX, hll:true, cflMax:0.6, rk2:true,
+  prep:function(){                                            // primitives once per step, every cell incl. ghosts
+    var i;
+    for (i = 0; i < NT; i++){
+      if (c2p(GQ[0][i], GQ[1][i], GQ[2][i], SR.P[i], SR.prim)){ SRW.rho[i] = SR.prim[0]; SRW.v[i] = SR.prim[1]; SRW.p[i] = SR.prim[2]; if (i >= NGH && i < NGH + NX) SR.P[i] = SR.prim[2]; }
+      else { SRW.rho[i] = Math.max(GQ[0][i], 1e-6); SRW.v[i] = 0; SRW.p[i] = Math.max(SR.P[i], 1e-6); }
+    }
+  },
+  recon:function(i, second, a, b){                            // limited slopes on rho, v, P; keep faces physical
+    var sr = second ? slopeOf(SRW.rho[i - 1], SRW.rho[i], SRW.rho[i + 1]) : 0;
+    var sv = second ? slopeOf(SRW.v[i - 1], SRW.v[i], SRW.v[i + 1]) : 0;
+    var sp = second ? slopeOf(SRW.p[i - 1], SRW.p[i], SRW.p[i + 1]) : 0;
+    var r0 = SRW.rho[i], v0 = SRW.v[i], p0 = SRW.p[i];
+    if (r0 - 0.5 * Math.abs(sr) <= 0) sr = 0;
+    if (p0 - 0.5 * Math.abs(sp) <= 0) sp = 0;
+    if (Math.abs(v0) + 0.5 * Math.abs(sv) >= 0.999) sv = 0;
+    p2c(r0 - 0.5 * sr, v0 - 0.5 * sv, p0 - 0.5 * sp, a); p2c(r0 + 0.5 * sr, v0 + 0.5 * sv, p0 + 0.5 * sp, b);
+  },
+  flux:function(q, r, f, i){
+    var p = SR.prim;
+    if (!c2p(q[0], q[1], q[2], SR.P[i], p)){ f[0] = 0; f[1] = 0; f[2] = 0; return; }
+    f[0] = q[0] * p[1]; f[1] = q[1] * p[1] + p[2]; f[2] = q[1] - q[0] * p[1];
+  },
+  speeds:function(q, r, i, out){
+    var p = SR.prim;
+    if (!c2p(q[0], q[1], q[2], SR.P[i], p)){ out[0] = -1; out[1] = 1; return; }
+    var v = p[1], cs = Math.sqrt(p[5]);
+    out[0] = (v - cs) / (1 - v * cs); out[1] = (v + cs) / (1 + v * cs);
+  },
+  speed:function(q, r, i){ this.speeds(q, r, i, gsA); return Math.max(Math.abs(gsA[0]), Math.abs(gsA[1])); },
+  valid:function(q, i){ return c2p(q[0], q[1], q[2], SR.P[i], SR.prim); }
+};
+SYSD[5] = {                                                   // Bondi: U = (rho, rho v) on r in [0.3 r_s, 3 r_s], areas r^2
+  nv:2, periodic:false, geo:true, x0:7.5, dx:67.5 / NX, hll:true,
+  flux:function(q, r, f){ var rho = Math.max(q[0], 1e-9), v = q[1] / rho; f[0] = q[1]; f[1] = q[1] * v + BD.K * Math.pow(rho, BD.G); },
+  speeds:function(q, r, i, out){ var rho = Math.max(q[0], 1e-9), v = q[1] / rho, c = Math.sqrt(BD.G * BD.K * Math.pow(rho, BD.G - 1)); out[0] = v - c; out[1] = v + c; },
+  speed:function(q, r, i){ this.speeds(q, r, i, gsA); return Math.max(Math.abs(gsA[0]), Math.abs(gsA[1])); },
+  source:function(q, rc, Ap, Am, V, s){ var rho = Math.max(q[0], 1e-9); s[0] = 0; s[1] = BD.K * Math.pow(rho, BD.G) * (Ap - Am) / V - rho / (rc * rc); },
+  bc:function(){
+    var c, j;
+    for (c = 0; c < 2; c++) for (j = 0; j < NGH; j++){
+      GQ[c][j] = GQ[c][NGH];                                  // inner edge: supersonic inflow leaves the grid
+      GQ[c][NGH + NX + j] = GBASE[c][NGH + NX + j];           // outer edge: the steady cloud
+    }
+  },
+  valid:function(q){ return q[0] > 0; }
+};
+SYSD[6] = {                                                   // 8-D radial wave: U = (Phi = u_r, Pi = u_t)
+  nv:2, periodic:false, geo:false, x0:0, dx:2.828 / NX, hll:false,
+  flux:function(q, r, f){ f[0] = -q[1]; f[1] = -q[0]; },
+  speed:function(){ return 1; },
+  roe:function(L, R, d){ d[0] = 0.5 * (R[0] - L[0]); d[1] = 0.5 * (R[1] - L[1]); },
+  geo8:true, rk2:true,                                        // Pi row uses areas r^7, volumes (r+^8 - r-^8)/8
+  bc:function(){
+    var j;
+    for (j = 0; j < NGH; j++){
+      GQ[0][NGH - 1 - j] = -GQ[0][NGH + j]; GQ[1][NGH - 1 - j] = GQ[1][NGH + j];                 // r = 0: Phi odd, Pi even
+      GQ[0][NGH + NX + j] = GQ[0][NGH + NX - 1 - j]; GQ[1][NGH + NX + j] = -GQ[1][NGH + NX - 1 - j];   // wall u = 0: Pi odd
+    }
+  },
+  valid:function(){ return true; }
+};
+
+function gFill(S){
+  var c, j;
+  if (S.periodic){ for (c = 0; c < S.nv; c++) for (j = 0; j < NGH; j++){ GQ[c][NGH - 1 - j] = GQ[c][NGH + NX - 1 - j]; GQ[c][NGH + NX + j] = GQ[c][NGH + j]; } }
+  else S.bc();
+}
+var GSAVE = mk64(8, NT);
+// one forward-Euler stage of the finite-volume operator: GQ1 = GQ - dt div F + dt S
+function gStage(S, dt, second){
+  var nv = S.nv, dx = S.dx, lam = dt / dx, i, c;
+  gFill(S);
+  if (S.prep) S.prep();
+  for (i = NGH - 1; i <= NGH + NX; i++){
+    if (S.recon){ S.recon(i, second, ga, gb); for (c = 0; c < nv; c++){ GLF[c][i] = ga[c]; GRF[c][i] = gb[c]; } continue; }
+    for (c = 0; c < nv; c++){
+      var s = second ? slopeOf(GQ[c][i - 1], GQ[c][i], GQ[c][i + 1]) : 0;
+      ga[c] = GQ[c][i] - 0.5 * s; gb[c] = GQ[c][i] + 0.5 * s;
+    }
+    if (second && !S.rk2){                                    // Hancock half step (23-24); RK2 systems skip it
+      S.flux(ga, 0, gfa, i); S.flux(gb, 0, gfb, i);
+      for (c = 0; c < nv; c++){ var du = 0.5 * lam * (gfa[c] - gfb[c]); ga[c] += du; gb[c] += du; }
+      if (!S.valid(ga, i) || !S.valid(gb, i)) for (c = 0; c < nv; c++){ ga[c] = GQ[c][i]; gb[c] = GQ[c][i]; }
+    }
+    for (c = 0; c < nv; c++){ GLF[c][i] = ga[c]; GRF[c][i] = gb[c]; }
+  }
+  for (i = NGH - 1; i < NGH + NX; i++){                       // face between cell i and i+1
+    var rf = S.x0 + (i - NGH + 1) * dx;
+    for (c = 0; c < nv; c++){ ga[c] = GRF[c][i]; gb[c] = GLF[c][i + 1]; }
+    S.flux(ga, rf, gfa, i); S.flux(gb, rf, gfb, i + 1);
+    if (P.flux === 0){
+      var dtl = S.dtPlanar || dt;                                // r^7 cells: the dissipation in (10) uses the planar step
+      for (c = 0; c < nv; c++) GFX[c][i] = 0.5 * (gfa[c] + gfb[c]) - (dx / (2 * dtl)) * (gb[c] - ga[c]);   // (10)
+    } else if (!S.hll){
+      S.roe(ga, gb, gd);
+      for (c = 0; c < nv; c++) GFX[c][i] = 0.5 * (gfa[c] + gfb[c]) - gd[c];                               // (14)
+    } else {
+      S.speeds(ga, rf, i, gsA); S.speeds(gb, rf, i + 1, gsB);
+      var sl = Math.min(gsA[0], gsB[0]), sr = Math.max(gsA[1], gsB[1]);
+      for (c = 0; c < nv; c++){
+        if (sl >= 0) GFX[c][i] = gfa[c];
+        else if (sr <= 0) GFX[c][i] = gfb[c];
+        else GFX[c][i] = (sr * gfa[c] - sl * gfb[c] + sl * sr * (gb[c] - ga[c])) / (sr - sl);
+      }
+    }
+  }
+  for (i = NGH; i < NGH + NX; i++){                           // conservative update (3), with areas for Bondi
+    var rm = S.x0 + (i - NGH) * dx, rp2 = rm + dx, rc = rm + 0.5 * dx, Ap = 1, Am = 1, V = dx;
+    if (S.geo){ Ap = rp2 * rp2; Am = rm * rm; V = (rp2 * rp2 * rp2 - rm * rm * rm) / 3; }
+    if (S.source){ for (c = 0; c < nv; c++) gq[c] = GQ[c][i]; S.source(gq, rc, Ap, Am, V, gsrc); }
+    for (c = 0; c < nv; c++) GQ1[c][i] = GQ[c][i] - (dt / V) * (Ap * GFX[c][i] - Am * GFX[c][i - 1]) + (S.source ? dt * gsrc[c] : 0);
+    if (S.geo8){ var a7p = Math.pow(rp2, 7), a7m = Math.pow(rm, 7), v8 = (Math.pow(rp2, 8) - Math.pow(rm, 8)) / 8; GQ1[1][i] = GQ[1][i] - (dt / v8) * (a7p * GFX[1][i] - a7m * GFX[1][i - 1]); }
+  }
+  if (P.sys === 4){
+    // a posteriori: a cell that came out unphysical is recomputed with first-order HLL fluxes from this stage's
+    // starting states; its neighbours get the matching face corrections, so D, S, tau stay conserved
+    for (i = NGH; i < NGH + NX; i++){
+      if (c2p(GQ1[0][i], GQ1[1][i], GQ1[2][i], SR.P[i], SR.prim)) continue;
+      var il = i - 1, ir = i + 1, wl = il < NGH ? il + NX : il, wr = ir >= NGH + NX ? ir - NX : ir, side, cc;
+      for (side = 0; side < 2; side++){
+        var a0 = side ? i : il, b0 = side ? ir : i, fo = side ? i : i - 1;
+        for (cc = 0; cc < 3; cc++){ ga[cc] = GQ[cc][a0]; gb[cc] = GQ[cc][b0]; }
+        S.flux(ga, 0, gfa, a0); S.flux(gb, 0, gfb, b0); S.speeds(ga, 0, a0, gsA); S.speeds(gb, 0, b0, gsB);
+        var sl2 = Math.min(gsA[0], gsB[0], 0), sr2 = Math.max(gsA[1], gsB[1], 0);
+        for (cc = 0; cc < 3; cc++){
+          var fn = (sr2 * gfa[cc] - sl2 * gfb[cc] + sl2 * sr2 * (gb[cc] - ga[cc])) / Math.max(1e-12, sr2 - sl2), df = lam * (fn - GFX[cc][fo]);
+          if (side){ GQ1[cc][i] -= df; GQ1[cc][wr] += df; } else { GQ1[cc][i] += df; GQ1[cc][wl] -= df; }
+          GFX[cc][fo] = fn;
+        }
+      }
+    }
+  }
+  var t;
+  for (c = 0; c < nv; c++){ t = GQ[c]; GQ[c] = GQ1[c]; GQ1[c] = t; }
+}
+function gStep(){
+  var S = SYSD[P.sys], nv = S.nv, dx = S.dx, i, c, amax = 1e-9, a;
+  gFill(S);
+  for (i = NGH; i < NGH + NX; i++){ for (c = 0; c < nv; c++) gq[c] = GQ[c][i]; a = S.speed(gq, S.x0 + (i - NGH + 0.5) * dx, i); if (a > amax) amax = a; }
+  var cflUse = S.cflMax ? Math.min(P.cfl, S.cflMax) : P.cfl;
+  var dt = cflUse * dx / amax, second = P.lim > 0;
+  S.dtPlanar = 0;
+  if (S.geo8){                                                // near r = 0 a cell's area/volume ratio is up to 8x the planar one
+    S.dtPlanar = dt;
+    var gm = 1, rm0, rp0;
+    for (i = 0; i < NX; i++){ rm0 = i * dx; rp0 = rm0 + dx; gm = Math.max(gm, dx * Math.pow(rp0, 7) * 8 / (Math.pow(rp0, 8) - Math.pow(rm0, 8))); }
+    dt /= Math.pow(gm, W8.geoExp);
+  }
+  if (S.rk2){                                                 // SSP-RK2 (Heun): needed with reconstruction but no predictor
+    for (c = 0; c < nv; c++) GSAVE[c].set(GQ[c]);
+    gStage(S, dt, second); gStage(S, dt, second);
+    for (c = 0; c < nv; c++) for (i = NGH; i < NGH + NX; i++) GQ[c][i] = 0.5 * (GSAVE[c][i] + GQ[c][i]);
+  } else gStage(S, dt, second);
+  var bad = false;
+  for (i = NGH; i < NGH + NX && !bad; i++) for (c = 0; c < nv; c++) if (!(Math.abs(GQ[c][i]) < 1e12)){ bad = true; break; }
+  if (bad){ gStrike(); pde.clipped = true; return; }
+  if (P.sys === 4){
+    for (i = NGH; i < NGH + NX; i++){
+      if (c2p(GQ[0][i], GQ[1][i], GQ[2][i], SR.P[i], SR.prim)) SR.P[i] = SR.prim[2];
+      else { SR.fails++; pde.hypOK = false; pde.clipped = true; p2c(Math.max(GQ[0][i], 1e-3), 0, Math.max(SR.P[i], 1e-4), gq); GQ[0][i] = gq[0]; GQ[1][i] = gq[1]; GQ[2][i] = gq[2]; }
+    }
+  }
+  if (P.sys === 5){ for (i = NGH; i < NGH + NX; i++) if (!(GQ[0][i] > 0)){ GQ[0][i] = 1e-6; pde.hypOK = false; } }
+  pde.t += dt; pde.cflNow = cflUse;
+}
+
+// ---- Bondi steady flow, eq. (89)-(90): sonic point, accretion constant, transonic profile
+function bondiSteady(r, out){
+  var G = BD.G, ci = BD.cinf, lam = BD.lam, k, lo = -14, hi = 14, best = 0, bv = Infinity, x, v;
+  function F(lr){ var rho = Math.exp(lr), u = lam / (r * r * rho); return 0.5 * u * u + ci * ci * Math.pow(rho, G - 1) / (G - 1) - 1 / r - ci * ci / (G - 1); }
+  for (k = 0; k <= 160; k++){ x = lo + (hi - lo) * k / 160; v = F(x); if (v < bv){ bv = v; best = x; } }
+  var a = r > BD.rs ? best : lo, b = r > BD.rs ? hi : best, fa = F(a), fm, m = best;
+  if (fa * F(b) <= 0) for (k = 0; k < 70; k++){ m = 0.5 * (a + b); fm = F(m); if (fa * fm <= 0) b = m; else { a = m; fa = fm; } }
+  var rho = Math.exp(m); out[0] = rho; out[1] = -lam / (r * r * rho);
+}
+var bdTmp = [0, 0];
+function bondiBaseline(){
+  var G = clamp(P.gamma, 1.05, 1.55), ci = P.temp, key = [G.toFixed(4), ci.toFixed(4), P.flux, P.lim, P.cfl.toFixed(3)].join('|');
+  if (key === BD.key) return;
+  BD.G = G; BD.cinf = ci; BD.K = ci * ci / G;
+  var vs = ci * Math.sqrt(2 / (5 - 3 * G));                   // eq. (89)
+  BD.rs = 1 / (2 * vs * vs);
+  var rhos = Math.pow(vs / ci, 2 / (G - 1));
+  BD.lam = BD.rs * BD.rs * rhos * vs;
+  BD.mdotA = Math.PI * Math.pow(2 / (5 - 3 * G), (5 - 3 * G) / (2 * (G - 1))) / (ci * ci * ci);   // eq. (90), M = rho_inf = 1
+  BD.rin = 0.3 * BD.rs; BD.rout = 3 * BD.rs;
+  var S = SYSD[5], i; S.x0 = BD.rin; S.dx = (BD.rout - BD.rin) / NX;
+  for (i = 0; i < NT; i++){ bondiSteady(S.x0 + (i - NGH + 0.5) * S.dx, bdTmp); GQ[0][i] = bdTmp[0]; GQ[1][i] = bdTmp[0] * bdTmp[1]; GBASE[0][i] = GQ[0][i]; GBASE[1][i] = GQ[1][i]; }
+  BD.key = key;
+  var keep = P.sys; P.sys = 5;
+  for (i = 0; i < 700; i++) gStep();                         // relax onto this scheme's own discrete steady state
+  P.sys = keep;
+  for (i = NGH; i < NGH + NX; i++){ GBASE[0][i] = GQ[0][i]; GBASE[1][i] = GQ[1][i]; }
+  var rI = BD.rin, rO = BD.rout;
+  BD.mdotIn = 4 * Math.PI * rI * rI * Math.abs(GFX[0][NGH - 1]);
+  BD.mdotOut = 4 * Math.PI * rO * rO * Math.abs(GFX[0][NGH + NX - 1]);
+  BD.key = key;
+}
+
+// ---- strike / tables for systems 3-6
+function sh(x){ x -= Math.floor(x); return initProfile(x); }
+function gStrike(){
+  var S = SYSD[P.sys], i, c, x, A = P.amp, k;
+  for (c = 0; c < 8; c++) for (i = 0; i < NT; i++) GQ[c][i] = 0;
+  if (P.sys === 3){
+    for (i = NGH; i < NGH + NX; i++){
+      x = (i - NGH + 0.5) / NX;
+      GQ[0][i] = 0.5 * A * sh(x + 0.5);                       // Ex: divergence error, cleaned away at chi
+      GQ[1][i] = A * sh(x);                                   // Ey with Bz = 0: splits into two light pulses
+      GQ[2][i] = A * sh(x + 0.25); GQ[4][i] = -A * sh(x + 0.25);   // Ez, By: one right-moving light pulse
+      GQ[3][i] = 0.5 * A * sh(x + 0.75);                      // Bx: magnetic divergence error, cleaned at gamma
+    }
+  } else if (P.sys === 4){
+    SR.G = P.gamma; SR.fails = 0;
+    var P0 = 0.6;
+    for (i = NGH; i < NGH + NX; i++){
+      x = (i - NGH + 0.5) / NX;
+      var rho = 1, pr = P0, v = 0, f = sh(x);
+      if (P.init === 2){ pr = P0 * (1 + 15 * A * f); rho = 1 + A * f; }                       // blast wave
+      else if (P.init === 3){ pr = f > 0 ? P0 * (1 + 10 * A) : P0 * 0.3; rho = f > 0 ? 1 + A : 1; }   // shock tube
+      else if (P.init === 5){ v = clamp(0.5 * A * f, -0.92, 0.92); }                        // Michel profile as velocity
+      else { pr = Math.max(0.03 * P0, P0 * (1 + 0.8 * A * f)); rho = Math.max(0.1, 1 + 0.3 * A * f); }
+      p2c(rho, v, pr, gq); GQ[0][i] = gq[0]; GQ[1][i] = gq[1]; GQ[2][i] = gq[2]; SR.P[i] = pr;
+    }
+    for (i = 0; i < NGH; i++){ SR.P[i] = SR.P[NGH]; SR.P[NGH + NX + i] = SR.P[NGH + NX - 1]; }
+  } else if (P.sys === 5){
+    bondiBaseline();
+    for (i = 0; i < NT; i++){ GQ[0][i] = GBASE[0][i]; GQ[1][i] = GBASE[1][i]; }
+    for (i = NGH; i < NGH + NX; i++){
+      x = (i - NGH + 0.5) / NX;
+      var d = 0.25 * A * (P.init === 3 ? (x < 0.5 ? 1 : 0) : sh(x));
+      var vb = GBASE[1][i] / GBASE[0][i];
+      GQ[0][i] = Math.max(1e-6, GBASE[0][i] * (1 + d)); GQ[1][i] = GQ[0][i] * vb;
+    }
+  } else if (P.sys === 6){
+    W8.R = Math.sqrt(2 * P.shells); S.dx = W8.R / NX;
+    var u0 = function(r){
+      if (P.init === 1) return A * magicAt(MG, SHMAXG, r * r);   // the magic function, at rest, in its own 8 dimensions
+      if (P.init === 3) return r < W8.R / 2 ? A : 0;
+      return A * sh(0.5 + 0.5 * r / W8.R);
+    };
+    for (i = NGH; i < NGH + NX; i++){ var rm = (i - NGH) * S.dx; GQ[0][i] = (u0(rm + S.dx) - u0(rm)) / S.dx; GQ[1][i] = 0; }
+  }
+  for (c = 0; c < 8; c++){ GEN.sums0[c] = 0; for (i = NGH; i < NGH + NX; i++) GEN.sums0[c] += GQ[c][i]; }
+  if (P.sys === 6){ W8.E0 = w8Energy() || 1; W8.E = W8.E0; }
+  pde.agc = {};
+}
+function w8Energy(){ var e = 0, i, dx = SYSD[6].dx, rm; for (i = NGH; i < NGH + NX; i++){ rm = (i - NGH) * dx; e += (Math.pow(rm + dx, 8) - Math.pow(rm, 8)) / 8 * (GQ[0][i] * GQ[0][i] + GQ[1][i] * GQ[1][i]); } return 0.5 * e; }
+function agc(arr, key){
+  var m = 1e-12, i, a;
+  for (i = 0; i < NX; i++){ a = Math.abs(arr[i]); if (a > m) m = a; }
+  var st = pde.agc || (pde.agc = {});
+  if (st[key] === undefined){ st[key] = 1 / m; st[key + 'max'] = 20 / m; }
+  var target = Math.min(1 / m, st[key + 'max']), g = st[key];
+  g = target < g ? target : g + (target - g) * 0.02;
+  st[key] = g;
+  for (i = 0; i < NX; i++) arr[i] = clamp(arr[i] * g, -1.5, 1.5);
+}
+function gTables(snap){
+  var i, k, x, j;
+  if (P.sys === 3){
+    for (k = 0; k < 8; k++){ COMPo[k].set(COMP[k]); for (i = 0; i < NX; i++) COMP[k][i] = GQ[k][NGH + i]; }
+    var m = 1e-12; for (k = 0; k < 8; k++) for (i = 0; i < NX; i++) m = Math.max(m, Math.abs(COMP[k][i]));
+    var st = pde.agc || (pde.agc = {}); if (st.mx === undefined) st.mx = 1 / m;
+    st.mx = 1 / m < st.mx ? 1 / m : st.mx + (1 / m - st.mx) * 0.02;
+    for (k = 0; k < 8; k++) for (i = 0; i < NX; i++) COMP[k][i] = clamp(COMP[k][i] * st.mx, -1.5, 1.5);
+    if (snap) for (k = 0; k < 8; k++) COMPo[k].set(COMP[k]);
+    return;
+  }
+  TABLo.set(TABL); TABRo.set(TABR);
+  if (P.sys === 4){
+    var mL = 0, mR = 0;
+    for (i = 0; i < NX; i++){ j = NGH + i; c2p(GQ[0][j], GQ[1][j], GQ[2][j], SR.P[j], SR.prim); TABL[i] = Math.log(Math.max(SR.prim[2], 1e-9)); TABR[i] = SR.prim[3] * SR.prim[1]; mL += TABL[i]; mR += TABR[i]; }
+    mL /= NX; mR /= NX; for (i = 0; i < NX; i++){ TABL[i] -= mL; TABR[i] -= mR; }
+  } else if (P.sys === 5){
+    for (i = 0; i < NX; i++){
+      j = NGH + i; var rb = GBASE[0][j], vb = GBASE[1][j] / rb, cb = Math.sqrt(BD.G * BD.K * Math.pow(rb, BD.G - 1));
+      TABL[i] = (GQ[0][j] - rb) / rb; TABR[i] = (GQ[1][j] / GQ[0][j] - vb) / cb;
+    }
+  } else if (P.sys === 6){
+    for (i = 0; i < NX; i++){
+      x = (i + 0.5) / NX; k = Math.min(NX - 1, Math.floor(Math.abs(2 * x - 1) * NX));
+      TABL[i] = GQ[1][NGH + k]; TABR[i] = GQ[0][NGH + k];       // L hears u_t, R hears u_r, mirrored through r = 0
+    }
+    W8.E = w8Energy();
+  }
+  agc(TABL, 'L'); agc(TABR, 'R');
+  if (snap){ TABLo.set(TABL); TABRo.set(TABR); }
+}
+
+// ===================================================================
+// LATTICE: E8 walker (coordinates stored x2 as integers)
+// ===================================================================
+var X2 = new Int32Array(8), walkTrail = [];
+var lastRoot = -1, lastSign = 1, walkVer = 0, walkVerDrawn = -1;
+var BASES = [
+  [0, 6, 9.5098, 12, 13.9316, 15.5098, 16.8458, 18],      // 12 log2 sqrt(n): E8 shell radii
+  [0, 12, 19.0196, 24, 27.8631, 31.0196, 33.6917, 36],    // 12 log2 n: harmonics
+  [0, 7, 12, 19, 24, 31, 36, 43]                         // stacked fifths and octaves
+];
+function hashTheorem(k){ var h = (k + 1) * 2654435761; h = (h ^ (h >>> 15)) >>> 0; h = Math.imul(h, 2246822519) >>> 0; return (h ^ (h >>> 13)) >>> 0; }
+function stepWalker(k){
+  var T = TH[k], h = hashTheorem(k), R = Math.round(P.range) * 2, base, j, tries, s, i, ok, idx;
+  base = T.dist === 1 ? 112 + (h % 128) : (h % 112);          // axiom-citing theorems use half-integer roots
+  for (tries = 0; tries < 240; tries++){
+    idx = (base + tries) % 240;
+    for (s = 1; s >= -1; s -= 2){
+      ok = true;
+      for (i = 0; i < 8; i++){ if (Math.abs(X2[i] + s * ROOTS2[idx][i]) > R + (R % 2 ? 0 : 1)){ ok = false; break; } }
+      if (ok){ for (i = 0; i < 8; i++) X2[i] += s * ROOTS2[idx][i]; lastRoot = idx; lastSign = s; walkVer++; return idx; }
+    }
+  }
+  return -1;
+}
+function latticeOK(){
+  var i, par = X2[0] & 1, sum = 0;
+  for (i = 0; i < 8; i++){ if ((X2[i] & 1) !== par) return false; sum += X2[i]; }
+  return ((sum % 4) + 4) % 4 === 0;                          // sum of coordinates even
+}
+function voiceFreq(i){ return P.root * Math.pow(2, (BASES[P.voicing][i] + (X2[i] / 2) * P.unit) / 12); }
+
+// ===================================================================
+// CORE state: parcels (notes falling in), cracks, theta bed, proof clock
+// ===================================================================
+var MAXP = 64;
+var core = {
+  sr:44100, clk:0, seq:[], seqPos:0, coneTarget:0, coneBook:0, loops:0,
+  alive:new Uint8Array(MAXP), r:new Float64Array(MAXP), phi:new Float64Array(MAXP), ph:new Float64Array(MAXP),
+  f:new Float64Array(MAXP), amp:new Float64Array(MAXP), book:new Uint8Array(MAXP), age:new Float64Array(MAXP),
+  r0:new Float64Array(MAXP), sonic:new Uint8Array(MAXP), inc:new Float64Array(MAXP), gl:new Float64Array(MAXP),
+  gr:new Float64Array(MAXP), glt:new Float64Array(MAXP), grt:new Float64Array(MAXP), s:new Float64Array(MAXP),
+  born:new Float64Array(MAXP), ctrl:0, swallowed:0, sampleCount:0,
+  ckN:0, ckT:new Float64Array(8), ckG:new Float64Array(8), ckL:new Float64Array(8), ckR:new Float64Array(8), ckY:new Float64Array(8), ckX:new Float64Array(8),
+  thPh:new Float64Array(NTHETA), proved:new Float64Array(NTH), vo:new Uint8Array(MAXP)
+};
+var VT = { Lc:[], Lo:[], Rc:[], Ro:[] };
+function voiceTables(){
+  var v;
+  for (v = 0; v < 8; v++){
+    if (P.sys === 3){ VT.Lc[v] = COMP[v]; VT.Lo[v] = COMPo[v]; VT.Rc[v] = COMP[PARTNER[v]]; VT.Ro[v] = COMPo[PARTNER[v]]; }
+    else { VT.Lc[v] = TABL; VT.Lo[v] = TABLo; VT.Rc[v] = TABR; VT.Ro[v] = TABRo; }
+  }
+}
+var SIN = new Float32Array(4097); (function(){ var i; for (i = 0; i <= 4096; i++) SIN[i] = Math.sin(TAU * i / 4096); })();
+var evq = [];
+var rng = 22695477;
+function noise(){ rng = (Math.imul(rng, 1664525) + 1013904223) | 0; return (rng >>> 0) / 4294967296 * 2 - 1; }
+
+function buildSeq(){
+  var i, s = [];
+  if (P.order === 0){ for (i = 0; i < NTH; i++) s.push(i); }
+  else if (P.order === 1){
+    for (i = 0; i < NTH; i++) s.push(i);
+    s.sort(function(a, b){ return TH[a].dist - TH[b].dist || a - b; });
+  } else {
+    var b = core.coneBook % 13, target = BOOKSTART[b] + BOOKS[b] - 1;
+    core.coneTarget = target; s = coneOf(target).slice(0); core.coneBook++;
+  }
+  core.seq = s; core.seqPos = 0;
+}
+function spawnParcel(freq, voice, book, amp){
+  var j, best = -1, oldest = -1, oa = -1;
+  for (j = 0; j < MAXP; j++){ if (!core.alive[j]){ best = j; break; } if (core.age[j] > oa){ oa = core.age[j]; oldest = j; } }
+  if (best < 0) best = oldest;
+  core.alive[best] = 1; core.r[best] = P.r0; core.r0[best] = P.r0;
+  core.phi[best] = Math.PI / 2 + (voice - 3.5) / 8 * Math.PI * 1.75 + (noise() * 0.12);
+  core.ph[best] = 0; core.f[best] = freq; core.amp[best] = amp; core.book[best] = book;
+  core.age[best] = 0; core.sonic[best] = P.r0 <= MICH.rc * KERR.rp / 2 ? 1 : 0;
+  core.gl[best] = 0; core.gr[best] = 0; core.glt[best] = 0; core.grt[best] = 0; core.s[best] = 0;
+  core.inc[best] = freq / core.sr; core.born[best] = core.sampleCount; core.vo[best] = voice & 7;
+}
+function spawnCrack(pan){
+  var j = core.ckN % 8; core.ckN++;
+  core.ckT[j] = 0.06 * core.sr; core.ckG[j] = P.sonic * 0.9;
+  var x = clamp(pan, -1, 1);
+  core.ckL[j] = Math.cos((x + 1) * Math.PI / 4); core.ckR[j] = Math.sin((x + 1) * Math.PI / 4);
+  core.ckY[j] = 0; core.ckX[j] = 0;
+}
+function fireTheorem(){
+  if (core.seqPos >= core.seq.length){
+    if (P.order !== 2 || core.coneBook % 13 === 0){ evq.push({ type:'qed' }); }
+    buildSeq();
+  }
+  var k = core.seq[core.seqPos++], T = TH[k];
+  var prev = new Int32Array(X2);
+  var idx = stepWalker(k);
+  var order = [0,1,2,3,4,5,6,7], i;
+  order.sort(function(a, b){ return Math.abs(X2[b] - prev[b]) - Math.abs(X2[a] - prev[a]) || a - b; });
+  var n = clamp(T.refs.length, 1, Math.round(P.maxv));
+  if (T.name === '13.18') n = 8;
+  var amp = 0.42 / Math.sqrt(n);
+  for (i = 0; i < n; i++) spawnParcel(voiceFreq(order[i]), order[i], T.book, amp);
+  if (P.strike === 1 || (P.strike === 0 && T.dist === 1)) pde.pending = true;
+  core.proved[k] = core.sampleCount / core.sr + 0.0001;
+  evq.push({ type:'thm', k:k, root:idx, sign:lastSign, n:n });
+}
+
+function makeCore(){
+  var spn = ctx.createScriptProcessor(BUFSIZE, 1, 2);
+  core.sr = ctx.sampleRate;
+  spn.onaudioprocess = function(e){
+    var outL = e.outputBuffer.getChannelData(0), outR = e.outputBuffer.getChannelData(1);
+    var n = outL.length, sr = core.sr, i, j;
+    // ---- PDE at block rate: strike, evolve, publish wavetable
+    if (pde.pending){ pde.pending = false; strikePDE(); }
+    pde.stepAcc += P.evo * n / sr;
+    var cap = P.sys === 4 ? 24 : (P.sys >= 3 ? 48 : 64);         // keep the heavier systems inside one audio block
+    var steps = Math.min(cap, Math.floor(pde.stepAcc)); pde.stepAcc -= steps; if (pde.stepAcc > cap) pde.stepAcc = cap;
+    if (pde.softAt && core.sampleCount - (pde.softLast || 0) > 0.4 * sr){ pde.softAt = 0; pde.softLast = core.sampleCount; strikePDE(); }
+    for (j = 0; j < steps; j++) stepPDE();
+    writeTables(false);
+    voiceTables();
+    // ---- per-block constants
+    var stepLen = Math.max(32, Math.floor(sr / P.rate));
+    var rp = KERR.rp, rcA = MICH.rc * rp / 2, shMax = 2 * P.shells, wm = P.wmix, width = P.width;
+    var thetaAmp = P.theta * 0.06, thetaInc = [], thetaA = [], thetaL = [], thetaR = [], cdec = Math.exp(-1 / (0.012 * sr));
+    if (thetaAmp > 0){
+      var norm = 0;
+      for (j = 0; j < NTHETA; j++){
+        var nn = j + 1;
+        thetaInc.push(P.root * 0.5 * Math.sqrt(nn) / sr);
+        var a = Math.pow(THETA_RATIO[j], P.contrast) / Math.pow(nn, 0.6);
+        thetaA.push(a); norm += a;
+        var pan = (j % 2 ? 1 : -1) * width * (0.3 + 0.7 * j / NTHETA);
+        thetaL.push(Math.cos((pan + 1) * Math.PI / 4)); thetaR.push(Math.sin((pan + 1) * Math.PI / 4));
+      }
+      for (j = 0; j < NTHETA; j++) thetaA[j] *= thetaAmp / norm * 3;
+    }
+    for (i = 0; i < n; i++){
+      // proof clock
+      if (++core.clk >= stepLen){ core.clk = 0; fireTheorem(); }
+      // control rate (every 32 samples): kinematics in the Kerr spacetime
+      if (--core.ctrl <= 0){
+        core.ctrl = 32;
+        var dtc = 32 / sr;
+        for (j = 0; j < MAXP; j++){
+          if (!core.alive[j]) continue;
+          var r = core.r[j];
+          var reff = 2 * r / rp;                               // Michel profile rescaled onto the Kerr horizon
+          r -= P.fall * michelU(reff) * dtc;
+          core.age[j] += dtc;
+          if (r <= rp * 1.0008){ core.alive[j] = 0; core.swallowed++; continue; }
+          if (!core.sonic[j] && r < rcA){ core.sonic[j] = 1; spawnCrack(Math.cos(core.phi[j]) * width); evq.push({ type:'crack' }); }
+          core.r[j] = r;
+          var al = lapse(r);
+          core.phi[j] += omegaFD(r) * P.drag * dtc;
+          var s = shMax * (core.r0[j] - r) / Math.max(1e-6, core.r0[j] - rp);
+          s = clamp(s, 0, shMax); core.s[j] = s;
+          var eg = magicAt(MG, SHMAXG, s), egh = magicAt(MGH, SHMAXGH, s);
+          var att = Math.min(1, core.age[j] / 0.012);
+          var red = Math.pow(Math.max(al, 1e-6), P.red);
+          core.inc[j] = core.f[j] * red / sr;
+          var x = Math.cos(core.phi[j]) * width;
+          var pl = Math.cos((x + 1) * Math.PI / 4), pr = Math.sin((x + 1) * Math.PI / 4);
+          var a2 = core.amp[j] * att * Math.sqrt(red);
+          core.glt[j] = a2 * eg * pl;
+          core.grt[j] = a2 * (eg + (egh - eg) * P.sign) * pr;
+        }
+      }
+      var L = 0, R = 0, xf = i / n;
+      for (j = 0; j < MAXP; j++){
+        if (!core.alive[j]) continue;
+        var ph = core.ph[j] + core.inc[j]; ph -= Math.floor(ph); core.ph[j] = ph;
+        var px = ph * NX, i0 = px | 0, fr = px - i0, i1 = (i0 + 1) & (NX - 1);
+        var vv = core.vo[j], cL = VT.Lc[vv], oL = VT.Lo[vv], cR = VT.Rc[vv], oR = VT.Ro[vv];
+        var tl = (oL[i0] + (oL[i1] - oL[i0]) * fr) * (1 - xf) + (cL[i0] + (cL[i1] - cL[i0]) * fr) * xf;
+        var tr = (oR[i0] + (oR[i1] - oR[i0]) * fr) * (1 - xf) + (cR[i0] + (cR[i1] - cR[i0]) * fr) * xf;
+        var si = SIN[(ph * 4096) | 0];
+        core.gl[j] += (core.glt[j] - core.gl[j]) * 0.05;
+        core.gr[j] += (core.grt[j] - core.gr[j]) * 0.05;
+        L += (si + (tl - si) * wm) * core.gl[j];
+        R += (si + (tr - si) * wm) * core.gr[j];
+      }
+      // sonic cracks: band-limited noise bursts where the inflow passes the speed of sound
+      for (j = 0; j < 8; j++){
+        if (core.ckT[j] <= 0) continue;
+        core.ckT[j]--;
+        var nz = noise(), hp = nz - core.ckX[j]; core.ckX[j] = nz;
+        core.ckY[j] += (hp - core.ckY[j]) * 0.35;
+        var cs = core.ckY[j] * core.ckG[j]; core.ckG[j] *= cdec;
+        L += cs * core.ckL[j]; R += cs * core.ckR[j];
+      }
+      // theta bed: partials at E8 shell radii sqrt(n), weighted by sigma3(n)/n^3
+      if (thetaAmp > 0){
+        for (j = 0; j < NTHETA; j++){
+          var tp = core.thPh[j] + thetaInc[j]; tp -= Math.floor(tp); core.thPh[j] = tp;
+          var sv = SIN[(tp * 4096) | 0] * thetaA[j];
+          L += sv * thetaL[j]; R += sv * thetaR[j];
+        }
+      }
+      outL[i] = L; outR[i] = R;
+      core.sampleCount++;
+    }
+  };
+  return spn;
+}
+
+// ===================================================================
+// AUDIO GRAPH
+// ===================================================================
+function build(){
+  ctx = new AC();
+  var t = ctx.currentTime;
+  N.spn = makeCore();
+  N.sil = ctx.createOscillator(); var sg0 = ctx.createGain(); sg0.gain.value = 0;
+  N.sil.connect(sg0); sg0.connect(N.spn);
+  N.dry = ctx.createGain(); N.dry.gain.value = 1;
+  N.spn.connect(N.dry);
+  // stereo ping-pong echo
+  N.ppIn = ctx.createGain(); N.ppIn.gain.value = 1;
+  N.ppSplit = ctx.createChannelSplitter(2);
+  N.ppMono = ctx.createGain(); N.ppMono.gain.value = 0.5;
+  N.ppL = ctx.createDelay(2.0); N.ppR = ctx.createDelay(2.0);
+  N.ppFb = ctx.createGain();
+  N.ppTone = ctx.createBiquadFilter(); N.ppTone.type = 'lowpass'; N.ppTone.frequency.value = 5200;
+  N.ppMerge = ctx.createChannelMerger(2);
+  N.ppMix = ctx.createGain();
+  N.spn.connect(N.ppIn);
+  N.ppIn.connect(N.ppSplit);
+  N.ppSplit.connect(N.ppMono, 0); N.ppSplit.connect(N.ppMono, 1);
+  N.ppMono.connect(N.ppL);
+  N.ppL.connect(N.ppMerge, 0, 0); N.ppL.connect(N.ppR);
+  N.ppR.connect(N.ppMerge, 0, 1); N.ppR.connect(N.ppTone); N.ppTone.connect(N.ppFb); N.ppFb.connect(N.ppL);
+  N.ppMerge.connect(N.ppMix);
+  N.master = ctx.createGain();
+  N.dry.connect(N.master); N.ppMix.connect(N.master);
+  N.lim = ctx.createDynamicsCompressor();
+  N.lim.threshold.value = -6; N.lim.knee.value = 2; N.lim.ratio.value = 14; N.lim.attack.value = 0.002; N.lim.release.value = 0.15;
+  N.master.connect(N.lim);
+  N.recSP = ctx.createScriptProcessor(BUFSIZE, 2, 2);
+  N.recSP.onaudioprocess = onRecord;
+  N.lim.connect(N.recSP); N.recSP.connect(ctx.destination);
+  N.sil.start(t + 0.02);
+  applyEcho(); applyOut();
+}
+function ramp(p, v){ if (ctx) p.setTargetAtTime(v, ctx.currentTime, 0.03); }
+function applyEcho(){ if (!ctx) return; ramp(N.ppL.delayTime, P.echoT); ramp(N.ppR.delayTime, P.echoT); ramp(N.ppFb.gain, P.echoFb); ramp(N.ppMix.gain, P.echoMix); }
+function applyOut(){ if (!ctx) return; ramp(N.master.gain, P.out); }
+
+// ===================================================================
+// RECORD (WAV; inside the claude.ai viewer the WAV travels in a .zip)
+// ===================================================================
+var recording = false, recL = [], recR = [], recSamples = 0;
+function onRecord(e){
+  var iL = e.inputBuffer.getChannelData(0), iR = e.inputBuffer.numberOfChannels > 1 ? e.inputBuffer.getChannelData(1) : iL;
+  var oL = e.outputBuffer.getChannelData(0), oR = e.outputBuffer.getChannelData(1), i;
+  for (i = 0; i < oL.length; i++){ oL[i] = iL[i]; oR[i] = iR[i]; }
+  if (recording){ recL.push(new Float32Array(iL)); recR.push(new Float32Array(iR)); recSamples += oL.length; }
+}
+function encodeWAV(chL, chR, sr){
+  var n = 0, i; for (i = 0; i < chL.length; i++) n += chL[i].length;
+  if (!n) return null;
+  var buf = new ArrayBuffer(44 + n * 4), v = new DataView(buf), o = 0;
+  function u32(x){ v.setUint32(o, x, true); o += 4; } function u16(x){ v.setUint16(o, x, true); o += 2; }
+  function ws(s){ for (var j = 0; j < s.length; j++) v.setUint8(o++, s.charCodeAt(j)); }
+  ws('RIFF'); u32(36 + n * 4); ws('WAVE'); ws('fmt '); u32(16); u16(1); u16(2); u32(sr); u32(sr * 4); u16(4); u16(16); ws('data'); u32(n * 4);
+  var c, k, s;
+  for (c = 0; c < chL.length; c++){
+    for (k = 0; k < chL[c].length; k++){
+      s = clamp(chL[c][k], -1, 1); v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7FFF, true); o += 2;
+      s = clamp(chR[c][k], -1, 1); v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7FFF, true); o += 2;
+    }
+  }
+  return new Uint8Array(buf);
+}
+var CRCT = null;
+function crc32(u8){
+  var i, c, k;
+  if (!CRCT){ CRCT = new Uint32Array(256); for (i = 0; i < 256; i++){ c = i; for (k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); CRCT[i] = c >>> 0; } }
+  c = 0xFFFFFFFF;
+  for (i = 0; i < u8.length; i++) c = CRCT[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function zipStore(name, data){                               // one stored (uncompressed) entry
+  var nm = [], i; for (i = 0; i < name.length; i++) nm.push(name.charCodeAt(i) & 0x7F);
+  var crc = crc32(data), sz = data.length, L = 30 + nm.length, C = 46 + nm.length;
+  var out = new Uint8Array(L + sz + C + 22), v = new DataView(out.buffer), o = 0;
+  function u32(x){ v.setUint32(o, x >>> 0, true); o += 4; } function u16(x){ v.setUint16(o, x, true); o += 2; }
+  u32(0x04034b50); u16(20); u16(0); u16(0); u16(0); u16(0x21); u32(crc); u32(sz); u32(sz); u16(nm.length); u16(0);
+  for (i = 0; i < nm.length; i++) out[o++] = nm[i];
+  out.set(data, o); o += sz;
+  var cd = o;
+  u32(0x02014b50); u16(20); u16(20); u16(0); u16(0); u16(0); u16(0x21); u32(crc); u32(sz); u32(sz); u16(nm.length); u16(0); u16(0); u16(0); u16(0); u32(0); u32(0);
+  for (i = 0; i < nm.length; i++) out[o++] = nm[i];
+  u32(0x06054b50); u16(0); u16(0); u16(1); u16(1); u32(C); u32(cd); u16(0);
+  return out;
+}
+var DL = null, inViewer = !!(window.claude && window.claude.use);
+if (inViewer){ try { window.claude.use('downloads').then(function(d){ DL = d; }, function(){}); } catch (e) {} }
+var lastUrl = null;
+function offerFile(name, mime, bytesOrText){
+  if (DL){
+    var data = bytesOrText, fname = name;
+    if (/\.wav$/.test(name)){ data = zipStore(name, bytesOrText); fname = name.replace(/\.wav$/, '.zip'); }
+    DL.save({ filename:fname, data:new Blob([data]) }).then(function(){ flash('Saved ' + fname + '.'); }, function(err){
+      var c = err && err.code;
+      flash(c === 'declined' ? 'Save declined.' : (c === 'rate_limited' ? 'A save prompt is already open.' : 'Saving is not available in this view.'));
+    });
+    return;
+  }
+  if (inViewer){ flash('Saving is not available in this view.'); return; }
+  var blob = new Blob([bytesOrText], { type:mime });
+  if (lastUrl) URL.revokeObjectURL(lastUrl);
+  lastUrl = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href = lastUrl; a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  flash('Saved ' + name + '.');
+}
+function stamp(){ var d = new Date(), p = function(x){ return (x < 10 ? '0' : '') + x; }; return p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); }
+
+// ===================================================================
+// UI: sliders, selects, labels
+// ===================================================================
+function flash(msg){ $('status').textContent = msg; }
+var maps = {
+  sRate:   function(v){ P.rate = logMap(v, 0.25, 12); return P.rate.toFixed(2) + ' /s'; },
+  sMaxv:   function(v){ P.maxv = 1 + Math.round(v * 7); return 'up to ' + P.maxv; },
+  sRoot:   function(v){ P.root = logMap(v, 30, 440); return Math.round(P.root) + ' Hz'; },
+  sUnit:   function(v){ P.unit = 0.5 + v * 6; return P.unit.toFixed(2) + ' st'; },
+  sRange:  function(v){ P.range = 1 + Math.round(v * 5); return '|x|≤' + P.range; },
+  sTheta:  function(v){ P.theta = v; return v < 0.02 ? 'off' : Math.round(v * 100) + '%'; },
+  sContrast: function(v){ P.contrast = v * 24; return 'σ₃^' + P.contrast.toFixed(1); },
+  sShells: function(v){ P.shells = 1 + Math.round(v * 9); staticDirty = true; if (P.sys === 6) pde.softAt = 1; return P.shells + (P.shells === 1 ? ' shell' : ' shells'); },
+  sTail:   function(v){ P.tail = v; magicTail = v; staticDirty = true; return v < 0.02 ? 'true g' : Math.round(v * 100) + '%'; },
+  sSign:   function(v){ P.sign = v; return v < 0.02 ? 'g both ears' : (v > 0.98 ? 'g | ĝ' : Math.round(v * 100) + '%'); },
+  sCfl:    function(v){ P.cfl = 0.05 + v * 1.55; return P.cfl.toFixed(2) + (P.cfl > 1 ? ' UNSTABLE' : ''); },
+  sEvo:    function(v){ P.evo = v < 0.01 ? 0 : logMap(v, 2, 600); return v < 0.01 ? 'frozen' : Math.round(P.evo) + ' steps/s'; },
+  sAmp:    function(v){ P.amp = 0.1 + v * 1.8; return P.amp.toFixed(2); },
+  sClean:  function(v){ MX.chi = logMap(v, 0.25, 4); MX.gam = MX.chi * 1.618; return '\u03c7 ' + MX.chi.toFixed(2) + ' \u03b3 ' + MX.gam.toFixed(2); },
+  sWmix:   function(v){ P.wmix = v; return v < 0.02 ? 'sine' : (v > 0.98 ? 'PDE' : Math.round(v * 100) + '% PDE'); },
+  sSpin:   function(v){ P.spin = Math.min(0.998, v); setSpin(P.spin); staticDirty = true; return P.spin.toFixed(3); },
+  sGamma:  function(v){ P.gamma = 1.1 + v * (5 / 3 - 1.1); michelDirty = true; if (P.sys === 4 || P.sys === 5) pde.softAt = 1; return P.gamma.toFixed(3); },
+  sTemp:   function(v){ P.temp = logMap(v, 0.03, 0.3); michelDirty = true; if (P.sys === 5) pde.softAt = 1; return P.temp.toFixed(3) + ' c'; },
+  sR0:     function(v){ P.r0 = logMap(v, 6, 80); staticDirty = true; return P.r0.toFixed(1) + ' M'; },
+  sFall:   function(v){ P.fall = logMap(v, 4, 160); return P.fall.toFixed(0) + '\u00d7'; },
+  sRed:    function(v){ P.red = v * 1.5; return P.red.toFixed(2); },
+  sDrag:   function(v){ P.drag = v * 40; return P.drag.toFixed(1) + '×'; },
+  sSonic:  function(v){ P.sonic = v; return v < 0.02 ? 'off' : Math.round(v * 100) + '%'; },
+  sWidth:  function(v){ P.width = v; return Math.round(v * 100) + '%'; },
+  sEchoT:  function(v){ P.echoT = logMap(v, 0.04, 1.6); applyEcho(); return Math.round(P.echoT * 1000) + ' ms'; },
+  sEchoFb: function(v){ P.echoFb = v * 0.88; applyEcho(); return Math.round(P.echoFb * 100) + '%'; },
+  sEchoMix:function(v){ P.echoMix = v; applyEcho(); return v < 0.02 ? 'off' : Math.round(v * 100) + '%'; },
+  sOut:    function(v){ P.out = v; applyOut(); return Math.round(v * 100) + '%'; },
+  sLfo0rate:  function(v){ LFOS[0].rate = logMap(v, 0.01, 12); return LFOS[0].rate.toFixed(LFOS[0].rate < 1 ? 2 : 1) + ' Hz'; },
+  sLfo0depth: function(v){ LFOS[0].depth = v; return v < 0.02 ? 'off' : Math.round(v * 100) + '%'; },
+  sLfo1rate:  function(v){ LFOS[1].rate = logMap(v, 0.01, 12); return LFOS[1].rate.toFixed(LFOS[1].rate < 1 ? 2 : 1) + ' Hz'; },
+  sLfo1depth: function(v){ LFOS[1].depth = v; return v < 0.02 ? 'off' : Math.round(v * 100) + '%'; },
+  sMorph:  function(v){ P.morphDur = v < 0.01 ? 0 : logMap(v, 0.5, 300); return v < 0.01 ? 'instant' : (P.morphDur < 60 ? P.morphDur.toFixed(1) + ' s' : (P.morphDur / 60).toFixed(1) + ' min'); }
+};
+var LFOS = [ { targ:'', wave:0, rate:1, depth:0, phase:0, sh:0 }, { targ:'', wave:0, rate:1, depth:0, phase:0.37, sh:0 } ];
+var SELS = { orderSel:'order', voiceSel:'voicing', sysSel:'sys', fluxSel:'flux', limSel:'lim', initSel:'init', strikeSel:'strike' };
+var vals = {};
+(function(){
+  var id;
+  for (id in maps){
+    (function(id){
+      var el = $(id); vals[id] = 'v' + id.substr(1);
+      var up = function(){ $(vals[id]).textContent = maps[id](parseFloat(el.value)); };
+      el.addEventListener('input', up); up();
+    })(id);
+  }
+  for (id in SELS){
+    (function(id){
+      var el = $(id), key = SELS[id];
+      var up = function(){ P[key] = parseInt(el.value, 10); onSelect(key); };
+      el.addEventListener('change', up); P[key] = parseInt(el.value, 10);
+    })(id);
+  }
+})();
+function onSelect(key){
+  if (key === 'order'){ core.coneBook = 0; buildSeq(); flash(['Proving in Euclid’s order.', 'Proving layer by layer, outward from the axioms.', 'Proving cone by cone: each book’s last theorem with everything beneath it.'][P.order]); }
+  if (key === 'sys' || key === 'init' || key === 'lim' || key === 'flux') pde.pending = true;
+  staticDirty = true;
+}
+var SLIDER_IDS = []; (function(){ var id; for (id in maps) if (id !== 'sMorph') SLIDER_IDS.push(id); })();
+var MOD_IDS = SLIDER_IDS.filter(function(id){ return id.indexOf('sLfo') !== 0 && id !== 'sOut'; });
+var LABELS = { sRate:'rate', sMaxv:'voices', sRoot:'root', sUnit:'step', sRange:'range', sTheta:'theta bed', sContrast:'σ₃ contrast',
+  sShells:'shells', sTail:'tail', sSign:'sign', sCfl:'CFL', sEvo:'evolve', sClean:'cleaning speed', sAmp:'amplitude', sWmix:'sine/PDE', sSpin:'spin a/M',
+  sGamma:'gamma', sTemp:'temperature', sR0:'start radius', sFall:'fall', sRed:'redshift', sDrag:'frame drag', sSonic:'sonic crack',
+  sWidth:'width', sEchoT:'echo time', sEchoFb:'echo fb', sEchoMix:'echo mix' };
+function fillTargets(el, withAll){
+  var o = document.createElement('option'); o.value = ''; o.textContent = 'off'; el.appendChild(o);
+  if (withAll){ o = document.createElement('option'); o.value = 'ALL'; o.textContent = 'all at once'; el.appendChild(o); }
+  MOD_IDS.forEach(function(id){ var p = document.createElement('option'); p.value = id; p.textContent = LABELS[id] || id; el.appendChild(p); });
+}
+
+// ---- modulators
+var LFO_WAVES = ['sin', 'tri', 'rnd'];
+(function(){
+  var i;
+  for (i = 0; i < 2; i++){
+    (function(i){
+      var ts = $('lfo' + i + 'targ'); fillTargets(ts, true);
+      ts.addEventListener('change', function(){ LFOS[i].targ = ts.value; });
+      var wb = $('lfo' + i + 'wave');
+      wb.addEventListener('click', function(){ LFOS[i].wave = (LFOS[i].wave + 1) % 3; wb.textContent = LFO_WAVES[LFOS[i].wave]; });
+    })(i);
+  }
+  fillTargets($('midiSel'), false);
+})();
+var modApplied = {};
+function lfoVal(w, p){ p -= Math.floor(p); return w === 0 ? Math.sin(TAU * p) : (w === 1 ? 4 * Math.abs(p - 0.5) - 1 : 0); }
+function modTick(dt){
+  var acc = null, li, l, k, ids, id, v, base;
+  for (li = 0; li < LFOS.length; li++){
+    l = LFOS[li];
+    l.phase += l.rate * dt;
+    if (l.phase >= 1){ l.phase -= Math.floor(l.phase); l.sh = Math.random() * 2 - 1; }
+    if (!l.targ || l.depth <= 0) continue;
+    acc = acc || {};
+    ids = l.targ === 'ALL' ? MOD_IDS : [l.targ];
+    for (k = 0; k < ids.length; k++){
+      v = l.wave === 2 ? l.sh : lfoVal(l.wave, l.phase + (l.targ === 'ALL' ? k * 0.13 : 0));
+      acc[ids[k]] = (acc[ids[k]] || 0) + l.depth * v * (l.targ === 'ALL' ? 0.25 : 0.5);
+    }
+  }
+  if (acc) for (id in acc){ base = parseFloat($(id).value); maps[id](clamp(base + acc[id], 0, 1)); modApplied[id] = 1; }
+  for (id in modApplied){ if (!acc || acc[id] === undefined){ maps[id](parseFloat($(id).value)); delete modApplied[id]; } }
+}
+
+// ===================================================================
+// PRESETS + MORPH + PATCH
+// ===================================================================
+var PRESETS = [
+  { name:'Elements, Book I onward', sel:{ orderSel:0, voiceSel:0, sysSel:1, fluxSel:1, limSel:2, initSel:0, strikeSel:0 },
+    v:{ sRate:0.48, sMaxv:0.57, sRoot:0.42, sUnit:0.25, sRange:0.4, sTheta:0.18, sContrast:0.5, sShells:0.33, sTail:0.7, sSign:1, sCfl:0.52, sEvo:0.45, sAmp:0.5, sWmix:0.8,
+        sSpin:0.5, sGamma:0.42, sTemp:0.55, sR0:0.6, sFall:0.59, sRed:0.6, sDrag:0.5, sSonic:0.5, sWidth:0.85, sEchoT:0.55, sEchoFb:0.45, sEchoMix:0.3 } },
+  { name:'Sonic point', sel:{ orderSel:0, voiceSel:1, sysSel:1, fluxSel:1, limSel:1, initSel:0, strikeSel:0 },
+    v:{ sRate:0.3, sMaxv:0.43, sRoot:0.33, sUnit:0.25, sRange:0.4, sTheta:0.1, sContrast:0.5, sShells:0.22, sTail:0.5, sSign:1, sCfl:0.52, sEvo:0.4, sAmp:0.45, sWmix:0.7,
+        sSpin:0.2, sGamma:0.42, sTemp:0.85, sR0:0.78, sFall:0.42, sRed:0.5, sDrag:0.3, sSonic:0.95, sWidth:0.9, sEchoT:0.62, sEchoFb:0.5, sEchoMix:0.35 } },
+  { name:'Extremal Kerr', sel:{ orderSel:1, voiceSel:0, sysSel:0, fluxSel:1, limSel:4, initSel:1, strikeSel:0 },
+    v:{ sRate:0.55, sMaxv:0.86, sRoot:0.5, sUnit:0.25, sRange:0.6, sTheta:0.25, sContrast:0.6, sShells:0.55, sTail:0.85, sSign:1, sCfl:0.52, sEvo:0.3, sAmp:0.5, sWmix:0.85,
+        sSpin:0.998, sGamma:0.3, sTemp:0.6, sR0:0.45, sFall:0.64, sRed:0.95, sDrag:0.95, sSonic:0.4, sWidth:1, sEchoT:0.45, sEchoFb:0.55, sEchoMix:0.35 } },
+  { name:'Riemann problem', sel:{ orderSel:0, voiceSel:2, sysSel:2, fluxSel:1, limSel:3, initSel:3, strikeSel:1 },
+    v:{ sRate:0.62, sMaxv:0.43, sRoot:0.3, sUnit:0.35, sRange:0.4, sTheta:0.05, sContrast:0.5, sShells:0.2, sTail:0.5, sSign:0.6, sCfl:0.52, sEvo:0.62, sAmp:0.75, sWmix:1,
+        sSpin:0.4, sGamma:0.6, sTemp:0.5, sR0:0.5, sFall:0.66, sRed:0.4, sDrag:0.4, sSonic:0.5, sWidth:0.8, sEchoT:0.4, sEchoFb:0.35, sEchoMix:0.25 } },
+  { name:'Magic shells', sel:{ orderSel:1, voiceSel:0, sysSel:0, fluxSel:1, limSel:2, initSel:1, strikeSel:0 },
+    v:{ sRate:0.2, sMaxv:0.71, sRoot:0.45, sUnit:0.2, sRange:0.4, sTheta:0.3, sContrast:0.7, sShells:1, sTail:1, sSign:1, sCfl:0.52, sEvo:0.2, sAmp:0.5, sWmix:0.6,
+        sSpin:0.6, sGamma:0.42, sTemp:0.55, sR0:0.8, sFall:0.38, sRed:0.7, sDrag:0.6, sSonic:0.3, sWidth:1, sEchoT:0.7, sEchoFb:0.55, sEchoMix:0.4 } },
+  { name:'13.18, the whole cone', sel:{ orderSel:2, voiceSel:1, sysSel:1, fluxSel:0, limSel:1, initSel:0, strikeSel:0 },
+    v:{ sRate:0.78, sMaxv:0.43, sRoot:0.36, sUnit:0.25, sRange:0.6, sTheta:0.4, sContrast:0.8, sShells:0.44, sTail:0.75, sSign:1, sCfl:0.52, sEvo:0.5, sAmp:0.55, sWmix:0.75,
+        sSpin:0.7, sGamma:0.42, sTemp:0.6, sR0:0.55, sFall:0.64, sRed:0.7, sDrag:0.6, sSonic:0.5, sWidth:0.9, sEchoT:0.75, sEchoFb:0.6, sEchoMix:0.4 } },
+  { name:'Maxwell\u2019s eight fields', sel:{ orderSel:0, voiceSel:0, sysSel:3, fluxSel:1, limSel:1, initSel:1, strikeSel:0 },
+    v:{ sRate:0.42, sMaxv:0.86, sRoot:0.42, sUnit:0.25, sRange:0.4, sTheta:0.18, sContrast:0.5, sShells:0.33, sTail:0.7, sSign:1, sCfl:0.52, sEvo:0.35, sAmp:0.5, sWmix:0.9, sSpin:0.6, sGamma:0.42, sTemp:0.55, sR0:0.6, sFall:0.59, sRed:0.6, sDrag:0.5, sSonic:0.5, sWidth:1, sEchoT:0.55, sEchoFb:0.45, sEchoMix:0.3, sClean:0.35 } },
+  { name:'Relativistic blast', sel:{ orderSel:1, voiceSel:2, sysSel:4, fluxSel:1, limSel:1, initSel:2, strikeSel:0 },
+    v:{ sRate:0.5, sMaxv:0.57, sRoot:0.35, sUnit:0.25, sRange:0.4, sTheta:0.18, sContrast:0.5, sShells:0.33, sTail:0.7, sSign:1, sCfl:0.52, sEvo:0.5, sAmp:0.45, sWmix:0.9, sSpin:0.5, sGamma:0.42, sTemp:0.55, sR0:0.6, sFall:0.59, sRed:0.6, sDrag:0.5, sSonic:0.5, sWidth:0.85, sEchoT:0.55, sEchoFb:0.45, sEchoMix:0.3, sClean:0.5 } },
+  { name:'Sonic horizon, Bondi', sel:{ orderSel:0, voiceSel:1, sysSel:5, fluxSel:1, limSel:1, initSel:4, strikeSel:1 },
+    v:{ sRate:0.36, sMaxv:0.57, sRoot:0.38, sUnit:0.25, sRange:0.4, sTheta:0.18, sContrast:0.5, sShells:0.33, sTail:0.7, sSign:1, sCfl:0.52, sEvo:0.78, sAmp:0.6, sWmix:0.85, sSpin:0.5, sGamma:0.42, sTemp:0.55, sR0:0.6, sFall:0.59, sRed:0.6, sDrag:0.5, sSonic:0.8, sWidth:0.85, sEchoT:0.55, sEchoFb:0.45, sEchoMix:0.3, sClean:0.5 } },
+  { name:'Magic function in R\u2078', sel:{ orderSel:1, voiceSel:0, sysSel:6, fluxSel:1, limSel:2, initSel:1, strikeSel:0 },
+    v:{ sRate:0.3, sMaxv:0.57, sRoot:0.42, sUnit:0.25, sRange:0.4, sTheta:0.18, sContrast:0.5, sShells:0.33, sTail:0.9, sSign:1, sCfl:0.52, sEvo:0.5, sAmp:0.5, sWmix:0.9, sSpin:0.5, sGamma:0.42, sTemp:0.55, sR0:0.6, sFall:0.59, sRed:0.6, sDrag:0.5, sSonic:0.5, sWidth:0.85, sEchoT:0.55, sEchoFb:0.45, sEchoMix:0.38, sClean:0.5 } },
+  { name:'CFL above 1', sel:{ orderSel:0, voiceSel:0, sysSel:1, fluxSel:0, limSel:0, initSel:0, strikeSel:2 },
+    v:{ sRate:0.35, sMaxv:0.43, sRoot:0.4, sUnit:0.25, sRange:0.4, sTheta:0.1, sContrast:0.5, sShells:0.33, sTail:0.6, sSign:1, sCfl:0.78, sEvo:0.35, sAmp:0.45, sWmix:1,
+        sSpin:0.5, sGamma:0.42, sTemp:0.55, sR0:0.6, sFall:0.59, sRed:0.6, sDrag:0.5, sSonic:0.4, sWidth:0.85, sEchoT:0.5, sEchoFb:0.4, sEchoMix:0.25 } }
+];
+(function(){ var el = $('presetSel'); PRESETS.forEach(function(p, i){ var o = document.createElement('option'); o.value = i; o.textContent = p.name; el.appendChild(o); }); })();
+var morph = { active:false, t:0, dur:1, from:{}, to:{} };
+function setSlider(id, v){ var el = $(id); if (!el) return; el.value = v; $(vals[id]).textContent = maps[id](v); }
+function applySelects(sel){ var id; for (id in sel){ if ($(id)){ $(id).value = String(sel[id]); P[SELS[id]] = sel[id]; } } onSelect('order'); pde.pending = true; }
+function loadPreset(p){
+  if (!p) return;
+  if (p.sel) applySelects(p.sel);
+  if (p.lfos) setLfos(p.lfos);
+  var id;
+  if (!(P.morphDur > 0)){ for (id in p.v) setSlider(id, p.v[id]); flash('Loaded ' + (p.name || 'patch') + '.'); return; }
+  morph.from = {}; morph.to = {};
+  for (id in p.v){ if ($(id)){ morph.from[id] = parseFloat($(id).value); morph.to[id] = p.v[id]; } }
+  morph.t = 0; morph.dur = P.morphDur; morph.active = true;
+  flash('Morphing to ' + (p.name || 'patch') + ' over ' + $('vMorph').textContent + '. STOP holds it wherever it is.');
+}
+function setLfos(arr){
+  var i;
+  for (i = 0; i < 2 && i < arr.length; i++){
+    LFOS[i].targ = arr[i].targ || ''; LFOS[i].wave = arr[i].wave || 0;
+    $('lfo' + i + 'targ').value = LFOS[i].targ; $('lfo' + i + 'wave').textContent = LFO_WAVES[LFOS[i].wave];
+  }
+}
+function setMorphSeconds(sec){ var v = Math.log(sec / 0.5) / Math.log(300 / 0.5); setSlider('sMorph', clamp(v, 0, 1)); flash('Morph time set to ' + (sec < 60 ? sec + ' s.' : (sec / 60) + ' min.')); }
+$('presetLoad').addEventListener('click', function(){ ensureAudio(); loadPreset(PRESETS[parseInt($('presetSel').value, 10)]); });
+$('m30').addEventListener('click', function(){ setMorphSeconds(30); });
+$('m60').addEventListener('click', function(){ setMorphSeconds(60); });
+$('m300').addEventListener('click', function(){ setMorphSeconds(300); });
+$('morphStop').addEventListener('click', function(){ morph.active = false; flash('Held here.'); });
+function capture(){
+  var o = { app:'proof-horizon', v:1, theme:themeIdx, sel:{}, v2:{}, lfos:[] }, id;
+  for (id in SELS) o.sel[id] = parseInt($(id).value, 10);
+  SLIDER_IDS.forEach(function(s){ o.v2[s] = parseFloat($(s).value); });
+  o.lfos = LFOS.map(function(l){ return { targ:l.targ, wave:l.wave }; });
+  return o;
+}
+function applyPatch(obj){
+  if (!obj || obj.app !== 'proof-horizon' || !obj.v2){ flash('That is not a Proof Horizon patch.'); return; }
+  if (typeof obj.theme === 'number' && obj.theme >= 0 && obj.theme < THEMES.length) applyTheme(obj.theme);
+  loadPreset({ name:'patch', sel:obj.sel, v:obj.v2, lfos:obj.lfos });
+}
+$('patchExport').addEventListener('click', function(){
+  var txt = JSON.stringify(capture());
+  $('patchText').value = txt;
+  offerFile('proof_horizon_' + stamp() + '.json', 'application/json', txt);
+});
+$('patchImport').addEventListener('click', function(){ $('patchFile').click(); });
+$('patchFile').addEventListener('change', function(ev){
+  var f = ev.target.files && ev.target.files[0]; if (!f) return;
+  var rd = new FileReader();
+  rd.onload = function(){ try { $('patchText').value = rd.result; applyPatch(JSON.parse(rd.result)); } catch (e){ flash('Could not read that file as a patch.'); } };
+  rd.readAsText(f);
+});
+$('patchLoad').addEventListener('click', function(){ try { applyPatch(JSON.parse($('patchText').value)); } catch (e){ flash('The pasted text is not valid patch JSON.'); } });
+
+// ===================================================================
+// TRANSPORT
+// ===================================================================
+function ensureAudio(){
+  if (ctx) return;
+  build();
+  if (ctx.state !== 'running' && ctx.resume) ctx.resume();
+  running = true; $('power').className = 'on';
+  buildSeq(); pde.pending = true;
+}
+$('power').addEventListener('click', function(){
+  if (!ctx){ ensureAudio(); flash('Proving. Notes fall in from r₀ = ' + P.r0.toFixed(1) + 'M.'); }
+  else if (ctx.state === 'running'){ ctx.suspend(); running = false; flash('Paused.'); }
+  else { ctx.resume(); running = true; flash('Proving.'); }
+  this.className = running ? 'on' : '';
+});
+$('strikeBtn').addEventListener('click', function(){ pde.pending = true; flash('Struck the PDE with ' + $('initSel').options[$('initSel').selectedIndex].text + '.'); });
+$('qedBtn').addEventListener('click', function(){
+  var i; for (i = 0; i < 8; i++) X2[i] = 0;
+  for (i = 0; i < NTH; i++) core.proved[i] = 0;
+  core.coneBook = 0; buildSeq(); walkTrail = [];
+  flash('Back to the axioms: x = 0, nothing proved yet.');
+});
+$('recBtn').addEventListener('click', function(){
+  ensureAudio();
+  if (!recording){ recL = []; recR = []; recSamples = 0; recording = true; this.className = 'rec'; this.innerHTML = '&#9632; STOP'; flash('Recording.'); }
+  else {
+    recording = false; this.className = ''; this.innerHTML = '&#9679; RECORD';
+    var wav = encodeWAV(recL, recR, ctx.sampleRate);
+    if (wav) offerFile('proof_horizon_' + stamp() + '.wav', 'audio/wav', wav); else flash('Nothing was recorded.');
+  }
+});
+document.addEventListener('touchend', function(){ if (ctx && running && ctx.state !== 'running' && ctx.resume) ctx.resume(); }, false);
+
+// ---- MIDI: notes set ROOT, mod wheel drives a chosen control
+function noteToSlider(n){ var f = 440 * Math.pow(2, (n - 69) / 12); while (f < 30) f *= 2; while (f > 440) f /= 2; return Math.log(f / 30) / Math.log(440 / 30); }
+function onMIDI(e){
+  var d = e.data, st = d[0] & 0xf0;
+  if (st === 0x90 && d[2] > 0) setSlider('sRoot', noteToSlider(d[1]));
+  else if (st === 0xB0 && d[1] === 1){ var t = $('midiSel').value; if (t) setSlider(t, d[2] / 127); }
+}
+$('midiBtn').addEventListener('click', function(){
+  var self = this;
+  if (!navigator.requestMIDIAccess){ flash('This browser has no Web MIDI.'); return; }
+  navigator.requestMIDIAccess().then(function(acc){
+    function hook(){ var it = acc.inputs.values(), x; for (x = it.next(); !x.done; x = it.next()) x.value.onmidimessage = onMIDI; }
+    hook(); acc.onstatechange = hook; self.className = 'on'; flash('MIDI on: notes set ROOT.');
+  }, function(){ flash('MIDI access was refused here. It works when the page is opened as a file.'); });
+});
+
+// ===================================================================
+// VISUALS
+// ===================================================================
+var cv = { hz:$('hz'), e8:$('e8'), mg:$('mg'), pf:$('pf'), sk:$('sk') }, cx = {}, k0;
+for (k0 in cv) cx[k0] = cv[k0].getContext('2d');
+var DPR = 1, SZ = {};
+function fit(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  var w = cv.hz.parentNode.clientWidth, sw = $('side').clientWidth, ww = $('wrap').clientWidth - 32;
+  ww = cv.pf.parentNode.clientWidth;
+  SZ.hz = [w, w];
+  var narrow = window.innerWidth <= 600;
+  SZ.e8 = [sw, narrow ? Math.round(sw * 0.7) : Math.round(w * 0.56)];
+  SZ.mg = [sw, narrow ? Math.round(sw * 0.45) : Math.max(110, w - SZ.e8[1] - 32)];
+  SZ.pf = [ww, Math.round(Math.min(150, Math.max(110, ww * 0.2)))];
+  SZ.sk = [ww, 84];
+  var k;
+  for (k in cv){
+    cv[k].style.height = SZ[k][1] + 'px';
+    cv[k].width = Math.round(SZ[k][0] * DPR); cv[k].height = Math.round(SZ[k][1] * DPR);
+    cx[k].setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  staticDirty = true;
+}
+window.addEventListener('resize', fit);
+
+// radial map for the horizon view: log(r / r+) from horizon to the outer edge
+function rpx(r, R){ var rmax = Math.max(P.r0, 12) * 1.08; return R * 0.13 + R * 0.87 * Math.log(r / KERR.rp) / Math.log(rmax / KERR.rp); }
+function drawHorizon(dt){
+  var g = cx.hz, w = SZ.hz[0], h = SZ.hz[1], cx0 = w / 2, cy0 = h / 2, R = w * 0.47, t = curTheme, j, k;
+  g.fillStyle = rgba(t.panel, 0.13); g.fillRect(0, 0, w, h);
+  // E8 magic-function shells laid out between r0 and the horizon
+  var shN = P.shells, rp = KERR.rp;
+  g.lineWidth = 1;
+  for (k = 1; k <= shN; k++){
+    var rr = P.r0 - (P.r0 - rp) * (k / shN);
+    g.strokeStyle = rgba(t.dim, k === shN ? 0 : 0.18);
+    g.beginPath(); g.arc(cx0, cy0, rpx(rr, R), 0, TAU); g.stroke();
+  }
+  // start radius
+  g.strokeStyle = rgba(t.dim, 0.45); g.setLineDash([2, 4]);
+  g.beginPath(); g.arc(cx0, cy0, rpx(P.r0, R), 0, TAU); g.stroke();
+  // sonic point
+  var rcA = MICH.rc * rp / 2, sonicVis = rcA > rp && rcA < Math.max(P.r0, 12) * 1.08;
+  if (sonicVis){
+    g.strokeStyle = t.acc2; g.setLineDash([6, 4]);
+    g.beginPath(); g.arc(cx0, cy0, rpx(rcA, R), 0, TAU); g.stroke();
+  }
+  // ergosphere (equatorial r = 2M) for spinning holes
+  if (KERR.a > 0.02){ g.strokeStyle = rgba(t.acc3, 0.6); g.setLineDash([1, 3]); g.beginPath(); g.arc(cx0, cy0, rpx(2, R), 0, TAU); g.stroke(); }
+  g.setLineDash([]);
+  // horizon
+  g.fillStyle = t.dark ? '#000' : t.fg; g.beginPath(); g.arc(cx0, cy0, rpx(rp, R), 0, TAU); g.fill();
+  g.strokeStyle = t.acc; g.lineWidth = 1.5; g.beginPath(); g.arc(cx0, cy0, rpx(rp, R), 0, TAU); g.stroke();
+  // notes in flight
+  for (j = 0; j < MAXP; j++){
+    if (!core.alive[j]) continue;
+    var pr = rpx(core.r[j], R), x = cx0 + Math.cos(core.phi[j]) * pr, y = cy0 - Math.sin(core.phi[j]) * pr;
+    var a = Math.min(1, 0.25 + Math.abs(core.gl[j] + core.gr[j]) * 6);
+    g.globalAlpha = a; g.fillStyle = BOOKCOL[core.book[j]]; g.strokeStyle = BOOKCOL[core.book[j]];
+    var pr2 = rpx(Math.min(core.r0[j], core.r[j] * 1.06), R), x2 = cx0 + Math.cos(core.phi[j] - omegaFD(core.r[j]) * P.drag * 0.05) * pr2, y2 = cy0 - Math.sin(core.phi[j] - omegaFD(core.r[j]) * P.drag * 0.05) * pr2;
+    g.lineWidth = 1.2; g.beginPath(); g.moveTo(x2, y2); g.lineTo(x, y); g.stroke();
+    g.beginPath(); g.arc(x, y, 2.4 + Math.min(3, Math.abs(core.glt[j] + core.grt[j]) * 10), 0, TAU); g.fill();
+  }
+  g.globalAlpha = 1;
+  // labels
+  g.font = '9.5px ' + "'IBM Plex Mono', monospace";
+  var l1 = 'a/M ' + KERR.a.toFixed(3) + '   r+ ' + rp.toFixed(3) + 'M', l2 = 'sonic r\u209c ' + rcA.toFixed(1) + 'M   \u0393 ' + P.gamma.toFixed(2) + '   c\u221e ' + P.temp.toFixed(3), l3 = 'swallowed ' + core.swallowed;
+  g.fillStyle = t.panel;
+  g.fillRect(2, 3, Math.max(g.measureText(l1).width, g.measureText(l2).width) + 8, 26); g.fillRect(2, h - 18, g.measureText(l3).width + 8, 15);
+  g.fillStyle = t.dim; g.fillText(l1, 6, 13); g.fillText(l2, 6, 25); g.fillText(l3, 6, h - 7);
+  if (sonicVis){ g.fillStyle = t.acc2; g.fillText('sonic', cx0 + rpx(rcA, R) * 0.71 + 3, cy0 - rpx(rcA, R) * 0.71 - 3); }
+  else if (rcA >= Math.max(P.r0, 12) * 1.08){ g.fillStyle = t.dim; g.fillText('sonic point beyond r\u2080: notes start supersonic', 6, 37); }
+}
+var e8Glow = 0;
+function drawE8(){
+  var g = cx.e8, w = SZ.e8[0], h = SZ.e8[1], c0 = w / 2, c1 = h / 2, R = Math.min(w, h) * 0.46, t = curTheme, i;
+  g.fillStyle = t.panel; g.fillRect(0, 0, w, h);
+  for (i = 0; i < 240; i++){
+    var px = c0 + PROJ[i][0] * R, py = c1 - PROJ[i][1] * R, ring = Math.round(Math.hypot(PROJ[i][0], PROJ[i][1]) * 8);
+    g.fillStyle = 'hsla(' + (ring * 40) + ',' + (t.dark ? 70 : 85) + '%,' + (t.dark ? 62 : 45) + '%,0.55)';
+    g.fillRect(px - 1.2, py - 1.2, 2.4, 2.4);
+  }
+  if (lastRoot >= 0){
+    var sx = lastSign;
+    g.strokeStyle = t.acc; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(c0, c1); g.lineTo(c0 + PROJ[lastRoot][0] * R * sx, c1 - PROJ[lastRoot][1] * R * sx); g.stroke();
+    g.fillStyle = t.acc; g.beginPath(); g.arc(c0 + PROJ[lastRoot][0] * R * sx, c1 - PROJ[lastRoot][1] * R * sx, 3.5 + e8Glow * 3, 0, TAU); g.fill();
+  }
+  // walker x projected into the same plane
+  var wx = 0, wy = 0, k;
+  for (k = 0; k < 8; k++){ wx += X2[k] * 0.5 * PX8[k]; wy += X2[k] * 0.5 * PY8[k]; }
+  if (walkVer !== walkVerDrawn){ walkVerDrawn = walkVer; walkTrail.push([wx, wy]); if (walkTrail.length > 40) walkTrail.shift(); }
+  g.strokeStyle = rgba(t.acc2, 0.7); g.lineWidth = 1; g.beginPath();
+  for (k = 0; k < walkTrail.length; k++){ var qx = c0 + walkTrail[k][0] * R * 0.33, qy = c1 - walkTrail[k][1] * R * 0.33; if (k) g.lineTo(qx, qy); else g.moveTo(qx, qy); }
+  g.stroke();
+  g.fillStyle = t.acc2; g.beginPath(); g.arc(c0 + wx * R * 0.33, c1 - wy * R * 0.33, 3, 0, TAU); g.fill();
+  g.fillStyle = t.dim; g.font = "9px 'IBM Plex Mono', monospace";
+  var xs = []; for (k = 0; k < 8; k++) xs.push(X2[k] % 2 ? (X2[k] > 0 ? '' : '−') + Math.abs(X2[k]) + '/2' : String(X2[k] / 2));
+  g.fillText('x = (' + xs.join(',') + ')', 5, h - 6);
+  e8Glow *= 0.85;
+}
+// projection plane for the walker: least-squares fit of the root projection (computed at load)
+var PX8 = new Float64Array(8), PY8 = new Float64Array(8);
+(function(){
+  // PROJ = R * [ux uy]; roots span R^8 so solve normal equations (R^T R) u = R^T p ; R^T R = 60 I for E8 roots
+  var i, k;
+  for (i = 0; i < 240; i++) for (k = 0; k < 8; k++){ PX8[k] += ROOTS2[i][k] * 0.5 * PROJ[i][0]; PY8[k] += ROOTS2[i][k] * 0.5 * PROJ[i][1]; }
+  for (k = 0; k < 8; k++){ PX8[k] /= 60; PY8[k] /= 60; }
+})();
+function drawMagic(){
+  var g = cx.mg, w = SZ.mg[0], h = SZ.mg[1], t = curTheme, shMax = 2 * P.shells, i, x, y, s, k;
+  g.fillStyle = t.panel; g.fillRect(0, 0, w, h);
+  var mid = h * 0.5, amp = h * 0.42;
+  g.strokeStyle = t.faint; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(0, mid); g.lineTo(w, mid); g.stroke();
+  for (k = 1; k <= P.shells; k++){ x = (2 * k / shMax) * (w - 8) + 4; g.beginPath(); g.moveTo(x, mid - 4); g.lineTo(x, mid + 4); g.stroke(); }
+  function curve(tab, mx, col){
+    g.strokeStyle = col; g.lineWidth = 1.4; g.beginPath();
+    for (i = 0; i <= w - 8; i++){
+      s = i / (w - 8) * shMax; y = mid - clamp(magicAt(tab, mx, s), -1.2, 1.2) * amp;
+      if (i) g.lineTo(i + 4, y); else g.moveTo(i + 4, y);
+    }
+    g.stroke();
+  }
+  curve(MGH, SHMAXGH, t.acc2); curve(MG, SHMAXG, t.acc);
+  for (k = 0; k < MAXP; k++){
+    if (!core.alive[k]) continue;
+    x = core.s[k] / shMax * (w - 8) + 4; y = mid - clamp(magicAt(MG, SHMAXG, core.s[k]), -1.2, 1.2) * amp;
+    g.fillStyle = BOOKCOL[core.book[k]]; g.beginPath(); g.arc(x, y, 2.4, 0, TAU); g.fill();
+  }
+  g.fillStyle = t.dim; g.font = "9px 'IBM Plex Mono', monospace";
+  g.fillText('√2', (2 / shMax) * (w - 8) + 1, mid + 14);
+  g.fillText('r² → ' + shMax + (P.tail > 0.02 ? '   tail ×' + Math.round(P.tail * 100) + '%' : ''), 5, h - 5);
+}
+var pfFire = [];
+function drawProof(now){
+  var g = cx.pf, w = SZ.pf[0], h = SZ.pf[1], t = curTheme, i, x, y, k;
+  g.fillStyle = t.panel; g.fillRect(0, 0, w, h);
+  var top = 12, rowH = (h - top - 14) / 5;
+  function px(i){ return 6 + (i + 0.5) / NTH * (w - 12); }
+  function py(d){ return top + (d - 0.5) * rowH; }
+  g.strokeStyle = t.faint; g.lineWidth = 1;
+  for (k = 1; k < 13; k++){ x = px(BOOKSTART[k] - 0.5); g.beginPath(); g.moveTo(x, top - 4); g.lineTo(x, h - 12); g.stroke(); }
+  // lines from the newest proofs back to what they cite
+  for (k = pfFire.length - 1; k >= 0; k--){
+    var f = pfFire[k], age = now - f.t;
+    if (age > 1.6){ pfFire.splice(k, 1); continue; }
+    var T = TH[f.k], x0 = px(f.k), y0 = py(T.dist), al = 1 - age / 1.6;
+    g.strokeStyle = BOOKCOL[T.book]; g.globalAlpha = al * 0.8; g.lineWidth = 1;
+    for (i = 0; i < T.refs.length; i++){
+      var r = T.refs[i];
+      if (r < 10){ x = 6 + (r + 0.5) / 10 * (w - 12) * 0.08; y = top - 6; }
+      else { x = px(r - 10); y = py(TH[r - 10].dist); }
+      g.beginPath(); g.moveTo(x0, y0); g.lineTo(x, y); g.stroke();
+    }
+  }
+  g.globalAlpha = 1;
+  for (i = 0; i < NTH; i++){
+    var T2 = TH[i], lit = core.proved[i] > 0;
+    g.fillStyle = BOOKCOL[T2.book]; g.globalAlpha = lit ? 0.95 : 0.22;
+    g.fillRect(px(i) - 0.9, py(T2.dist) - 1.6, 1.8, 3.2);
+  }
+  g.globalAlpha = 1;
+  g.fillStyle = t.dim; g.font = "9px 'IBM Plex Mono', monospace";
+  for (k = 0; k < 13; k++){ if (BOOKS[k] >= 16) g.fillText(String(k + 1), px(BOOKSTART[k]) + 1, h - 3); }
+  g.fillText('axioms', 6, 9);
+  for (k = 1; k <= 5; k++) g.fillText(String(k), w - 10, py(k) + 3);
+}
+var SYSNAME = ['linear advection', 'inviscid Burgers', 'isothermal Euler', 'Maxwell, perfectly hyperbolic', 'relativistic Euler (Valencia)', 'Bondi accretion', 'radial wave in R⁸'];
+var FIELDN = ['Ex', 'Ey', 'Ez', 'Bx', 'By', 'Bz', 'φ', 'ψ'];
+function drawShock(){
+  var g = cx.sk, w = SZ.sk[0], h = SZ.sk[1], t = curTheme, i, k, x, y, mid = h / 2, A = h * 0.33, s = P.sys;
+  g.fillStyle = t.panel; g.fillRect(0, 0, w, h);
+  g.strokeStyle = t.faint; g.lineWidth = 1; g.beginPath(); g.moveTo(0, mid); g.lineTo(w, mid); g.stroke();
+  function line(tab, col, lw){
+    g.strokeStyle = col; g.lineWidth = lw || 1.4; g.beginPath();
+    for (i = 0; i <= NX; i++){ x = 4 + i / NX * (w - 8); y = mid - tab[Math.min(i, NX - 1)] * A; if (i) g.lineTo(x, y); else g.moveTo(x, y); }
+    g.stroke();
+  }
+  g.font = "9px 'IBM Plex Mono', monospace";
+  if (s === 3){
+    for (k = 0; k < 8; k++) line(COMP[k], 'hsl(' + (k * 45) + ',' + (t.dark ? 80 : 85) + '%,' + (t.dark ? 62 : 45) + '%)', 1.1);
+    for (k = 0; k < 8; k++){ g.fillStyle = 'hsl(' + (k * 45) + ',' + (t.dark ? 80 : 85) + '%,' + (t.dark ? 62 : 45) + '%)'; g.fillText(FIELDN[k], 6 + k * 22, h - 5); }
+    g.fillStyle = t.dim; g.fillText('voice k plays field k (left) and its partner (right)', 6 + 8 * 22 + 6, h - 5);
+  } else {
+    if (s === 5){
+      var xs = 4 + (BD.rs - BD.rin) / (BD.rout - BD.rin) * (w - 8);
+      g.strokeStyle = t.acc2; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(xs, 14); g.lineTo(xs, h - 12); g.stroke(); g.setLineDash([]);
+      g.fillStyle = t.acc2; g.fillText('sonic point', xs + 4, 24);
+    }
+    if (s === 6){
+      g.strokeStyle = t.faint;
+      for (k = 1; k < P.shells; k++){ var rr = Math.sqrt(2 * k) / W8.R; [0.5 - 0.5 * rr, 0.5 + 0.5 * rr].forEach(function(q){ var xx = 4 + q * (w - 8); g.beginPath(); g.moveTo(xx, mid - 5); g.lineTo(xx, mid + 5); g.stroke(); }); }
+    }
+    line(TABR, rgba(t.acc2, 0.85)); line(TABL, t.acc);
+    g.fillStyle = t.dim;
+    var foot = ['L: u   R: u, ⅛ period on', 'L: u   R: u, ⅛ period on', 'L: u − c ln ρ   R: u + c ln ρ', '', 'L: ln P   R: W v', 'L: δρ/ρ   R: δv/cₛ   from r = 0.3 rₛ (left) to 3 rₛ (right)', 'L: uₜ   R: uᵣ   mirrored through r = 0 (centre); ticks at the E8 shells r = √(2n)'][s];
+    g.fillText(foot, 5, h - 5);
+  }
+  var fl = P.flux === 0 ? 'Lax-Friedrichs' : (s === 4 || s === 5 ? 'HLL (no closed-form Roe matrix)' : (s === 3 || s === 6 || s === 0 ? 'Roe = exact upwind' : 'Roe'));
+  var li = ['1st order', 'minmod', 'MC', 'superbee', 'van Leer'][P.lim] + (s === 6 && P.lim === 3 ? ' (MC used: superbee is unstable at r = 0 here)' : '');
+  var extra = '';
+  if (s === 1 && P.init === 0) extra = '   shock forms at t* = 1/(2πA) = ' + (1 / (TAU * pde.A0)).toFixed(3);
+  if (s === 3) extra = '   speeds 1, χ = ' + MX.chi.toFixed(2) + ', γ = ' + MX.gam.toFixed(2);
+  if (s === 4) extra = '   Γ = ' + SR.G.toFixed(3);
+  if (s === 5) extra = '   Γ = ' + BD.G.toFixed(3) + '   rₛ = ' + BD.rs.toFixed(1) + 'M';
+  if (s === 6) extra = '   uₜₜ = uᵣᵣ + (7/r) uᵣ';
+  g.fillStyle = t.dim; g.fillText(SYSNAME[s] + ' · ' + fl + ' · ' + li + '   t = ' + pde.t.toFixed(3) + extra, 5, 11);
+}
+// invariant badges
+var badgeEls = [];
+(function(){ var i, b = $('badges'); for (i = 0; i < 7; i++){ var s = document.createElement('span'); s.className = 'badge'; b.appendChild(s); badgeEls.push(s); } })();
+function setBadge(i, ok, txt){ badgeEls[i].textContent = txt; badgeEls[i].className = 'badge' + (ok === null ? ' na' : (ok ? '' : ' bad')); }
+function updateBadges(){
+  var i, c, ok, s = P.sys;
+  if (s <= 2){
+    var sum = 0, sumM = 0, scale = 0;
+    for (i = 0; i < NX; i++){ sum += U0[i]; sumM += M0[i]; scale += Math.abs(U0[i]); }
+    var drift = (Math.abs(sum - pde.sum0) + Math.abs(sumM - pde.sumM0)) / (scale + 1e-12);
+    ok = drift < 1e-9 && !pde.clipped; setBadge(0, ok, (ok ? '✓' : '✗') + ' CONSERVED ΔΣ ' + drift.toExponential(1));
+  } else if (s === 3 || s === 4){
+    var nv = SYSD[s].nv, d2 = 0, sc = 0, sm;
+    for (c = 0; c < nv; c++){ sm = 0; for (i = NGH; i < NGH + NX; i++){ sm += GQ[c][i]; sc += Math.abs(GQ[c][i]); } d2 += Math.abs(sm - GEN.sums0[c]); }
+    var dr = d2 / (sc + 1e-12); ok = dr < 1e-9 && !pde.clipped;
+    setBadge(0, ok, (ok ? '✓' : '✗') + ' CONSERVED ' + (s === 3 ? '8 fields' : 'D S τ') + ' ΔΣ ' + dr.toExponential(1));
+  } else if (s === 5){
+    var e1 = Math.abs(BD.mdotIn / BD.mdotA - 1), e2 = Math.abs(BD.mdotOut / BD.mdotA - 1), em = Math.max(e1, e2);
+    setBadge(0, em < 0.05 ? true : (em < 0.15 ? null : false), (em < 0.05 ? '✓' : (em < 0.15 ? '~' : '✗')) + ' Ṁ = eq.(90) ±' + (em * 100).toFixed(1) + '%');
+  } else {
+    var ratio = W8.E / W8.E0; ok = ratio <= 1.1;
+    setBadge(0, ok, (ok ? '✓' : '✗') + ' ENERGY ' + Math.round(ratio * 100) + '% of strike');
+  }
+  var cu = s >= 3 ? pde.cflNow : P.cfl;
+  setBadge(1, cu <= 1, (cu <= 1 ? '✓' : '✗') + ' CFL ' + cu.toFixed(2) + (cu <= 1 ? ' ≤ 1' : ' > 1') + (s === 4 && P.cfl > 0.6 ? ' (capped from ' + P.cfl.toFixed(2) + ')' : ''));
+  if (s <= 1) setBadge(2, pde.tvBad === 0, (pde.tvBad === 0 ? '✓' : '✗') + ' TVD' + (pde.tvBad ? ' broken ×' + pde.tvBad : ''));
+  else if (s === 2) setBadge(2, pde.hypOK, (pde.hypOK ? '✓' : '✗') + ' HYPERBOLIC ρ > 0');
+  else if (s === 3) setBadge(2, true, '✓ HYPERBOLIC speeds 1, 1, ' + MX.chi.toFixed(2) + ', ' + MX.gam.toFixed(2));
+  else if (s === 4) setBadge(2, pde.hypOK, (pde.hypOK ? '✓ HYPERBOLIC |v| < 1, P > 0' : '✗ floor applied ×' + SR.fails));
+  else if (s === 5) setBadge(2, pde.hypOK, (pde.hypOK ? '✓' : '✗') + ' SONIC POINT rₛ ' + BD.rs.toFixed(1) + 'M');
+  else setBadge(2, true, '✓ WALL u = 0 AT r = √' + (2 * P.shells));
+  if (s <= 1 && pde.tvBad > 0 && !pde.tvLogged){ pde.tvLogged = true;
+    pushLog('⟨TVD lost: total variation grew under ' + ['Lax-Friedrichs', 'Roe'][P.flux] + ' + ' + ['first order', 'minmod', 'MC', 'superbee', 'van Leer'][P.lim] + ' at CFL ' + P.cfl.toFixed(2) + (P.cfl > 1 ? ' (past the CFL bound)' : '; minmod or first order stays TVD') + '⟩'); }
+  var lok = latticeOK();
+  setBadge(3, lok, (lok ? '✓' : '✗') + ' x ∈ E8');
+  setBadge(4, MAGIC_OK, (MAGIC_OK ? '✓' : '✗') + ' g ≤ 0 past √2, ĝ ≥ 0');
+  setBadge(5, MICH.ok, (MICH.ok ? '✓' : '✗') + ' SONIC rₜ ' + (MICH.rc * KERR.rp / 2).toFixed(1) + 'M');
+  setBadge(6, true, '✓ Δ₈ = π⁴/384 = ' + (Math.pow(Math.PI, 4) / 384).toFixed(5));
+}
+// log
+function pushLog(msg){
+  var el = $('log'), d = document.createElement('div'); d.className = 'new'; d.textContent = msg;
+  el.insertBefore(d, el.firstChild);
+  while (el.childNodes.length > 3) el.removeChild(el.lastChild);
+  for (var i = 1; i < el.childNodes.length; i++) el.childNodes[i].className = '';
+}
+function rootText(idx, s){
+  var r = ROOTS2[idx], i, a = [];
+  for (i = 0; i < 8; i++){ var v = r[i] * s; a.push(v === 0 ? '0' : (Math.abs(v) === 1 ? (v > 0 ? '½' : '−½') : (v > 0 ? '1' : '−1'))); }
+  return '(' + a.join(' ') + ')';
+}
+var lastLogT = 0, crackCount = 0;
+function drainEvents(now){
+  var e, lastThm = null;
+  while (evq.length){
+    e = evq.shift();
+    if (e.type === 'thm'){ lastThm = e; pfFire.push({ k:e.k, t:now }); if (pfFire.length > 24) pfFire.shift(); e8Glow = 1; }
+    else if (e.type === 'crack') crackCount++;
+    else if (e.type === 'qed'){ pushLog('⟨QED · 13.18 · the five regular solids · 219 theorems and 10 axioms beneath it · starting over⟩'); var i; for (i = 0; i < NTH; i++) core.proved[i] = 0; }
+  }
+  if (lastThm && now - lastLogT > 0.18){
+    lastLogT = now;
+    var T = TH[lastThm.k], refs = T.refs.map(refName);
+    var rs = refs.length > 6 ? refs.slice(0, 6).join(' ') + ' … +' + (refs.length - 6) : refs.join(' ');
+    pushLog('⟨' + T.name + ' ← ' + rs + ' · ' + T.dist + (T.dist === 1 ? ' step' : ' steps') + ' from the axioms · root ' +
+      (lastThm.root >= 0 ? rootText(lastThm.root, lastThm.sign) : 'none') + ' · ' + lastThm.n + (lastThm.n === 1 ? ' note' : ' notes') + '⟩');
+  }
+}
+
+// ===================================================================
+// FRAME LOOP
+// ===================================================================
+var lastT = 0, badgeT = 0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  var dt = lastT ? Math.min(0.1, (ts - lastT) / 1000) : 0.016; lastT = ts;
+  var now = ts / 1000;
+  if (morph.active){
+    morph.t += dt; var a = Math.min(1, morph.t / morph.dur), id;
+    for (id in morph.to) setSlider(id, morph.from[id] + (morph.to[id] - morph.from[id]) * a);
+    if (a >= 1){ morph.active = false; flash('Morph finished.'); }
+  }
+  $('morphStop').className = morph.active ? 'on' : '';
+  modTick(dt);
+  if (michelDirty && now - michelLast > 0.25){ michelDirty = false; michelLast = now; computeMichel(P.gamma, P.temp); staticDirty = true; }
+  drainEvents(now);
+  if (!ctx){
+    if (pde.pending){ pde.pending = false; strikePDE(); }
+    pde.stepAcc += P.evo * dt; var ps = Math.min(16, Math.floor(pde.stepAcc)), q; pde.stepAcc -= ps;
+    for (q = 0; q < ps; q++) stepPDE();
+    writeTables(false);
+    if (pde.t > 0.9 || pde.steps > 900) pde.pending = true;
+  }
+  drawHorizon(dt); drawE8(); drawMagic(); drawProof(now); drawShock();
+  if (now - badgeT > 0.2){ badgeT = now; updateBadges(); if (recording && ctx) $('recBtn').innerHTML = '&#9632; STOP ' + (recSamples / ctx.sampleRate).toFixed(1) + 's'; }
+}
+
+// boot: a complete first frame before any sound
+computeMichel(P.gamma, P.temp); michelDirty = false;
+setSpin(P.spin);
+strikePDE(); pde.pending = false;
+(function(){ var i; for (i = 0; i < 24; i++) stepPDE(); writeTables(true); })();
+buildSeq();
+fit();
+requestAnimationFrame(frame);
+window.PH = { w8Energy:w8Energy, GQ:GQ, GBASE:GBASE, BD:BD, W8:W8, SR:SR, MX:MX, genState:function(){ var i, k, fin = true, pk = 0; for (k = 0; k < 8; k++) for (i = 0; i < NX; i++){ var v = P.sys === 3 ? COMP[k][i] : (k ? TABR[i] : TABL[i]); if (!isFinite(v)) fin = false; pk = Math.max(pk, Math.abs(v)); } updateBadges(); var bad = [].slice.call(document.querySelectorAll('.badge')).filter(function(b){ return b.className.indexOf('bad') >= 0; }).map(function(b){ return b.textContent; }).join(' | '); return { finite:fin, peak:pk, bad:bad }; }, P:P, core:core, nodes:N, pde:pde, MICH:MICH, KERR:KERR, X2:X2, TH:TH, coneOf:coneOf, latticeOK:latticeOK, zipStore:zipStore, encodeWAV:encodeWAV, crc32:crc32, fireTheorem:fireTheorem, stepPDE:stepPDE, strikePDE:strikePDE, magicAt:magicAt, MG:MG, MGH:MGH, SHMAXG:SHMAXG, setSpin:setSpin, lapse:lapse, omegaFD:omegaFD, computeMichel:computeMichel, michelU:michelU, PRESETS:PRESETS, loadPreset:loadPreset, capture:capture };
+})();
+</script>
+
+</body></html>

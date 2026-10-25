@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>beatless beats // self-similar engine — xik6</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Major+Mono+Display&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#08090b;
+    --panel:#0d0f12;
+    --line:#1b1f25;
+    --ink:#e9e6dd;
+    --dim:#7e8590;
+    --faint:#454c56;
+    --drum:#7fd7d1;   /* cool: percussion onset field */
+    --mel:#e3a85c;    /* warm: fractal melody grouping */
+    --drone:#5b6cff;  /* deep: sustained bed */
+    --hot:#e0654f;    /* record / active */
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);}
+  body{
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-weight:300;
+    line-height:1.45;
+    padding:18px 16px 40px;
+    max-width:880px;
+    margin:0 auto;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px 14px;margin-bottom:14px;}
+  h1{
+    font-family:"Major Mono Display",monospace;
+    font-weight:400;
+    font-size:clamp(20px,5.2vw,30px);
+    margin:0;letter-spacing:.5px;color:var(--ink);
+  }
+  h1 small{display:block;font-family:"IBM Plex Mono";font-size:11px;letter-spacing:3px;color:var(--faint);text-transform:uppercase;margin-top:4px;}
+  .tag{font-size:11px;letter-spacing:2px;color:var(--faint);text-transform:uppercase;}
+
+  /* signature element: the live fractal score */
+  .score{position:relative;border:1px solid var(--line);background:#060708;border-radius:3px;overflow:hidden;}
+  canvas{display:block;width:100%;height:230px;}
+  .legend{position:absolute;top:8px;left:10px;font-size:10px;letter-spacing:1px;color:var(--faint);pointer-events:none;}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 4px 0 12px;vertical-align:baseline;}
+  .legend i:first-child{margin-left:0;}
+  .readout{position:absolute;bottom:7px;right:10px;font-size:10px;letter-spacing:.5px;color:var(--dim);text-align:right;pointer-events:none;line-height:1.6;}
+  .readout b{color:var(--ink);font-weight:400;}
+
+  .transport{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap;}
+  button{
+    font-family:inherit;font-size:13px;letter-spacing:1px;
+    background:var(--panel);color:var(--ink);
+    border:1px solid var(--line);border-radius:3px;
+    padding:11px 16px;cursor:pointer;flex:1 1 auto;min-width:96px;
+    transition:border-color .15s,color .15s,background .15s;
+  }
+  button:hover{border-color:#2c333c;}
+  button:active{background:#11141a;}
+  button:focus-visible{outline:2px solid var(--drum);outline-offset:2px;}
+  button.primary{border-color:#2a4a48;color:var(--drum);}
+  button.on{background:#10211f;border-color:var(--drum);color:var(--drum);}
+  button.rec.on{background:#221110;border-color:var(--hot);color:var(--hot);}
+  button:disabled{opacity:.35;cursor:not-allowed;}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px 22px;margin-top:6px;
+    border-top:1px solid var(--line);padding-top:18px;}
+  .ctrl label{display:flex;justify-content:space-between;font-size:11px;letter-spacing:1px;color:var(--dim);text-transform:uppercase;margin-bottom:7px;}
+  .ctrl label b{color:var(--ink);font-weight:400;letter-spacing:0;text-transform:none;}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--faint);border-radius:2px;outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--ink);border:none;cursor:pointer;}
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--ink);border:none;cursor:pointer;}
+  input[type=range]:focus-visible{box-shadow:0 0 0 6px rgba(127,215,209,.12);}
+  select{font-family:inherit;font-size:12px;width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:8px 9px;cursor:pointer;}
+  select:focus-visible{outline:2px solid var(--drum);outline-offset:1px;}
+
+  .layers{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+  .layers button{flex:1 1 0;min-width:0;font-size:11px;letter-spacing:1px;padding:9px 4px;}
+
+  .note{font-size:11px;color:var(--faint);margin-top:22px;line-height:1.7;letter-spacing:.3px;}
+  .note b{color:var(--dim);font-weight:400;}
+  a{color:var(--dim);}
+  @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto;}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>beatless beats<small>self-similar engine</small></h1>
+  <div class="tag">xik6 — fractal timing</div>
+</header>
+
+<div class="score">
+  <canvas id="cv"></canvas>
+  <div class="legend">
+    <i style="background:var(--drum)"></i>drums
+    <i style="background:var(--mel)"></i>melody
+    <i style="background:var(--drone)"></i>drone
+  </div>
+  <div class="readout" id="readout">—</div>
+</div>
+
+<div class="transport">
+  <button id="play" class="primary">▶ play</button>
+  <button id="regen">↻ regenerate</button>
+  <button id="rec" class="rec">● record</button>
+</div>
+
+<div class="layers">
+  <button id="L-drum" class="on">drums</button>
+  <button id="L-mel" class="on">melody</button>
+  <button id="L-drone" class="on">drone</button>
+  <button id="L-evolve" class="on">evolve</button>
+</div>
+
+<div class="grid">
+  <div class="ctrl">
+    <label>fractal depth <b id="v-depth">4</b></label>
+    <input id="depth" type="range" min="1" max="6" step="1" value="4">
+  </div>
+  <div class="ctrl">
+    <label>density <b id="v-dens">0.72</b></label>
+    <input id="dens" type="range" min="0.2" max="0.95" step="0.01" value="0.72">
+  </div>
+  <div class="ctrl">
+    <label>beatlessness <b id="v-beat">0.80</b></label>
+    <input id="beat" type="range" min="0" max="1" step="0.01" value="0.80">
+  </div>
+  <div class="ctrl">
+    <label>span (sec) <b id="v-span">9.0</b></label>
+    <input id="span" type="range" min="4" max="20" step="0.5" value="9">
+  </div>
+  <div class="ctrl">
+    <label>melody grouping <b id="v-mdep">2</b></label>
+    <input id="mdep" type="range" min="1" max="4" step="1" value="2">
+  </div>
+  <div class="ctrl">
+    <label>reverb <b id="v-rev">0.38</b></label>
+    <input id="rev" type="range" min="0" max="0.85" step="0.01" value="0.38">
+  </div>
+  <div class="ctrl">
+    <label>scale</label>
+    <select id="scale">
+      <option value="pentMin" selected>pentatonic minor</option>
+      <option value="pentMaj">pentatonic major</option>
+      <option value="lydian">lydian</option>
+      <option value="dorian">dorian</option>
+      <option value="just">just / harmonic</option>
+      <option value="tet19">19-TET (microtonal)</option>
+      <option value="bohlen">bohlen-pierce-ish</option>
+    </select>
+  </div>
+  <div class="ctrl">
+    <label>root</label>
+    <select id="root">
+      <option value="55">A1</option>
+      <option value="58.27">C2</option>
+      <option value="65.41" selected>C2 / low</option>
+      <option value="73.42">D2</option>
+      <option value="82.41">E2</option>
+      <option value="98">G2</option>
+    </select>
+  </div>
+  <div class="ctrl">
+    <label>volume <b id="v-vol">0.80</b></label>
+    <input id="vol" type="range" min="0" max="1" step="0.01" value="0.80">
+  </div>
+</div>
+
+<p class="note">
+<b>fractal timing</b> — the drums are a recursive subdivision tree: each span of time may split into 2–3 unequal parts, the same rule applied at every scale (a Cantor-style point field). Shallow nodes sound low &amp; sparse, deep nodes high &amp; quiet. No global grid, so there's pulse-feel without a downbeat.<br>
+<b>beatlessness</b> bends the split ratios from even (metric, pulse-like) toward the golden ratio (aperiodic). <b>melody grouping</b> expands one contour: every note becomes a transposed, time-scaled copy of the whole motif. Each span is generated fresh — release-as-found. Record captures the output to <b>.webm</b>.
+</p>
+
+<script>
+"use strict";
+(function(){
+  var AC = window.AudioContext || window.webkitAudioContext;
+  var ctx = null, master=null, comp=null, conv=null, wetGain=null, dryGain=null;
+  var streamDest=null, mediaRec=null, recChunks=[], recording=false, recStart=0;
+  var playing=false, schedTimer=null, lookahead=0.2, nextSpanStart=0;
+  var spans=[];                 // scheduled spans kept for the visual playhead
+  var droneNodes=[];
+  var PHI=0.6180339887;
+
+  // ---------- scales (degree -> cents) ----------
+  var SCALES={
+    pentMin:[0,300,500,700,1000],
+    pentMaj:[0,200,400,700,900],
+    lydian :[0,200,400,600,700,900,1100],
+    dorian :[0,200,300,500,700,900,1000],
+    just   :[0,204,386,498,702,884,1088],
+    tet19  :[0,189,316,505,632,821,1011],          // ~diatonic in 19-TET
+    bohlen :[0,146,293,439,585,732,878,1024]        // stretched, non-octave-ish flavor
+  };
+
+  // ---------- helpers ----------
+  function clamp(x,a,b){return x<a?a:(x>b?b:x);}
+  function rnd(a,b){return a+(b-a)*Math.random();}
+  function pick(arr){return arr[(Math.random()*arr.length)|0];}
+  function val(id){return parseFloat(document.getElementById(id).value);}
+  function ival(id){return parseInt(document.getElementById(id).value,10);}
+  function on(id){return document.getElementById(id).classList.contains("on");}
+
+  function freqFromDegree(deg, rootHz, cents){
+    var n=cents.length;
+    var idx=((deg%n)+n)%n;
+    var oct=Math.floor(deg/n);
+    var c=cents[idx]+1200*oct;
+    return rootHz*Math.pow(2,c/1200);
+  }
+
+  // ---------- noise buffer (reused) ----------
+  var noiseBuf=null;
+  function getNoise(){
+    if(noiseBuf) return noiseBuf;
+    var len=Math.floor(ctx.sampleRate*1.2);
+    noiseBuf=ctx.createBuffer(1,len,ctx.sampleRate);
+    var d=noiseBuf.getChannelData(0);
+    for(var i=0;i<len;i++) d[i]=Math.random()*2-1;
+    return noiseBuf;
+  }
+
+  // ---------- procedural reverb impulse ----------
+  function buildReverb(){
+    var dur=3.0, sr=ctx.sampleRate, len=Math.floor(sr*dur);
+    var buf=ctx.createBuffer(2,len,sr);
+    for(var ch=0;ch<2;ch++){
+      var d=buf.getChannelData(ch);
+      for(var i=0;i<len;i++){
+        var t=i/len;
+        d[i]=(Math.random()*2-1)*Math.pow(1-t,2.6);
+      }
+    }
+    conv.buffer=buf;
+  }
+
+  // ---------- equal-power pan helper (iOS-safe fallback) ----------
+  function makePan(p){
+    if(ctx.createStereoPanner){
+      var sp=ctx.createStereoPanner();
+      try{sp.pan.value=clamp(p,-1,1);}catch(e){}
+      return {input:sp,output:sp};
+    }
+    var split=ctx.createGain(), l=ctx.createGain(), r=ctx.createGain(), merge=ctx.createChannelMerger(2);
+    var a=(p+1)*0.5;
+    l.gain.value=Math.cos(a*Math.PI/2); r.gain.value=Math.sin(a*Math.PI/2);
+    split.connect(l); split.connect(r);
+    l.connect(merge,0,0); r.connect(merge,0,1);
+    return {input:split,output:merge};
+  }
+
+  // ---------- voice synths ----------
+  function env(g,t,a,peak,dec){
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(peak,t+a);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+a+dec);
+  }
+  function routeOut(node,p,revSend){
+    var pan=makePan(p);
+    node.connect(pan.input);
+    pan.output.connect(dryGain);
+    if(revSend>0){ var s=ctx.createGain(); s.gain.value=revSend; pan.output.connect(s); s.connect(wetGain); }
+  }
+  function cleanup(node,t){ node.onended=function(){try{node.disconnect();}catch(e){}}; }
+
+  function kick(t,amp,p){
+    var o=ctx.createOscillator(), g=ctx.createGain();
+    o.type="sine";
+    o.frequency.setValueAtTime(92,t);
+    o.frequency.exponentialRampToValueAtTime(44,t+0.07);
+    env(g,t,0.003,amp,0.24);
+    o.connect(g); routeOut(g,p,0.05);
+    o.start(t); o.stop(t+0.32); cleanup(o,t);
+  }
+  function tom(t,amp,p,freq){
+    var o=ctx.createOscillator(), g=ctx.createGain(), bp=ctx.createBiquadFilter();
+    o.type="triangle";
+    o.frequency.setValueAtTime(freq*1.5,t);
+    o.frequency.exponentialRampToValueAtTime(freq,t+0.05);
+    bp.type="bandpass"; bp.frequency.value=freq*2; bp.Q.value=1.5;
+    env(g,t,0.004,amp,0.36);
+    o.connect(bp); bp.connect(g); routeOut(g,p,0.12);
+    o.start(t); o.stop(t+0.5); cleanup(o,t);
+  }
+  function hat(t,amp,p){
+    var s=ctx.createBufferSource(), hp=ctx.createBiquadFilter(), g=ctx.createGain();
+    s.buffer=getNoise(); s.playbackRate.value=rnd(0.9,1.2);
+    hp.type="highpass"; hp.frequency.value=7000;
+    env(g,t,0.001,amp,0.05);
+    s.connect(hp); hp.connect(g); routeOut(g,p,0.22);
+    s.start(t); s.stop(t+0.09); cleanup(s,t);
+  }
+  function click(t,amp,p){
+    var s=ctx.createBufferSource(), bp=ctx.createBiquadFilter(), g=ctx.createGain();
+    s.buffer=getNoise(); s.playbackRate.value=rnd(0.8,1.6);
+    bp.type="bandpass"; bp.frequency.value=rnd(1800,3200); bp.Q.value=8;
+    env(g,t,0.0008,amp,0.022);
+    s.connect(bp); bp.connect(g); routeOut(g,p,0.30);
+    s.start(t); s.stop(t+0.05); cleanup(s,t);
+  }
+  function mel(t,freq,dur,amp,p){
+    var o1=ctx.createOscillator(), o2=ctx.createOscillator();
+    var lp=ctx.createBiquadFilter(), g=ctx.createGain();
+    o1.type="triangle"; o2.type="sawtooth";
+    o1.frequency.value=freq; o2.frequency.value=freq;
+    o2.detune.value=rnd(-9,9);
+    lp.type="lowpass"; lp.Q.value=1.2;
+    var a=Math.min(0.014,dur*0.25), rel=Math.min(dur*0.9,0.9);
+    lp.frequency.setValueAtTime(freq*4.5,t);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(freq*1.4,200),t+dur);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(amp,t+a);
+    g.gain.setValueAtTime(amp,t+Math.max(a,dur*0.5));
+    g.gain.exponentialRampToValueAtTime(0.0001,t+Math.max(a,dur)+rel);
+    o1.connect(lp); o2.connect(lp); lp.connect(g);
+    routeOut(g,p,0.30+val("rev")*0.25);
+    o1.start(t); o2.start(t); var st=t+dur+rel+0.05;
+    o1.stop(st); o2.stop(st); cleanup(o1,t); cleanup(o2,t);
+  }
+
+  // ---------- fractal drum tree -> events ----------
+  function subdivide(start,dur,depth,maxDepth,beatless,dens,out){
+    if(out.length>240) return;
+    out.push({t:start, depth:depth});
+    if(depth>=maxDepth) return;
+    var pBranch=clamp(dens*Math.pow(0.92,depth),0,0.97);
+    if(Math.random()>pBranch) return;
+    var k=(Math.random()<0.45)?3:2;
+    var ratios=[];
+    if(k===2){
+      var hi=0.5+(PHI-0.5)*beatless;            // even -> golden as beatless rises
+      if(Math.random()<0.5){ratios=[hi,1-hi];}else{ratios=[1-hi,hi];}
+    } else {
+      // 3-way: even thirds drift toward varied/golden-ish partition
+      var a=1/3+(0.5-1/3)*beatless*rnd(-1,1);
+      var b=1/3+(0.28-1/3)*beatless*rnd(-1,1);
+      a=clamp(a,0.12,0.6); b=clamp(b,0.12,0.6);
+      var c=1-a-b; if(c<0.12){c=0.12;} 
+      var s=a+b+c; ratios=[a/s,b/s,c/s];
+      // shuffle a little
+      if(Math.random()<0.5){ratios.reverse();}
+    }
+    var tt=start;
+    for(var i=0;i<ratios.length;i++){
+      subdivide(tt,dur*ratios[i],depth+1,maxDepth,beatless,dens,out);
+      tt+=dur*ratios[i];
+    }
+  }
+
+  // ---------- fractal melody (Koch / recursive grouping) ----------
+  function makeShape(){
+    // a contour over [0,1): {t, d}.  Mutates slightly per call when evolving.
+    var base=[{t:0,d:0},{t:0.27,d:2},{t:0.5,d:1},{t:0.74,d:3}];
+    if(on("L-evolve") && Math.random()<0.5){
+      var b=[];
+      for(var i=0;i<base.length;i++){ b.push({t:base[i].t, d:base[i].d + (Math.random()<0.3?pick([-1,1]):0)}); }
+      return b;
+    }
+    return base;
+  }
+  function expandMel(start,dur,baseDeg,shape,depth,out){
+    if(out.length>180) return;
+    if(depth<=0){ out.push({t:start,dur:dur,deg:baseDeg}); return; }
+    for(var i=0;i<shape.length;i++){
+      var ti=shape[i].t;
+      var tn=(i+1<shape.length)?shape[i+1].t:1.0;
+      expandMel(start+ti*dur, dur*(tn-ti), baseDeg+shape[i].d, shape, depth-1, out);
+    }
+  }
+
+  // ---------- drone ----------
+  function startDrone(rootHz){
+    stopDrone();
+    if(!on("L-drone")) return;
+    var freqs=[rootHz, rootHz*1.5, rootHz*2.0];
+    var amps =[0.10, 0.05, 0.035];
+    for(var i=0;i<freqs.length;i++){
+      var o=ctx.createOscillator(), g=ctx.createGain(), lp=ctx.createBiquadFilter(), lfo=ctx.createOscillator(), lg=ctx.createGain();
+      o.type="sawtooth"; o.frequency.value=freqs[i]; o.detune.value=rnd(-5,5);
+      lp.type="lowpass"; lp.frequency.value=freqs[i]*5; lp.Q.value=0.7;
+      lfo.frequency.value=rnd(0.03,0.09); lg.gain.value=freqs[i]*0.6;
+      lfo.connect(lg); lg.connect(lp.frequency);
+      g.gain.value=0.0001;
+      g.gain.linearRampToValueAtTime(amps[i],ctx.currentTime+3);
+      o.connect(lp); lp.connect(g);
+      var s=ctx.createGain(); s.gain.value=0.4; g.connect(dryGain); g.connect(s); s.connect(wetGain);
+      o.start(); lfo.start();
+      droneNodes.push(o,lfo,g);
+    }
+  }
+  function stopDrone(){
+    var now=ctx?ctx.currentTime:0;
+    for(var i=0;i<droneNodes.length;i++){
+      var n=droneNodes[i];
+      if(n.gain){ try{n.gain.cancelScheduledValues(now); n.gain.setValueAtTime(n.gain.value||0.0001,now); n.gain.exponentialRampToValueAtTime(0.0001,now+0.4);}catch(e){} }
+      if(n.stop){ try{n.stop(now+0.6);}catch(e){} }
+    }
+    droneNodes=[];
+  }
+
+  // ---------- build & schedule one span ----------
+  var evolvePhase=0;
+  function buildSpan(t0){
+    var spanDur=val("span");
+    var maxDepth=ival("depth");
+    var dens=val("dens");
+    var beatless=val("beat");
+    var mdep=ival("mdep");
+    var scaleName=document.getElementById("scale").value;
+    var cents=SCALES[scaleName];
+    var rootHz=parseFloat(document.getElementById("root").value);
+
+    // slow macro evolution (form / arc over minutes)
+    var evo=on("L-evolve")?(0.5+0.5*Math.sin(evolvePhase)):0.5;
+    evolvePhase+=0.20;
+    var densE=clamp(dens*(0.78+0.44*evo),0.18,0.97);
+    var octShift=on("L-evolve")?Math.round((evo-0.5)*2):0;  // -1..+1 register breathing
+
+    var melHz=rootHz*4;                 // melody sits a couple octaves above the bed
+    var tomHz=rootHz*2;
+
+    // --- drums ---
+    var drums=[];
+    if(on("L-drum")){
+      subdivide(0,spanDur,0,maxDepth,beatless,densE,drums);
+    }
+    // --- melody ---
+    var melNotes=[];
+    if(on("L-mel")){
+      var shape=makeShape();
+      var voices=(spanDur>7)?2:1;
+      for(var v=0;v<voices;v++){
+        var vStart=spanDur*rnd(0,0.18);
+        var vDur=spanDur*rnd(0.72,0.96);
+        var startDeg=(pick([0,1,2,3,4])+octShift*cents.length) + v*Math.round(cents.length*1.0);
+        expandMel(vStart, vDur, startDeg, shape, clamp(mdep-v,1,4), melNotes);
+      }
+    }
+
+    // schedule drums
+    for(var i=0;i<drums.length;i++){
+      var d=drums[i]; var at=t0+d.t; var dep=d.depth;
+      var pan=rnd(-0.7,0.7);
+      if(dep<=0){ kick(at, rnd(0.5,0.7), pan*0.4); }
+      else if(dep===1){ tom(at, rnd(0.32,0.48), pan, freqFromDegree(pick([0,2,4]),tomHz,cents)); }
+      else if(dep===2){ hat(at, rnd(0.16,0.28), pan); }
+      else { click(at, rnd(0.07,0.16)*Math.pow(0.85,dep-3), pan); }
+    }
+    // schedule melody
+    var nLeaves=Math.max(melNotes.length,1);
+    var mAmp=clamp(0.20/Math.sqrt(nLeaves)*4,0.05,0.22);
+    for(var j=0;j<melNotes.length;j++){
+      var m=melNotes[j];
+      var f=freqFromDegree(m.deg, melHz, cents);
+      if(f>40 && f<7000){ mel(t0+m.t, f, Math.max(0.06,m.dur), mAmp, rnd(-0.6,0.6)); }
+    }
+
+    spans.push({start:t0, dur:spanDur, drums:drums, mel:melNotes, melHz:melHz, cents:cents,
+                info:{depth:maxDepth, dens:densE, beat:beatless, mdep:mdep, scale:scaleName,
+                      nd:drums.length, nm:melNotes.length, span:spanDur}});
+  }
+
+  function scheduler(){
+    if(!playing) return;
+    var spanDur=val("span");
+    while(nextSpanStart < ctx.currentTime + lookahead){
+      buildSpan(nextSpanStart);
+      nextSpanStart += spanDur;
+      spanDur=val("span");
+    }
+    // prune old spans
+    var cut=ctx.currentTime-2;
+    while(spans.length>3 && spans[0].start+spans[0].dur<cut){ spans.shift(); }
+  }
+
+  // ---------- audio graph ----------
+  function ensureCtx(){
+    if(ctx) return;
+    ctx=new AC();
+    master=ctx.createGain(); master.gain.value=val("vol");
+    comp=ctx.createDynamicsCompressor();
+    comp.threshold.value=-18; comp.knee.value=8; comp.ratio.value=3.2; comp.attack.value=0.003; comp.release.value=0.25;
+    dryGain=ctx.createGain(); dryGain.gain.value=1.0;
+    wetGain=ctx.createGain(); wetGain.gain.value=val("rev");
+    conv=ctx.createConvolver(); buildReverb();
+    dryGain.connect(master);
+    wetGain.connect(conv); conv.connect(master);
+    master.connect(comp); comp.connect(ctx.destination);
+    streamDest=ctx.createMediaStreamDestination(); comp.connect(streamDest);
+  }
+
+  // ---------- transport ----------
+  function start(){
+    ensureCtx();
+    if(ctx.state==="suspended") ctx.resume();
+    playing=true;
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    master.gain.setValueAtTime(0.0001,ctx.currentTime);
+    master.gain.exponentialRampToValueAtTime(Math.max(val("vol"),0.0002),ctx.currentTime+0.3);
+    nextSpanStart=ctx.currentTime+0.12;
+    spans=[];
+    startDrone(parseFloat(document.getElementById("root").value));
+    if(schedTimer) clearInterval(schedTimer);
+    schedTimer=setInterval(scheduler,25);
+    scheduler();
+    document.getElementById("play").innerHTML="❚❚ stop";
+    document.getElementById("play").classList.add("on");
+  }
+  function stop(){
+    playing=false;
+    if(schedTimer){clearInterval(schedTimer); schedTimer=null;}
+    if(ctx){
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setValueAtTime(master.gain.value,ctx.currentTime);
+      master.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.18);
+      stopDrone();
+    }
+    document.getElementById("play").innerHTML="▶ play";
+    document.getElementById("play").classList.remove("on");
+  }
+
+  function regenerate(){
+    if(!playing){ start(); return; }
+    // reseed upcoming spans immediately by snapping nextSpanStart close to now
+    spans=[];
+    nextSpanStart=ctx.currentTime+0.1;
+    startDrone(parseFloat(document.getElementById("root").value));
+  }
+
+  // ---------- record ----------
+  function toggleRec(){
+    ensureCtx();
+    if(!window.MediaRecorder){ alert("Recording isn't supported in this browser. Try Chrome, or capture system audio (BlackHole)."); return; }
+    if(!recording){
+      var mime="";
+      var cands=["audio/webm;codecs=opus","audio/webm","audio/ogg;codecs=opus"];
+      for(var i=0;i<cands.length;i++){ if(MediaRecorder.isTypeSupported(cands[i])){mime=cands[i];break;} }
+      try{ mediaRec = mime?new MediaRecorder(streamDest.stream,{mimeType:mime}):new MediaRecorder(streamDest.stream); }
+      catch(e){ alert("Could not start recorder: "+e.message); return; }
+      recChunks=[];
+      mediaRec.ondataavailable=function(ev){ if(ev.data&&ev.data.size>0) recChunks.push(ev.data); };
+      mediaRec.onstop=function(){
+        var blob=new Blob(recChunks,{type:mediaRec.mimeType||"audio/webm"});
+        var url=URL.createObjectURL(blob);
+        var a=document.createElement("a");
+        var stamp=new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
+        a.href=url; a.download="xik6_beatless_"+stamp+".webm";
+        document.body.appendChild(a); a.click();
+        setTimeout(function(){URL.revokeObjectURL(url); a.remove();},400);
+      };
+      mediaRec.start();
+      recording=true; recStart=ctx.currentTime;
+      var b=document.getElementById("rec"); b.classList.add("on"); b.innerHTML="■ stop rec";
+      if(!playing) start();
+    } else {
+      try{mediaRec.stop();}catch(e){}
+      recording=false;
+      var bb=document.getElementById("rec"); bb.classList.remove("on"); bb.innerHTML="● record";
+    }
+  }
+
+  // ---------- visualization ----------
+  var cv=document.getElementById("cv"), g2=cv.getContext("2d"), dpr=Math.max(1,window.devicePixelRatio||1);
+  function sizeCanvas(){
+    var w=cv.clientWidth, h=cv.clientHeight;
+    cv.width=Math.floor(w*dpr); cv.height=Math.floor(h*dpr);
+    g2.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener("resize",sizeCanvas);
+
+  function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+  var COL;
+  function refreshCol(){COL={drum:css("--drum"),mel:css("--mel"),drone:css("--drone"),faint:css("--faint"),line:css("--line"),dim:css("--dim")};}
+
+  function draw(){
+    requestAnimationFrame(draw);
+    if(!g2) return;
+    var W=cv.clientWidth, H=cv.clientHeight;
+    g2.clearRect(0,0,W,H);
+    g2.fillStyle="#060708"; g2.fillRect(0,0,W,H);
+    if(!COL) refreshCol();
+
+    // register gridlines
+    g2.strokeStyle=COL.line; g2.lineWidth=1;
+    for(var r=1;r<5;r++){ var y=H*r/5; g2.beginPath(); g2.moveTo(0,y+0.5); g2.lineTo(W,y+0.5); g2.stroke(); }
+
+    if(!playing || !ctx || spans.length===0){
+      g2.fillStyle=COL.faint; g2.font="11px 'IBM Plex Mono', monospace";
+      g2.fillText("press play — a self-similar field appears", 12, H-14);
+      return;
+    }
+
+    var now=ctx.currentTime;
+    var sp=null;
+    for(var i=spans.length-1;i>=0;i--){ if(spans[i].start<=now){ sp=spans[i]; break; } }
+    if(!sp) sp=spans[0];
+    var frac=clamp((now-sp.start)/sp.dur,0,1);
+
+    var topPad=26, botPad=10, fieldH=H-topPad-botPad;
+
+    // drums: x=time, y by depth (low/shallow at bottom)
+    var maxD=Math.max(sp.info.depth,1);
+    for(var d=0;d<sp.drums.length;d++){
+      var ev=sp.drums[d];
+      var x=(ev.t/sp.dur)*W;
+      var yy=H-botPad-(ev.depth/maxD)*fieldH*0.62;
+      var rad=Math.max(1.4, 4.5-ev.depth*0.7);
+      var passed=(ev.t/sp.dur)<=frac;
+      g2.globalAlpha=passed?0.92:0.34;
+      g2.fillStyle=COL.drum;
+      g2.beginPath(); g2.arc(x,yy,rad,0,6.2832); g2.fill();
+    }
+
+    // melody: x=time, y by pitch (log), upper band, radius by dur
+    var lo=Math.log(120), hi=Math.log(2400);
+    for(var m=0;m<sp.mel.length;m++){
+      var mn=sp.mel[m];
+      var f=sp.melHz*Math.pow(2,( (function(){ // freq from degree inline
+            var n=sp.cents.length, idx=((mn.deg%n)+n)%n, oc=Math.floor(mn.deg/n);
+            return (sp.cents[idx]+1200*oc)/1200; })() ));
+      var lf=clamp(Math.log(f),lo,hi);
+      var my=topPad + (1-(lf-lo)/(hi-lo))*fieldH*0.7;
+      var mx=(mn.t/sp.dur)*W;
+      var mr=clamp(2+mn.dur*3.2,2,7);
+      var mp=(mn.t/sp.dur)<=frac;
+      g2.globalAlpha=mp?0.95:0.32;
+      g2.fillStyle=COL.mel;
+      g2.beginPath(); g2.arc(mx,my,mr,0,6.2832); g2.fill();
+      // tie line to show grouping span
+      g2.globalAlpha=mp?0.18:0.08; g2.strokeStyle=COL.mel; g2.lineWidth=1;
+      g2.beginPath(); g2.moveTo(mx,my); g2.lineTo(mx+(mn.dur/sp.dur)*W,my); g2.stroke();
+    }
+
+    // drone baseline band
+    g2.globalAlpha=0.12; g2.fillStyle=COL.drone;
+    g2.fillRect(0,H-botPad-3,W,3);
+
+    // playhead
+    g2.globalAlpha=1; g2.strokeStyle=COL.dim; g2.lineWidth=1;
+    var px=frac*W;
+    g2.beginPath(); g2.moveTo(px+0.5,0); g2.lineTo(px+0.5,H); g2.stroke();
+    g2.globalAlpha=1;
+  }
+
+  // ---------- readout ----------
+  function fmtScale(s){
+    var map={pentMin:"pent.min",pentMaj:"pent.maj",lydian:"lydian",dorian:"dorian",just:"just",tet19:"19-TET",bohlen:"B-P"};
+    return map[s]||s;
+  }
+  function updateReadout(){
+    var el=document.getElementById("readout");
+    var info=(spans.length?spans[spans.length-1].info:null);
+    var recTxt = recording && ctx ? (" · rec "+(ctx.currentTime-recStart).toFixed(0)+"s") : "";
+    if(info){
+      el.innerHTML="depth <b>"+info.depth+"</b> · beatless <b>"+info.beat.toFixed(2)+"</b> · "+
+                   "onsets <b>"+info.nd+"</b> · notes <b>"+info.nm+"</b><br>"+
+                   fmtScale(info.scale)+" · "+info.span.toFixed(1)+"s/span"+recTxt;
+    } else {
+      el.innerHTML="idle"+recTxt;
+    }
+  }
+
+  // ---------- bind controls ----------
+  function bindLabel(id,label,fix){
+    var s=document.getElementById(id), o=document.getElementById(label);
+    function upd(){ o.textContent = (fix===0)?s.value:parseFloat(s.value).toFixed(fix); }
+    s.addEventListener("input",upd); upd();
+  }
+  bindLabel("depth","v-depth",0);
+  bindLabel("dens","v-dens",2);
+  bindLabel("beat","v-beat",2);
+  bindLabel("span","v-span",1);
+  bindLabel("mdep","v-mdep",0);
+  bindLabel("rev","v-rev",2);
+  bindLabel("vol","v-vol",2);
+
+  document.getElementById("vol").addEventListener("input",function(){ if(master&&playing){ master.gain.setTargetAtTime(val("vol"),ctx.currentTime,0.05);} });
+  document.getElementById("rev").addEventListener("input",function(){ if(wetGain){ wetGain.gain.setTargetAtTime(val("rev"),ctx.currentTime,0.05);} });
+
+  function toggleLayer(id){ var b=document.getElementById(id); b.classList.toggle("on");
+    if(id==="L-drone" && playing){ if(on(id)) startDrone(parseFloat(document.getElementById("root").value)); else stopDrone(); } }
+  ["L-drum","L-mel","L-drone","L-evolve"].forEach(function(id){ document.getElementById(id).addEventListener("click",function(){toggleLayer(id);}); });
+
+  document.getElementById("play").addEventListener("click",function(){ playing?stop():start(); });
+  document.getElementById("regen").addEventListener("click",regenerate);
+  document.getElementById("rec").addEventListener("click",toggleRec);
+  document.getElementById("root").addEventListener("change",function(){ if(playing) startDrone(parseFloat(this.value)); });
+
+  // init
+  sizeCanvas(); refreshCol(); draw();
+  setInterval(updateReadout,250);
+})();
+</script>
+</body>
+</html>

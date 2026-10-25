@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trilateral Oracle Song</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --fire:#c04010;--air:#1060a0;--earth:#605030;--water:#205080;--ice:#3080a0;
+}
+
+html,body{min-height:100vh;background:#ffffff;color:#000000;font-family:Arial,Helvetica,sans-serif;font-style:normal;overflow-x:hidden}
+.wrap{max-width:1040px;margin:0 auto;padding:0 24px 80px}
+
+header{display:flex;justify-content:space-between;align-items:baseline;padding:24px 0 18px;border-bottom:2px solid #000}
+h1{font-size:16px;font-weight:bold;letter-spacing:.1em;color:#000;text-transform:uppercase}
+.sub{font-size:11px;color:#444;margin-top:4px}
+.hdr-r{font-size:11px;color:#444;text-align:right;line-height:1.8}
+
+.controls{display:flex;align-items:center;gap:20px;padding:18px 0 14px;flex-wrap:wrap;border-bottom:1px solid #ccc}
+.lbl{font-size:11px;color:#000;font-weight:bold;text-transform:uppercase}
+.slider{-webkit-appearance:none;width:120px;height:3px;background:#000;outline:none;cursor:pointer}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#000;cursor:pointer}
+.sval{font-size:16px;font-weight:bold;color:#000;min-width:22px}
+.btn{font-size:11px;font-weight:bold;letter-spacing:.08em;text-transform:uppercase;background:#fff;border:2px solid #000;color:#000;padding:10px 22px;cursor:pointer;border-radius:0;transition:background .15s,color .15s}
+.btn:hover{background:#000;color:#fff}
+.btn:disabled{border-color:#ccc;color:#ccc;cursor:default}
+.btn:disabled:hover{background:#fff;color:#ccc}
+.btn-play.on{background:#000;color:#fff}
+.btn-play.on:hover{background:#333;color:#fff}
+.btn-stop.on{border-color:#900;color:#900}
+.btn-stop.on:hover{background:#900;color:#fff}
+
+.piano-wrap{margin:16px 0 20px;padding:12px 0 10px;border-top:1px solid #ccc;border-bottom:1px solid #ccc}
+.piano-lbl{font-size:10px;color:#666;margin-bottom:8px;text-transform:uppercase;font-weight:bold;letter-spacing:.08em}
+.piano{display:flex;gap:1px;height:36px;align-items:flex-end}
+.pk{flex:1;border-radius:0 0 2px 2px;transition:background .3s,box-shadow .2s}
+.pk.w{background:#ccc;height:36px;border:1px solid #999}
+.pk.b{background:#333;height:22px}
+.pk.sel{box-shadow:inset 0 -4px 0 currentColor;background:currentColor}
+.pk.ringing{box-shadow:0 0 0 3px currentColor}
+.piano-ends{font-size:9px;color:#666;display:flex;justify-content:space-between;margin-top:5px}
+
+.status{font-size:11px;color:#444;min-height:18px;padding:8px 0;font-weight:bold}
+
+.chord-grid{display:grid;gap:2px;grid-template-columns:1fr;margin:16px 0}
+
+.chord-block{border:2px solid #000;background:#fff;transition:border-width .2s;position:relative}
+.chord-block.playing{border-width:3px;background:#f8f8f8}
+.chord-block.done{opacity:.4}
+
+.chord-head{display:flex;align-items:center;gap:14px;padding:10px 14px 8px;border-bottom:1px solid #000;background:#000;color:#fff}
+.chord-num{font-size:10px;font-weight:bold;letter-spacing:.12em;text-transform:uppercase;color:#fff}
+.chord-name{font-size:12px;font-weight:bold;color:#fff}
+.chord-el{font-size:10px;color:#ccc;margin-left:auto;text-transform:uppercase;letter-spacing:.1em}
+
+.chord-notes-row{display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px 4px;border-bottom:1px solid #ddd}
+.note-pill{font-size:10px;font-weight:bold;padding:3px 10px;border:2px solid #000;color:#000;background:#fff;letter-spacing:.06em;transition:background .2s,color .2s}
+.note-pill .tip{font-size:9px;font-weight:normal;color:#555;margin-left:4px}
+.note-pill.ringing{background:#000;color:#fff}
+.note-pill.ringing .tip{color:#ccc}
+
+.stanza{padding:12px 14px 16px;display:flex;flex-direction:column;gap:0}
+.stanza-line{font-size:14px;line-height:2.0;color:#888;font-weight:normal;padding:1px 0;transition:color .4s,font-weight .2s}
+.stanza-line.current{color:#000;font-size:15px;font-weight:bold}
+.stanza-line.past{color:#bbb}
+
+.chord-bar{display:none}
+
+.score-wrap{display:none;margin-top:32px;padding-top:20px;border-top:2px solid #000}
+.score-title{font-size:11px;font-weight:bold;color:#000;letter-spacing:.1em;text-transform:uppercase;margin-bottom:20px}
+.score-body{max-width:660px;margin:0 auto;text-align:left}
+.score-section{margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid #ddd}
+.score-section:last-child{border-bottom:none}
+.score-divider{font-size:10px;font-weight:bold;color:#000;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;padding:4px 0;border-bottom:1px solid #000}
+.score-line{font-size:14px;line-height:2.0;color:#888;padding:1px 0;transition:color .4s,font-weight .2s}
+.score-line.current{color:#000;font-weight:bold;font-size:15px}
+.score-line.past{color:#bbb}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>Trilateral Oracle Song</h1>
+    <div class="sub">88 keys · chords &amp; melody · I Ching augury · Elder Futhark · stanzas</div>
+  </div>
+  <div class="hdr-r" id="hdr-r">cast to begin</div>
+</header>
+
+<div class="controls">
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="lbl">throws</span>
+    <input type="range" class="slider" id="n-sl" min="8" max="16" value="12"
+      oninput="document.getElementById('n-v').textContent=this.value">
+    <span class="sval" id="n-v">12</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="lbl">chord size</span>
+    <input type="range" class="slider" id="cs-sl" min="3" max="6" value="4"
+      oninput="document.getElementById('cs-v').textContent=this.value">
+    <span class="sval" id="cs-v">4</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="lbl">volume</span>
+    <input type="range" class="slider" id="vol-sl" min="0" max="100" value="90"
+      oninput="document.getElementById('vol-v').textContent=this.value+'%';setVolume(this.value/100)">
+    <span class="sval" id="vol-v">90%</span>
+  </div>
+  <button class="btn btn-cast" id="btn-cast" onclick="castSong()">Cast Song</button>
+  <button class="btn btn-play" id="btn-play" onclick="playSong()" disabled>Sing Oracle</button>
+  <button class="btn btn-stop" id="btn-stop" onclick="stopSong()" disabled>Stop</button>
+</div>
+
+<div class="piano-wrap">
+  <div class="piano-lbl">88-key acoustic matrix — selected keys illuminate</div>
+  <div class="piano" id="piano"></div>
+  <div class="piano-ends"><span>A0 · 27.5 Hz</span><span>C8 · 4186 Hz</span></div>
+</div>
+
+<div class="status" id="status">choose throws and chord size · cast to generate your oracle song</div>
+<div class="chord-grid" id="chord-grid"></div>
+<div class="score-wrap" id="score-wrap">
+  <div class="score-title">oracle song — full score</div>
+  <div class="score-body" id="score-body"></div>
+</div>
+
+</div>
+<script>
+// ─── PIANO ──────────────────────────────────────────────────────────────────
+const BLACK_POS=new Set([1,3,6,8,10])
+const isBlack=k=>BLACK_POS.has((k-1)%12)
+const NOTE_NAMES=['A','A♯','B','C','C♯','D','D♯','E','F','F♯','G','G♯']
+const keyName=k=>NOTE_NAMES[(k-1)%12]+Math.floor((k+8)/12)
+const keyFreq=k=>440*Math.pow(2,(k-49)/12)
+
+const pianoEl=document.getElementById('piano')
+for(let k=1;k<=88;k++){
+  const d=document.createElement('div')
+  d.className='pk '+(isBlack(k)?'b':'w')
+  d.id='pk'+k
+  pianoEl.appendChild(d)
+}
+function clearPiano(){for(let k=1;k<=88;k++){const e=document.getElementById('pk'+k);e.classList.remove('sel','ringing');e.style.color='';e.style.background='';e.style.boxShadow=''}}
+function pianoSelect(keys,cols){clearPiano();keys.forEach((k,i)=>{const e=document.getElementById('pk'+k);if(!e)return;e.classList.add('sel');e.style.color=cols[i];e.style.background=cols[i]+'22'})}
+function pianoRing(k,col,on){const e=document.getElementById('pk'+k);if(!e)return;if(on){e.classList.add('ringing');e.style.color=col;e.style.boxShadow=`0 0 12px 4px ${col}66,inset 0 -3px 0 ${col}`}else{e.classList.remove('ringing');e.style.boxShadow='';if(e.classList.contains('sel'))e.style.boxShadow=`inset 0 -3px 0 ${col}`}}
+
+// ─── RUNES ───────────────────────────────────────────────────────────────────
+const RUNES=[
+  {name:"Fehu",     sym:"ᚠ",el:"Fire",  w:["cattle moves","mobile wealth flows","fire streams outward","creative abundance rises","luck arrives unexpected","possession held lightly","beginnings kindle","wealth in motion"]},
+  {name:"Uruz",     sym:"ᚢ",el:"Earth", w:["wild ox holds ground","primal strength endures","health is renewed","raw formation shapes itself","endurance passes through","untamed growth persists","vitality rises from below","earth holds firm against all"]},
+  {name:"Thurisaz", sym:"ᚦ",el:"Fire",  w:["the thorn defends","giant threshold stands","reactive force awakens","chaos is contained","doorway of force opens","defense rises from within","disruption purifies","fire of resistance burns"]},
+  {name:"Ansuz",    sym:"ᚨ",el:"Air",   w:["divine breath descends","god speaks through the wind","prophecy carried on air","revelation comes","the mouth opens and truth flows","wisdom finds its way","inspiration received and held","spirit calls from beyond"]},
+  {name:"Raidho",   sym:"ᚱ",el:"Air",   w:["the journey opens","cosmic order turns again","righteous path appears","the wheel returns to its center","rhythm of the road held","sacred law moves forward","the rider arrives at last","cycle completes and begins"]},
+  {name:"Kenaz",    sym:"ᚲ",el:"Fire",  w:["torch held against darkness","knowledge kindles from within","craft fire burns steadily","controlled light reveals","opening comes through effort","clarity pierces the dark","the wound opens and heals","fire of the forge transforms"]},
+  {name:"Gebo",     sym:"ᚷ",el:"Air",   w:["gift exchanged freely","balance restored through giving","partnership forms in the crossing","generosity opens the door","sacrifice offered without loss","union of the cross holds","blessing passes between hands","the gift becomes the giver"]},
+  {name:"Wunjo",    sym:"ᚹ",el:"Earth", w:["joy returns to the clan","kinship holds what was lost","harmony found in the small","belonging confirmed","clan gathers around the fire","wishful light shines on all","perfection approached slowly","fellowship made complete"]},
+  {name:"Hagalaz",  sym:"ᚺ",el:"Ice",   w:["hailstone falls and transforms","disruption becomes seed","crisis opens what was sealed","storm pattern holds its form","weather force descends and passes","frozen hail melts into the ground","what shatters becomes whole again","the hail feeds the spring"]},
+  {name:"Nauthiz",  sym:"ᚾ",el:"Fire",  w:["need compels forward","constraint reveals the shape","friction creates the fire","necessity names itself","shadow-self surfaces at last","need-fire is kindled in the cold","endurance holds the shape","the need becomes the path"]},
+  {name:"Isa",      sym:"ᛁ",el:"Ice",   w:["ice holds everything still","stasis gathers its power","concentration deepens inward","ego-freeze dissolves the false","introspection opens the way","the bridge of ice holds firm","all motion halts and listens","stillness speaks what movement cannot"]},
+  {name:"Jera",     sym:"ᛃ",el:"Earth", w:["harvest arrives in its time","cycle completes its return","natural justice is served","karma finds its recipient","reward arrives with the season","seasons turn and return together","the year-wheel completes its arc","right time is now and here"]},
+  {name:"Eihwaz",   sym:"ᛇ",el:"Air",   w:["yew endures all weathers","threshold between worlds opens","backbone holds the center","death feeds what lives","the pivot turns the world","axis of worlds is fixed","life and death meet and speak","the deep root holds the tall"]},
+  {name:"Perthro",  sym:"ᛈ",el:"Water", w:["dice thrown into the dark","fate conceals its form","mystery opens its depths","hidden things begin to surface","initiation descends without warning","chance governs what reason cannot","the womb of outcomes holds","what is unknown stirs toward knowing"]},
+  {name:"Algiz",    sym:"ᛉ",el:"Air",   w:["elk stands guard at the edge","higher self speaks from above","divine connection opens wide","guardian appears in the field","boundary of the sacred is held","reach upward toward the light","protection descends without asking","the sacred holds what is offered"]},
+  {name:"Sowilo",   sym:"ᛊ",el:"Air",   w:["sun returns to the sky","victory arrives with the dawn","wholeness is restored at last","will aligned with the light","life-force rises from the root","guiding light appears again","power of sight fully restored","the wheel of fire turns on"]},
+  {name:"Tiwaz",    sym:"ᛏ",el:"Air",   w:["Tyr speaks and holds","justice is served at cost","sacrifice accepted and honored","warrior truth holds its ground","honor is observed in all things","north-star fixed and constant","law descends into the flesh","the sky-god's hand opens wide"]},
+  {name:"Berkana",  sym:"ᛒ",el:"Earth", w:["birch greens in the cold","birth arrives from concealment","regeneration begins from within","mothering holds what is tender","spring returns to the goddess's hands","growth comes from within the dark","new life stirs in the enclosure","the birch shelters the beginning"]},
+  {name:"Ehwaz",    sym:"ᛖ",el:"Earth", w:["horse moves with its rider","partnership deepens in motion","vehicle advances steadily","loyalty holds across distance","motion becomes its own direction","twin-horses run as one","the soul's carrier arrives in time","teamwork carries what neither could"]},
+  {name:"Mannaz",   sym:"ᛗ",el:"Air",   w:["humanity speaks its name","self beholds itself clearly","rational mind opens wide","the mirror is held and seen","community gathers its members","divine-human bridge is built","mortal being stands in full light","awareness rises into knowing"]},
+  {name:"Laguz",    sym:"ᛚ",el:"Water", w:["water flows to the sea","intuition speaks from the depth","unconscious stirs toward surface","psychic depth opens below","the lake reflects the sky","feminine mystery descends slowly","current carries without asking","what is deep comes to the surface"]},
+  {name:"Ingwaz",   sym:"ᛜ",el:"Earth", w:["seed rests in the dark","internal completion holds","gestation deepens without haste","the god Ing withdraws and waits","potential enclosed and growing","safe keeping holds all winter","sacred rest is maintained","what is within grows toward opening"]},
+  {name:"Dagaz",    sym:"ᛞ",el:"Fire",  w:["dawn breaks across the field","breakthrough arrives at last","awakening is complete and full","threshold of day is crossed","hope confirmed by first light","opposites held in balance now","new light opens every door","the gate of day stands wide"]},
+  {name:"Othala",   sym:"ᛟ",el:"Earth", w:["ancestral home holds firm","inheritance is received with care","sovereignty is claimed and kept","enclosed land remembered well","clan memory speaks its truth","estate returned to its people","the enclosure holds all winter","roots go as deep as the tree is tall"]},
+]
+
+// ─── HEXAGRAMS ───────────────────────────────────────────────────────────────
+const HEX=[null,
+{t:"Heaven Creative",w:["heaven descends into action","the dragon rises from depth","strength initiates what was still","spirit begins its long work","creative force flows outward","sublime power gathers below","leads without need to dominate","the great river finds its mouth"]},
+{t:"Earth Receptive",w:["earth receives all that falls","the mare follows without loss","yielding opens every door","devoted service holds the center","dark and fertile earth waits","nurtures without claiming reward","patient sustaining builds the world","open ground accepts the seed"]},
+{t:"Difficult Beginning",w:["sprouting breaks through stone","thunder and rain come together","first difficulty is passed through","gathering happens inside the mist","birth requires both effort and time","cloud without form holds its water","push through the initial dark","what begins confused will clarify"]},
+{t:"Youthful Folly",w:["beginner mind seeks without shame","learning opens the hidden way","ignorance finds the right master","questions asked reach the answer","instruction freely given returns tenfold","spring gushes from the mountain","finding the teacher opens the path","experience alone teaches what matters"]},
+{t:"Patient Waiting",w:["clouds gather long before rain","nourishment is delayed not lost","sincerity holds in real danger","wait with confidence and full trust","the pit lies clearly ahead","heaven moves above the water's flow","timing reveals what force cannot","what is needed comes to the patient"]},
+{t:"Conflict",w:["heaven and water oppose each other","opposition clarifies what was hidden","cautious withdrawal proves the wiser choice","do not cross the great water now","return to the middle and hold","seek the one who can arbitrate","do not persist where opposition stands","pausing reveals more than advancing"]},
+{t:"The Army",w:["discipline holds the multitude together","the general commands through virtue alone","campaign only for what is truly just","authority earns through demonstrated restraint","earth holds the deep water down","leadership requires both strength and restraint","order arises naturally from within","the strong must protect the good"]},
+{t:"Holding Together",w:["union forms willingly and freely","allegiance given without coercion holds","coming together creates real accord","joining becomes the greater strength","the river finds the wide sea","fellowship bonds hold through all seasons","earth and water unite and nourish","what gathers remains and multiplies"]},
+{t:"Small Taming",w:["clouds gather but no rain falls yet","gentle restraint accumulates its power","small forces hold back the great temporarily","patience gathers invisible and grows","wind tames heaven through subtlety","what yields fully prevails in the end","holding back stores what advancing wastes","the small disciplines the great steadily"]},
+{t:"Treading Carefully",w:["treading on the tiger's tail with care","careful conduct completely avoids the bite","propriety observed in every single step","stepping with the fullest possible attention","grace avoids what force would trigger","decorum protects even the careless traveler","heaven rests itself upon the lake","proceed only with the utmost care"]},
+{t:"Peace",w:["harmony flows freely through every door","spring arrives and touches all things equally","exchange between realms finally opens wide","small departs and the great now comes","prosperity holds itself in real balance","heaven and earth meet and speak freely","the inner and outer move into alignment","what was blocked for so long now flows"]},
+{t:"Standstill",w:["stagnation descends on the open field","small comes as the great quietly departs","blocked exchange hardens into habit","withdrawal preserves virtue in hard times","inferior advances while the superior waits","heaven separates itself from earth now","wait in complete stillness and preserve all","do not engage the stagnant forces"]},
+{t:"Fellowship",w:["fellowship opens with completely open hearts","clarity is shared freely in community","gathering happens in the wide open field","common purpose holds every different voice","no private interest is allowed to divide","light that is shared multiplies itself","fire burns clearly beneath open heaven","fellowship opens what was sealed alone"]},
+{t:"Great Possession",w:["great abundance is held and used wisely","clarity and strength are fully combined","the sun holds at its highest zenith","power used only for what is right","great harvest approaches from the distance","holding without grasping allows release","fire rests above the highest heaven","what is truly great serves every one"]},
+{t:"Modesty",w:["humility always prevails over the proud","the mountain quietly rests under earth","balance equalizes everything in the end","small makes itself even smaller and wins","great completes itself only through yielding","modesty opens every closed and locked way","what is lowered is inevitably raised again","earth levels the proud without effort"]},
+{t:"Enthusiasm",w:["readiness transforms naturally into joy","music arises spontaneously from the earth","movement begins again from long stillness","the ancestor drum calls the scattered together","earth fully responds to the thunder's call","celebratory movement gathers what was apart","thunder speaks its truth over open earth","what is thoroughly prepared moves freely"]},
+{t:"Following",w:["following and adapting opens every door","joy follows where the thunder rightly leads","flexible response serves the present moment","sequence and clear succession hold together","go with the full turning of the season","what adapts without losing itself survives","the lake naturally follows the thunder's lead","yielding to what truly comes is wisdom"]},
+{t:"Decay",w:["corruption reveals where repair is needed","three days before and three days after","work carefully on what has long spoiled","old orders renew only through real effort","restoration begins from the inside out","the worm in the vessel reveals the vessel","repair what was left by those before","what decays fully feeds the next renewal"]},
+{t:"Approach",w:["approach and arrival finally opens wide","spring advances with complete steadiness","oversight and supervision guide the way","the great advance comes to those who wait","the ruler approaches with care for the people","coming near without any force succeeds","earth stands and waits above the lake","what is approached at last fully opens"]},
+{t:"Contemplation",w:["observe from the high watchtower without haste","the sacred rite is seen and understood clearly","deep looking opens all understanding slowly","insight arrives only through real stillness","viewing without judgment holds the truth","wind moves steadily and slowly over earth","the tower stands watching without being seen","seeing deeply without being seen sees all"]},
+{t:"Biting Through",w:["obstacle in the mouth is finally removed","determination alone clears the blocked path","justice applied with the needed precision","biting through resistance works where patience fails","clarity arrives at last after force is applied","union achieved through the hardest effort","fire moves powerfully above the thunder","what blocks long enough yields to what persists"]},
+{t:"Grace",w:["adornment and grace combine into beauty","beauty of form is observed and honored","fire burns gently at the mountain's foot","elegance holds without empty substance underneath","stillness itself carries a natural radiance","outward form always serves the inner truth","grace adorns what was already made complete","beauty serves well but never replaces substance"]},
+{t:"Splitting Apart",w:["the bed is stripped down to its frame","erosion has come from far below","letting go releases everything that clings","collapse of form always precedes renewal","stripping away clears the foundation completely","earth slowly reclaims the tall mountain","what fell away was already fully loosened","fall always and inevitably precedes the return"]},
+{t:"Return",w:["the solstice turning arrives at last","revival begins again from far below","return of the long light is confirmed","one yang line rises from the earth below","the root re-enters the deep ground","renewal always comes from within the core","the seventh day reliably brings the return","what left will come back renewed"]},
+{t:"Innocence",w:["natural and pure requires no strategy","unexpected lightning clarifies everything at once","innocence without calculation acts and succeeds","the cow must not be sought right now","spontaneous action serves the full moment","free of private plan succeeds where planning fails","heaven moves freely and powerfully above thunder","what is genuinely true needs no strategy"]},
+{t:"Great Taming",w:["great restraint accumulates immense power","heaven rests quietly under the high mountain","power held and nourished grows without limit","strength deepens through long sustained discipline","wise delay stores everything that is needed","accumulation always comes before the release","the mountain holds all of heaven within","what is fully contained grows immeasurably great"]},
+{t:"Nourishment",w:["the sacred mouth is carefully considered","nourish yourself fully before nourishing others","cultivation of care deepens over every season","what enters and what exits always matters","provision comes reliably from what is tended","feeding wisely sustains all who depend","the mountain stands firm above the thunder","what nourishes is itself nourished in return"]},
+{t:"Great Excess",w:["the ridgepole bends dangerously under weight","extraordinary measures are now urgently required","weight too great for any structure to bear","the great beam bends and then will break","unusual times always demand unusual and bold means","bend fully and completely or inevitably break","the lake stands high and wide over the wind","what exceeds its measure must be urgently addressed"]},
+{t:"The Abyss",w:["flowing steadily through all real danger","sincerity holds firm in the deepest pit","the heart stays true even in the deep","danger repeated again teaches what comfort cannot","flow does not stop for any chasm ahead","persevere in the depths without fear or doubt","water moves powerfully above water","what is sincere passes safely through all danger"]},
+{t:"The Clinging",w:["brightness clings to what gives it life","the sun and the moon persist in their paths","clarity maintained through what it depends upon","the bird lights on the branch and rests","illumination sustained by what it touches and needs","net of light spreads steadily outward","fire burns brightly above the lower fire","what is bright clings to what feeds and sustains it"]},
+{t:"Influence",w:["mutual attraction opens what was closed","courtship responds without any force or demand","resonance without thought moves what reason cannot","man below woman above and both are served","feeling without force moves and persists","influence flows exactly where it is truly welcomed","lake rests quietly and openly above the mountain","what feels the other does not need to command"]},
+{t:"Duration",w:["endurance and persistence hold what time tests","the married path continues past all resistance","constancy of purpose sustains through every change","consistency across time deepens what was planted","permanence without rigidity survives every storm","the long course holds truer than the short sprint","thunder moves steadily and powerfully above the wind","what endures fully serves everything that persists"]},
+{t:"Retreat",w:["strategic withdrawal fully preserves what matters","the small advances as the great wisely retreats","preserve strength through the most timely exit","graceful exit protects everything that still matters","knowing when to step back saves everything","what retreats with wisdom returns far stronger","heaven rests high and still above the mountain","the wise and timely retreat is never defeat"]},
+{t:"Great Power",w:["great vigor is applied only with righteous aim","righteous strength moves without any obstruction","the goat must not butt uselessly at the fence","do not persist anywhere in what is clearly wrong","strength always observes the deepest propriety","power serves only what is genuinely right","thunder moves powerfully and freely above heaven","what is truly powerful serves what is truly good"]},
+{t:"Progress",w:["the sun rises bright over open earth","clear advance is fully confirmed at last","promotion comes reliably to the truly sincere","brightness progresses across the whole open field","mare given many horses moves the whole way","daylight spreads steadily across the wide field","fire moves warmly and steadily above the earth","what progresses with sincerity serves every one"]},
+{t:"Darkening Light",w:["light is concealed deep within the darkness","the pheasant's wing droops against the hunter","adversity endured completely without yielding the center","hiding brightness protects the essential inner flame","inner light preserved through the outer dark","earth covers and protects the hidden fire below","endure without revealing the depth of the wound","what is wisely hidden in darkness survives to shine"]},
+{t:"The Family",w:["the family stands and holds in right order","roles observed hold the hearth against all winds","the inner and the outer stand fully aligned","relationships defined clearly by their natural function","home serves as the foundation for everything outside","speak truth inside the home before speaking outside","wind moves steadily and clearly above the fire","what is ordered deeply within orders everything without"]},
+{t:"Opposition",w:["misunderstanding between what meets reveals what was hidden","contradiction held long enough clarifies everything","small steps in apparent opposition succeed where great force fails","strangers become fully known through their difference","fire and water separated show what was always true","apparent opposites eventually meet at the middle point","fire rests high above the wide lake","what opposes long enough eventually corresponds and serves"]},
+{t:"Obstruction",w:["limping steadily forward on the most difficult path","seek help only from what is truly great","this is not the time at all to act alone","the mountain completely blocks the water's natural course","obstacles of this kind require others to stand beside you","water rests high and still above the mountain","what is obstructed here requires the help of allies","real difficulty always calls for greater and broader resources"]},
+{t:"Deliverance",w:["liberation arrives reliably in its right time","forgiveness completely clears the long accumulated path","the storm breaks at last and the air clears","tension releases completely and all motion resumes","dissolving every knot fully frees all movement","freedom arrives reliably after difficulty has been fully held","thunder moves powerfully above the deep water","what is fully released does not return still bound"]},
+{t:"Decrease",w:["decrease offered sincerely becomes increase","simplification reliably serves the deepest truth","sacrifice the lower to fully nourish the higher","two bowls offered simply are already enough","diminishment offered sincerely becomes a genuine gift","what is given away freely and fully increases","mountain rests quietly and firmly above the lake","what decreases in outer form increases in inner truth"]},
+{t:"Increase",w:["benefit and growth arrive from the right direction","increase flows reliably from above all the way down","the ruler gives freely to all of the people","generosity becomes increase for the one who gives","profit through the great crossing of the water","wind moves powerfully above the loud thunder","growth comes reliably from what is given away freely","what increases most serves what was given away"]},
+{t:"Breakthrough",w:["resolution comes through speaking what is completely true","announce to the full court what has long been hidden","the flood of truth breaks the long-standing dam","determination holds throughout without any half-measures","expose what has been carefully concealed too long","no partial action at all will serve this moment","lake rises high above the highest heaven","what breaks through the barrier clears the way for all"]},
+{t:"Coming to Meet",w:["unexpected encounter arrives completely unbidden","the bold one approaches from far below","temptation surfaces steadily from deep within","warning given clearly: do not grasp what approaches","meeting on the open road was entirely unplanned","what comes uninvited always brings its own lesson","heaven moves steadily and freely above the gentle wind","what arrives unexpected is already deeply known within"]},
+{t:"Gathering Together",w:["assembly and convergence at last complete","the king stands reverently at the full temple","collective purpose holds every different one together","the great sacrifice is freely and sincerely offered","convergence of forces multiplies what each held alone","what gathers fully together strengthens every part","lake rests wide and still above the open earth","what is gathered fully together serves what no one can alone"]},
+{t:"Pushing Upward",w:["ascending like the tree through the dark soil","gradual upward growth persists without any haste","the south is entirely favorable for all advance","sincerity opens steadily every door that was closed","rise carefully and steadily without any undue haste","earth moves naturally and steadily above the gentle wind","what pushes steadily upward reaches the light at last","gradual ascent reliably arrives where leaping always fails"]},
+{t:"Oppression",w:["exhaustion and limitation descend without warning","joy is confined but endures completely without complaint","the lake has no water left and yet persists","adversity is held with full inner joy throughout","endure the constraint without once losing the center","lake rests high but empty above the deep water","what is confined finds reliably what is most essential","oppression can never take what is held most deeply within"]},
+{t:"The Well",w:["the inexhaustible well nourishes all who come","communal nourishment is freely and openly drawn by all","rope and bucket faithfully serve the deep well","the well does not move and does not change","all may draw freely from what never diminishes","source remains entirely unchanged by the most constant use","water rests deep and still above the gentle wind","what truly nourishes cannot be exhausted if carefully tended"]},
+{t:"Revolution",w:["molting and full transformation are confirmed at last","the tiger and the leopard both change their patterns","revolution arrives reliably at the exactly right time","what was ordained changes completely at the great pivot","transformation confirmed fully by all the people gathered","the new order establishes itself in the old place","lake rests wide above the bright and warming fire","what transforms was already completely ready to change"]},
+{t:"The Cauldron",w:["the sacred vessel holds the full transformation","transformation occurs through the steady fire below","nourishment of the wise is sustained through every season","culture emerges slowly from the careful cooking","alchemy of purpose works slowly in the sacred vessel","fire moves steadily above the roots of the wind","what transforms fully in the vessel nourishes all who come","the cauldron feeds what builds what feeds the cauldron"]},
+{t:"Arousing Thunder",w:["shock arrives and trembling follows immediately","the first son moves with irresistible force","fear dissolves reliably into laughter afterward","what startles most deeply reveals what was always hidden","the earth shakes completely and then quietly settles","movement arrives reliably after the longest stillness","thunder moves powerfully above the other thunder","what shocks most deeply awakens what had long slept"]},
+{t:"Keeping Still",w:["stillness and meditation hold all things together","stop where and when stopping is the right thing","back at rest and the wandering mind finally quiets","the wandering mind is gently but firmly halted","sitting with the mountain within finds the mountain","quiet inside stills completely everything outside","mountain rests still above the other mountain","what is still holds far more than what moves"]},
+{t:"Gradual Progress",w:["the geese fly in their completely right sequence","gradual and fully proper advance holds what it gains","decorum observed in every single step of progress","step by step the highest summit is finally reached","the tree grows with great slowness on the mountain","patience reliably serves what impatient haste destroys","wind moves steadily above the high mountain","what progresses in the right way reliably arrives"]},
+{t:"The Marrying Maiden",w:["subordinate role accepted completely with grace and skill","transition and adjustment complete themselves in time","the younger sister moves wisely in another's wake","secondary position honored with complete and genuine care","adaptation to another's full rhythm and way","moving rightly in a secondary place requires all strength","thunder moves powerfully above the wide lake","what follows without losing itself does not fail by following"]},
+{t:"Abundance",w:["fullness arrives completely at the highest zenith","the eclipse always follows the brightest height of clarity","clarity and swift movement together reach their peak","at the very height of abundance be most vigilant","the sun holds itself at its very brightest point","brilliance sustained requires the most careful and constant tending","thunder moves powerfully above the bright and warming fire","what is fullest must be held with the greatest care"]},
+{t:"The Wanderer",w:["the stranger moves through all things with complete care","transient and careful succeeds reliably in what is small","small success suffices fully for the wise wanderer","the traveler finds no permanent and lasting home","alien in every place learns something from every place","careful always with fire when in another's land","fire rests warmly above the high mountain","what wanders and yet holds itself carries its home within"]},
+{t:"The Gentle Wind",w:["gentle penetration reaches everywhere that force cannot","following and spreading outward without any force or demand","what persists long enough enters even what most resists","subtle influence works its way in completely hidden ways","roots work in the darkness quietly and without stopping","the wind finds reliably every smallest opening","wind moves steadily above the other gentle wind","what is gentle in the end outlasts all that is forceful"]},
+{t:"The Joyous Lake",w:["joy shared openly multiplies itself freely","encouragement exchanged between those who gather together","pleasure found in the honest exchange of genuine truth","open mouth speaks freely what truly delights the spirit","the friends discuss together only what is most true","joy found in gathering strengthens everything it touches","lake rests wide above the other wide lake","what rejoices together finds what one alone cannot ever find"]},
+{t:"Dispersion",w:["dissolving and then regathering holds what it loses","scattered forces reunite reliably at the center","wind on the water disperses what has grown rigid","dispersion of all that is rigid liberates what it held","the king approaches the sacred temple to finally unite","dissolve to fully reform what had grown too hardened","wind moves steadily above the deep and flowing water","what disperses fully returns reliably in a completely new form"]},
+{t:"Limitation",w:["regulation and clear boundary serve all nourishment","measure carefully what is given and what goes out","moderation holds reliably what all excess destroys","limitation accepted with genuine joy sustains the center","the banks guide and contain what they hold","define what is held to nourish what would otherwise flood","water rests deep above the wide and open lake","what is clearly bounded grows fully within its measured place"]},
+{t:"Inner Truth",w:["sincerity penetrates reliably what most resists","pigs and fish both respond to what is genuinely true","inner truth reaches everywhere without any force at all","the boat floats truly on what is completely real","penetrating sincerity always finds its way through","what is genuinely felt connects before any words arrive","wind moves steadily above the wide and open lake","what is truly true inside speaks always before the words do"]},
+{t:"Small Excess",w:["small exceeds by just exactly the right little","the flying bird carries and delivers its true message","lower is always better than higher in this moment","do not fly too far above what is genuinely real","small action succeeds completely where great action fails","the bird's cry is heard and reliably answered in kind","thunder moves above the high and still mountain","what exceeds by a little serves what a great excess destroys"]},
+{t:"After Completion",w:["completion and its real danger hold each other together","equilibrium achieved always requires the most careful vigilance","the fox crosses the thin ice with the greatest care","after completion be most careful of everything that returns","the young fox wets its tail at the very last step","hold with the greatest care what has at last been won","water rests high and still above the warming fire","what is complete is not at all finished with its dangers"]},
+{t:"Before Completion",w:["the threshold not yet crossed patiently awaits","transition approaches steadily from deep within","careful and complete: the crossing is not yet finished","the young fox stands uncertainly at the open riverbank","almost but not finished holds its greatest and deepest power","approach the crossing with the fullest possible preparation","fire moves powerfully above the deep and flowing water","what is nearly complete holds the greatest real care within"]},
+]
+
+const EL_COLOR={Fire:"#d4622a",Air:"#7ab0c4",Earth:"#8a7a54",Water:"#4a7a9b",Ice:"#a8c8e0"}
+const keyToHex =k=>((k-1)%64)+1
+const keyToRune=k=>RUNES[(k-1)%24]
+
+// ─── STANZA BUILDER ──────────────────────────────────────────────────────────
+function buildStanza(chordNotes){
+  const hw=[],rw=[],th=[]
+  chordNotes.forEach(n=>{
+    hw.push(...HEX[keyToHex(n.k)].w)
+    rw.push(...keyToRune(n.k).w)
+    th.push(keyToRune(n.k).name.toLowerCase())
+    th.push(HEX[keyToHex(n.k)].t.split(' ')[0].toLowerCase())
+  })
+  const sh=a=>{const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]};return b}
+  const SH=sh(hw),SR=sh(rw),ST=sh(th)
+  let hi=0,ri=0,ti=0
+  const H=()=>SH[hi++%SH.length]
+  const R=()=>SR[ri++%SR.length]
+  const T=()=>ST[ti++%ST.length]
+
+  const forms=[
+    ()=>`${H()}: ${R()}`,
+    ()=>`${R()}, and then ${H()}`,
+    ()=>`what ${H()} — ${R()}`,
+    ()=>`${H()} holds ${R()}`,
+    ()=>`the ${T()} of ${H()}: ${R()}`,
+    ()=>`${R()} — ${H()}`,
+    ()=>`${H()}, yet ${R()}`,
+    ()=>`through ${H()} comes ${R()}`,
+    ()=>`${T()} speaks: ${H()}`,
+    ()=>`${R()} returns to ${H()}`,
+    ()=>`what is ${H()} becomes ${R()}`,
+    ()=>`${H()}, then ${R()}, then again ${H()}`,
+    ()=>`the ${T()}: ${R()} within ${H()}`,
+    ()=>`${R()} holds what ${H()} releases`,
+    ()=>`where ${H()} ends, ${R()} begins`,
+    ()=>`${H()} remains after ${R()} departs`,
+    ()=>`from ${H()}, into ${R()}`,
+    ()=>`${T()} and ${H()}: both ${R()}`,
+  ]
+
+  const nLines=4+Math.floor(Math.random()*4) // 4-7 lines
+  const lines=[]
+  for(let i=0;i<nLines;i++){
+    lines.push(forms[Math.floor(Math.random()*forms.length)]())
+  }
+  // Cage-style: repeat first line at end ~40% of the time
+  if(Math.random()<0.4) lines.push(lines[0])
+  // Occasionally repeat a middle line
+  if(nLines>4&&Math.random()<0.3) lines.splice(Math.floor(nLines/2),0,lines[1])
+
+  return lines
+}
+
+// ─── CHORD GROUPING ──────────────────────────────────────────────────────────
+function groupIntoChords(notesSortedByPitch, cs){
+  const chords=[]
+  let i=0
+  while(i<notesSortedByPitch.length){
+    const remaining=notesSortedByPitch.length-i
+    let size=Math.min(cs,remaining)
+    // if leftover would be <3, merge into previous chord
+    if(remaining-size>0&&remaining-size<3) size=remaining
+    chords.push(notesSortedByPitch.slice(i,i+size))
+    i+=size
+  }
+  return chords
+}
+
+
+// ─── AUDIO: soft ambient chord underneath speech ─────────────────────────────
+let audioCtx=null
+let masterVolume=0.90
+function getCtx(){if(!audioCtx||audioCtx.state==='closed')audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx}
+function setVolume(v){
+  masterVolume=v
+  // Update any live ambient gain
+  if(ambientMaster) ambientMaster.gain.setTargetAtTime(v*0.05, audioCtx ? audioCtx.currentTime : 0, 0.1)
+}
+
+let ambientNodes=[]
+let ambientMaster=null
+function startAmbient(chordNotes){
+  stopAmbient()
+  try{
+    const ctx=getCtx()
+    const master=ctx.createGain()
+    master.gain.setValueAtTime(0,ctx.currentTime)
+    master.gain.linearRampToValueAtTime(masterVolume*0.05,ctx.currentTime+1.5)
+    master.connect(ctx.destination)
+    ambientMaster=master
+    chordNotes.forEach(n=>{
+      const osc=ctx.createOscillator()
+      const g=ctx.createGain()
+      osc.type='sine'
+      osc.frequency.value=n.freq*2
+      g.gain.value=0.025
+      osc.connect(g);g.connect(master)
+      osc.start()
+      ambientNodes.push(osc)
+    })
+    ambientNodes.push(master)
+  }catch(e){}
+}
+function stopAmbient(){
+  ambientNodes.forEach(n=>{try{if(n.stop)n.stop(0);n.disconnect()}catch(e){}})
+  ambientNodes=[]
+  ambientMaster=null
+}
+
+// ─── SPEECH ──────────────────────────────────────────────────────────────────
+let voicesLoaded=false
+function loadVoices(){
+  return new Promise(resolve=>{
+    const v=window.speechSynthesis.getVoices()
+    if(v.length){voicesLoaded=true;resolve(v);return}
+    window.speechSynthesis.onvoiceschanged=()=>{voicesLoaded=true;resolve(window.speechSynthesis.getVoices())}
+  })
+}
+
+async function speakLine(text){
+  if(!window.speechSynthesis)return
+  window.speechSynthesis.cancel()
+  await new Promise(r=>setTimeout(r,80))
+  return new Promise(resolve=>{
+    const utt=new SpeechSynthesisUtterance(text)
+    utt.rate=0.85
+    utt.pitch=1.0
+    utt.volume=masterVolume
+    const voices=window.speechSynthesis.getVoices()
+    // Prefer a natural English voice, avoid novelty voices
+    const eng=voices.find(v=>v.lang==='en-US'&&v.localService)||
+               voices.find(v=>v.lang==='en-GB'&&v.localService)||
+               voices.find(v=>v.lang.startsWith('en')&&v.localService)||
+               voices.find(v=>v.lang.startsWith('en'))||null
+    if(eng)utt.voice=eng
+    utt.onend=()=>resolve()
+    utt.onerror=()=>resolve()
+    window.speechSynthesis.speak(utt)
+  })
+}
+
+function stopSpeech(){
+  if(window.speechSynthesis)window.speechSynthesis.cancel()
+}
+
+// ─── SONG STATE ───────────────────────────────────────────────────────────────
+let song=null,playing=false,stopFlag=false
+
+function castSong(){
+  if(playing)stopSong()
+  const n=parseInt(document.getElementById('n-sl').value)
+  const cs=parseInt(document.getElementById('cs-sl').value)
+
+  const pool=Array.from({length:88},(_,i)=>i+1)
+  const picked=[]
+  for(let i=0;i<n;i++){const idx=Math.floor(Math.random()*pool.length);picked.push(pool.splice(idx,1)[0])}
+  picked.sort((a,b)=>a-b)
+
+  const notes=picked.map(k=>({k,freq:keyFreq(k),name:keyName(k)}))
+  const chordGroups=groupIntoChords(notes,cs)
+
+  const chords=chordGroups.map((cNotes,ci)=>{
+    const elCounts={}; cNotes.forEach(n=>{const el=keyToRune(n.k).el;elCounts[el]=(elCounts[el]||0)+1})
+    const domEl=Object.entries(elCounts).sort((a,b)=>b[1]-a[1])[0][0]
+    const color=EL_COLOR[domEl]
+    const stanza=buildStanza(cNotes)
+    const chordName=cNotes.map(n=>n.name).join(' · ')
+    return {notes:cNotes,stanza,color,domEl,chordName,ci}
+  })
+
+  song={notes,chords,picked}
+
+  const allKeys=[],allCols=[]
+  chords.forEach(ch=>ch.notes.forEach(n=>{allKeys.push(n.k);allCols.push(ch.color)}))
+  pianoSelect(allKeys,allCols)
+
+  renderChords()
+  renderScore()
+
+  document.getElementById('btn-play').disabled=false
+  document.getElementById('btn-play').className='btn btn-play on'
+  document.getElementById('btn-cast').className='btn btn-cast armed'
+  document.getElementById('status').textContent=
+    n+' keys · '+chords.length+' chords ('+chords.map(c=>c.notes.length+'n').join(', ')+') · press Sing Oracle'
+  document.getElementById('hdr-r').textContent=n+' throws · '+chords.length+' chords · ready'
+}
+
+function renderChords(){
+  const grid=document.getElementById('chord-grid');grid.innerHTML=''
+  song.chords.forEach((ch,ci)=>{
+    const div=document.createElement('div');div.className='chord-block';div.id='cb'+ci
+    const pillsHtml=ch.notes.map(n=>{
+      const rune=keyToRune(n.k)
+      return '<div class="note-pill" id="pill-'+ci+'-'+n.k+'">'+
+        n.name+'<span class="tip">'+rune.sym+' #'+keyToHex(n.k)+'</span></div>'
+    }).join('')
+    const stanzaHtml=ch.stanza.map((line,li)=>
+      '<span class="stanza-line" id="sl-'+ci+'-'+li+'">'+line+'</span>'
+    ).join('')
+    div.innerHTML=
+      '<div class="chord-head">'+
+        '<span class="chord-num">chord '+(ci+1)+'</span>'+
+        '<span class="chord-name">'+ch.chordName+'</span>'+
+        '<span class="chord-el">'+ch.domEl+'</span>'+
+      '</div>'+
+      '<div class="chord-notes-row">'+pillsHtml+'</div>'+
+      '<div class="stanza">'+stanzaHtml+'</div>'+
+      '<div class="chord-bar" style="background:'+ch.color+'"></div>'
+    grid.appendChild(div)
+  })
+}
+
+function renderScore(){
+  const sw=document.getElementById('score-wrap');sw.style.display='block'
+  const sb=document.getElementById('score-body')
+  sb.innerHTML=song.chords.map((ch,ci)=>
+    '<div class="score-section" id="ss'+ci+'">'+
+    '<div class="score-divider">chord '+(ci+1)+' — '+ch.chordName+' — '+ch.domEl+'</div>'+
+    ch.stanza.map((line,li)=>'<div class="score-line" id="ssc-'+ci+'-'+li+'">'+line+'</div>').join('')+
+    '</div>'
+  ).join('')
+}
+
+async function playSong(){
+  if(!song||playing)return
+  // Warm up speech engine
+  await loadVoices()
+  playing=true;stopFlag=false
+  document.getElementById('btn-play').disabled=true
+  document.getElementById('btn-stop').disabled=false
+  document.getElementById('btn-stop').className='btn btn-stop on'
+
+  // Reset all visuals
+  song.chords.forEach((ch,ci)=>{
+    const cb=document.getElementById('cb'+ci);if(cb)cb.classList.remove('playing','done')
+    ch.stanza.forEach((_,li)=>{
+      const el=document.getElementById('sl-'+ci+'-'+li);if(el)el.className='stanza-line'
+      const se=document.getElementById('ssc-'+ci+'-'+li);if(se)se.className='score-line'
+    })
+    ch.notes.forEach(n=>{const p=document.getElementById('pill-'+ci+'-'+n.k);if(p)p.classList.remove('ringing')})
+  })
+
+  for(let ci=0;ci<song.chords.length&&!stopFlag;ci++){
+    const ch=song.chords[ci]
+    const cb=document.getElementById('cb'+ci)
+    if(cb){cb.classList.add('playing');cb.scrollIntoView({behavior:'smooth',block:'nearest'})}
+
+    document.getElementById('status').textContent=
+      'chord '+(ci+1)+' of '+song.chords.length+' — '+ch.chordName+' — '+ch.domEl
+    document.getElementById('hdr-r').textContent='chord '+(ci+1)+' of '+song.chords.length
+
+    ch.notes.forEach(n=>pianoRing(n.k,ch.color,true))
+    ch.notes.forEach(n=>{const p=document.getElementById('pill-'+ci+'-'+n.k);if(p)p.classList.add('ringing')})
+
+    // Quiet chord tones underneath
+    startAmbient(ch.notes)
+
+    // Speak each stanza line, waiting for each to complete before the next
+    for(let li=0;li<ch.stanza.length&&!stopFlag;li++){
+      if(li>0){
+        const prev=document.getElementById('sl-'+ci+'-'+(li-1));if(prev)prev.className='stanza-line past'
+        const sp=document.getElementById('ssc-'+ci+'-'+(li-1));if(sp)sp.className='score-line past'
+      }
+      const el=document.getElementById('sl-'+ci+'-'+li)
+      if(el){el.className='stanza-line current';el.scrollIntoView({behavior:'smooth',block:'nearest'})}
+      const se=document.getElementById('ssc-'+ci+'-'+li)
+      if(se)se.className='score-line current'
+
+      await speakLine(ch.stanza[li])
+      if(stopFlag)break
+      await new Promise(r=>setTimeout(r,400))
+    }
+
+    stopAmbient()
+    if(stopFlag)break
+
+    // Mark last line past
+    const ll=ch.stanza.length-1
+    const last=document.getElementById('sl-'+ci+'-'+ll);if(last)last.className='stanza-line past'
+    const lse=document.getElementById('ssc-'+ci+'-'+ll);if(lse)lse.className='score-line past'
+    if(cb){cb.classList.remove('playing');if(ci<song.chords.length-1)cb.classList.add('done')}
+    ch.notes.forEach(n=>pianoRing(n.k,ch.color,false))
+    ch.notes.forEach(n=>{const p=document.getElementById('pill-'+ci+'-'+n.k);if(p)p.classList.remove('ringing')})
+
+    if(!stopFlag)await new Promise(r=>setTimeout(r,800))
+  }
+
+  playing=false
+  stopAmbient()
+  document.getElementById('btn-play').disabled=false
+  document.getElementById('btn-play').className='btn btn-play on'
+  document.getElementById('btn-stop').disabled=true
+  document.getElementById('btn-stop').className='btn btn-stop'
+  document.getElementById('status').textContent='oracle song complete. cast again for a new prophecy'
+  document.getElementById('hdr-r').textContent='complete'
+  clearPiano()
+  if(song){
+    const ak=[],ac=[]
+    song.chords.forEach(ch=>ch.notes.forEach(n=>{ak.push(n.k);ac.push(ch.color)}))
+    pianoSelect(ak,ac)
+  }
+}
+
+function stopSong(){
+  stopFlag=true;playing=false
+  stopSpeech()
+  stopAmbient()
+  if(audioCtx){try{audioCtx.close()}catch(e){}audioCtx=null}
+  document.getElementById('btn-play').disabled=!song
+  document.getElementById('btn-play').className='btn btn-play'+(song?' on':'')
+  document.getElementById('btn-stop').disabled=true
+  document.getElementById('btn-stop').className='btn btn-stop'
+  document.getElementById('status').textContent='stopped'
+  clearPiano()
+  if(song){const ak=[],ac=[];song.chords.forEach(ch=>ch.notes.forEach(n=>{ak.push(n.k);ac.push(ch.color)}));pianoSelect(ak,ac)}
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!playing)castSong()
+  if(e.key===' '&&!playing&&song){e.preventDefault();playSong()}
+  if(e.key==='Escape')stopSong()
+})
+</script>
+</body>
+</html>

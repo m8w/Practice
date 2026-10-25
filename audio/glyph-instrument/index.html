@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body { margin: 0; padding: 1rem; font-family: 'IBM Plex Mono', monospace; background: #f8f8f8; }
+#container { max-width: 900px; margin: 0 auto; }
+#canvasWrapper { background: #f0f0f0; border: 1px solid #333; margin: 1rem 0; position: relative; }
+#canvas { display: block; background: #fff; }
+#controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 1rem 0; font-size: 12px; }
+.control-group { display: flex; flex-direction: column; gap: 6px; }
+label { color: #333; font-weight: 500; }
+input[type="range"], input[type="number"], input[type="file"], button { padding: 6px; border: 1px solid #666; background: #fff; color: #000; font-family: inherit; cursor: pointer; }
+button { background: #00ffff; color: #000; border: none; padding: 8px 16px; font-weight: bold; }
+button:hover { background: #00dddd; }
+button:disabled { background: #ccc; cursor: not-allowed; }
+#status { font-size: 11px; color: #666; margin: 1rem 0; line-height: 1.6; }
+#stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 1rem 0; font-size: 11px; }
+.stat { padding: 8px; background: #fff; border: 0.5px solid #ccc; }
+</style>
+</head>
+<body>
+<div id="container">
+  <h2 style="margin: 0 0 1rem 0; font-size: 16px; font-weight: 500;">Glyph Waveform Instrument</h2>
+  
+  <div id="canvasWrapper">
+    <canvas id="canvas" width="600" height="600"></canvas>
+  </div>
+  
+  <div id="controls">
+    <div class="control-group">
+      <label>Tempo (mean ms/glyph)</label>
+      <input type="range" id="tempo" min="300" max="3000" value="800" step="100" />
+      <span id="tempoVal">800ms</span>
+    </div>
+    <div class="control-group">
+      <label>Freq range (Hz)</label>
+      <input type="number" id="freqMin" value="100" min="20" max="500" /> to 
+      <input type="number" id="freqMax" value="2000" min="500" max="8000" />
+    </div>
+    <div class="control-group">
+      <label>Glyphs per page</label>
+      <input type="number" id="glyphsPerPage" value="100" min="25" max="400" />
+    </div>
+    <div class="control-group">
+      <label>Glyph complexity (1–10)</label>
+      <input type="range" id="complexity" min="1" max="10" value="5" step="1" />
+      <span id="complexityVal">5</span>
+    </div>
+  </div>
+  
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 1rem 0;">
+    <button id="startBtn" onclick="startSession()">Start Session</button>
+    <button id="stopBtn" onclick="stopSession()" disabled>Stop Session</button>
+    <button id="exportBtn" onclick="exportSession()" disabled>Export Frames & Audio</button>
+  </div>
+  
+  <div id="stats">
+    <div class="stat">Glyphs: <span id="glyphCount">0</span></div>
+    <div class="stat">Pages: <span id="pageCount">0</span></div>
+    <div class="stat">Time: <span id="timeCount">0:00</span></div>
+  </div>
+  
+  <div id="status">
+    Ready. Upload a notebook image to train glyph probabilities (optional), or start generating.
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let audioContext = null;
+let isRunning = false;
+let glyphCount = 0;
+let pageCount = 1;
+let sessionStartTime = 0;
+let recordedFrames = [];
+let recordedAudio = null;
+
+const glyphLibrary = [
+  drawStar, drawSpiral, drawRecursiveTree, drawAngular, drawWave, 
+  drawNest, drawCross, drawOrganic, drawGeometric, drawStellate
+];
+
+function drawStar(x, y, size, complexity) {
+  const points = 5 + Math.floor(complexity);
+  const outerR = size;
+  const innerR = size * 0.4;
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const angle = (i / (points * 2)) * Math.PI * 2;
+    const r = i % 2 === 0 ? outerR : innerR;
+    const px = x + Math.cos(angle) * r;
+    const py = y + Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function drawSpiral(x, y, size, complexity) {
+  ctx.beginPath();
+  const turns = 2 + complexity * 0.5;
+  for (let i = 0; i < turns * 100; i++) {
+    const angle = (i / 100) * Math.PI * 2;
+    const r = (i / (turns * 100)) * size;
+    const px = x + Math.cos(angle) * r;
+    const py = y + Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+}
+
+function drawRecursiveTree(x, y, size, complexity, depth = 0) {
+  if (depth > complexity * 1.5) return;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x, y - size);
+  ctx.stroke();
+  const angle = 30 + depth * 5;
+  drawRecursiveTree(x - size * 0.5, y - size * 0.7, size * 0.7, complexity, depth + 1);
+  drawRecursiveTree(x + size * 0.5, y - size * 0.7, size * 0.7, complexity, depth + 1);
+}
+
+function drawAngular(x, y, size, complexity) {
+  ctx.beginPath();
+  const segments = 4 + Math.floor(complexity);
+  for (let i = 0; i < segments; i++) {
+    const angle = (i / segments) * Math.PI * 2;
+    const px = x + Math.cos(angle) * size;
+    const py = y + Math.sin(angle) * size;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function drawWave(x, y, size, complexity) {
+  ctx.beginPath();
+  const freq = 2 + complexity * 0.3;
+  for (let i = 0; i <= 40; i++) {
+    const px = x - size + (i / 40) * size * 2;
+    const py = y + Math.sin((i / 40) * freq * Math.PI * 2) * (size * 0.3);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+}
+
+function drawNest(x, y, size, complexity) {
+  const rings = 2 + Math.floor(complexity * 0.5);
+  for (let r = 0; r < rings; r++) {
+    const radius = (r + 1) * (size / rings);
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawCross(x, y, size, complexity) {
+  ctx.beginPath();
+  ctx.moveTo(x - size, y);
+  ctx.lineTo(x + size, y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x, y - size);
+  ctx.lineTo(x, y + size);
+  ctx.stroke();
+  if (complexity > 5) {
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.7, y - size * 0.7);
+    ctx.lineTo(x + size * 0.7, y + size * 0.7);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.7, y + size * 0.7);
+    ctx.lineTo(x + size * 0.7, y - size * 0.7);
+    ctx.stroke();
+  }
+}
+
+function drawOrganic(x, y, size, complexity) {
+  ctx.beginPath();
+  const bumps = 3 + Math.floor(complexity * 0.5);
+  for (let i = 0; i <= bumps * 20; i++) {
+    const angle = (i / (bumps * 20)) * Math.PI * 2;
+    const noise = Math.sin(i * 0.3) * 0.2;
+    const r = size * (1 + noise);
+    const px = x + Math.cos(angle) * r;
+    const py = y + Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function drawGeometric(x, y, size, complexity) {
+  const sides = 3 + Math.floor(complexity * 0.7);
+  ctx.beginPath();
+  for (let i = 0; i < sides; i++) {
+    const angle = (i / sides) * Math.PI * 2;
+    const px = x + Math.cos(angle) * size;
+    const py = y + Math.sin(angle) * size;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function drawStellate(x, y, size, complexity) {
+  const points = 6 + Math.floor(complexity);
+  ctx.beginPath();
+  for (let i = 0; i < points; i++) {
+    const angle = (i / points) * Math.PI * 2;
+    const r = size;
+    const px = x + Math.cos(angle) * r;
+    const py = y + Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  
+  for (let i = 0; i < points; i++) {
+    const angle = (i / points) * Math.PI * 2 + Math.PI / points;
+    const r = size * 0.5;
+    const px = x + Math.cos(angle) * r;
+    const py = y + Math.sin(angle) * r;
+    ctx.beginPath();
+    ctx.arc(px, py, 2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function generateGlyph(gridX, gridY, glyphSize, complexity) {
+  const glyphDrawer = glyphLibrary[Math.floor(Math.random() * glyphLibrary.length)];
+  const x = gridX * (glyphSize + 10) + glyphSize / 2 + 20;
+  const y = gridY * (glyphSize + 10) + glyphSize / 2 + 20;
+  
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1.2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  
+  glyphDrawer(x, y, glyphSize * 0.35, complexity);
+}
+
+function playTone(frequency, duration) {
+  if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  
+  const now = audioContext.currentTime;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  
+  osc.frequency.value = frequency;
+  osc.type = 'sine';
+  
+  gain.gain.setValueAtTime(0.3, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+  
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+function scheduleNextGlyph() {
+  if (!isRunning) return;
+  
+  const tempo = parseInt(document.getElementById('tempo').value);
+  const jitter = tempo * 0.3;
+  const delay = tempo + (Math.random() - 0.5) * jitter * 2;
+  
+  setTimeout(() => {
+    if (!isRunning) return;
+    
+    const glyphsPerPage = parseInt(document.getElementById('glyphsPerPage').value);
+    const complexity = parseInt(document.getElementById('complexity').value);
+    const freqMin = parseInt(document.getElementById('freqMin').value);
+    const freqMax = parseInt(document.getElementById('freqMax').value);
+    
+    const cols = Math.ceil(Math.sqrt(glyphsPerPage));
+    const rows = Math.ceil(glyphsPerPage / cols);
+    
+    const gridX = glyphCount % cols;
+    const gridY = Math.floor(glyphCount / cols) % rows;
+    
+    generateGlyph(gridX, gridY, 60, complexity);
+    
+    const freq = freqMin + Math.random() * (freqMax - freqMin);
+    playTone(freq, 0.15 + Math.random() * 0.1);
+    
+    glyphCount++;
+    
+    if (glyphCount % glyphsPerPage === 0) {
+      pageCount++;
+      recordedFrames.push(canvas.toDataURL('image/png'));
+    }
+    
+    document.getElementById('glyphCount').textContent = glyphCount;
+    document.getElementById('pageCount').textContent = pageCount;
+    
+    const elapsed = Date.now() - sessionStartTime;
+    const secs = Math.floor(elapsed / 1000);
+    const mins = Math.floor(secs / 60);
+    document.getElementById('timeCount').textContent = mins + ':' + (secs % 60).toString().padStart(2, '0');
+    
+    scheduleNextGlyph();
+  }, delay);
+}
+
+function startSession() {
+  isRunning = true;
+  glyphCount = 0;
+  pageCount = 1;
+  sessionStartTime = Date.now();
+  recordedFrames = [];
+  
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+  document.getElementById('exportBtn').disabled = true;
+  document.getElementById('status').textContent = 'Session running. Glyphs appearing...';
+  
+  scheduleNextGlyph();
+}
+
+function stopSession() {
+  isRunning = false;
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('exportBtn').disabled = false;
+  document.getElementById('status').textContent = 'Session stopped. Ready to export ' + glyphCount + ' glyphs across ' + pageCount + ' pages.';
+}
+
+function exportSession() {
+  if (recordedFrames.length === 0) {
+    alert('No frames recorded. Start and stop a session first.');
+    return;
+  }
+  
+  const zip = new JSZip ? new JSZip() : null;
+  if (!zip) {
+    alert('JSZip not loaded. Saving frames manually...');
+    recordedFrames.forEach((frame, i) => {
+      const a = document.createElement('a');
+      a.href = frame;
+      a.download = 'glyph_frame_' + i.toString().padStart(4, '0') + '.png';
+      a.click();
+    });
+    return;
+  }
+  
+  recordedFrames.forEach((frame, i) => {
+    const data = frame.replace(/^data:image\/png;base64,/, '');
+    zip.file('frame_' + i.toString().padStart(4, '0') + '.png', data, { base64: true });
+  });
+  
+  zip.generateAsync({ type: 'blob' }).then(content => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = 'glyph_frames_' + Date.now() + '.zip';
+    a.click();
+  });
+  
+  document.getElementById('status').textContent = 'Exported ' + recordedFrames.length + ' frames.';
+}
+
+document.getElementById('tempo').addEventListener('input', e => {
+  document.getElementById('tempoVal').textContent = e.target.value + 'ms';
+});
+
+document.getElementById('complexity').addEventListener('input', e => {
+  document.getElementById('complexityVal').textContent = e.target.value;
+});
+</script>
+</body>
+</html>

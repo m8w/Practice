@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Solvable / Solvable / Proven</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Spectral:ital,wght@0,300;0,400;1,300&family=IBM+Plex+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0c; --ink:#e9e4d8; --dim:#8c887e; --line:#2a2a2e;
+    --brass:#b8995a; --brass-soft:#6a5c38;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:var(--bg); color:var(--ink); min-height:100%;}
+  body{
+    font-family:"Spectral",serif; font-weight:300; line-height:1.6;
+    padding:clamp(20px,5vw,64px) clamp(18px,5vw,80px) 80px;
+    max-width:920px; margin:0 auto;
+    background-image:radial-gradient(circle at 50% -10%, #15151a 0%, var(--bg) 60%);
+  }
+  /* faint film grain */
+  body::after{
+    content:""; position:fixed; inset:0; pointer-events:none; opacity:.035; z-index:99;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  header{border-bottom:1px solid var(--line); padding-bottom:28px; margin-bottom:14px;}
+  .kicker{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.32em;
+    text-transform:uppercase; color:var(--brass); margin-bottom:18px;}
+  h1{font-family:"Cormorant Garamond",serif; font-weight:500; font-style:italic;
+    font-size:clamp(34px,7vw,62px); line-height:1.04; letter-spacing:.01em;}
+  h1 .slash{color:var(--brass-soft); font-style:normal; padding:0 .12em;}
+  .blurb{margin-top:18px; max-width:60ch; color:var(--dim); font-size:clamp(14px,2.4vw,16px);}
+
+  .scope{height:54px; margin:30px 0 8px; border:1px solid var(--line); position:relative; overflow:hidden;}
+  canvas{display:block; width:100%; height:100%;}
+  .scope .lbl{position:absolute; top:6px; left:10px; font-family:"IBM Plex Mono",monospace;
+    font-size:10px; letter-spacing:.2em; color:var(--brass-soft); text-transform:uppercase;}
+
+  .mvt{border-bottom:1px solid var(--line); padding:30px 0; display:grid;
+    grid-template-columns:64px 1fr auto; gap:clamp(14px,3vw,34px); align-items:start;}
+  .num{font-family:"Cormorant Garamond",serif; font-size:46px; font-style:italic;
+    color:var(--brass-soft); line-height:1; transition:color .6s;}
+  .mvt.on .num{color:var(--brass);}
+  .mtitle{font-family:"Cormorant Garamond",serif; font-size:27px; font-weight:500; letter-spacing:.01em;}
+  .seed{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--brass);
+    margin:8px 0 10px; letter-spacing:.02em;}
+  .gloss{color:var(--dim); font-size:14.5px; max-width:48ch;}
+  .prog{height:1px; background:var(--line); margin-top:18px; position:relative;}
+  .prog > i{position:absolute; left:0; top:0; height:100%; width:0; background:var(--brass);}
+  .mvt.sustain .prog > i{width:100%; animation:breathe 6s ease-in-out infinite;}
+  @keyframes breathe{0%,100%{opacity:.25}50%{opacity:.9}}
+
+  button{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--ink); background:transparent;
+    border:1px solid var(--line); padding:12px 18px; cursor:pointer;
+    transition:border-color .3s, color .3s, background .3s; white-space:nowrap;}
+  button:hover{border-color:var(--brass); color:var(--brass);}
+  .mvt.on button.play{border-color:var(--brass); color:var(--brass); background:rgba(184,153,90,.07);}
+
+  .bar{display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:34px;}
+  .vol{display:flex; align-items:center; gap:10px; color:var(--dim);
+    font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.15em; text-transform:uppercase;}
+  input[type=range]{accent-color:var(--brass); width:120px;}
+  footer{margin-top:46px; font-family:"IBM Plex Mono",monospace; font-size:11px;
+    letter-spacing:.25em; text-transform:uppercase; color:var(--brass-soft);}
+  .hint{color:var(--dim); font-style:italic; font-size:13px; margin-top:8px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">xik6 · for solo synthesis</div>
+  <h1>Solvable <span class="slash">/</span> Solvable <span class="slash">/</span> Proven</h1>
+  <p class="blurb">A walk around Fermat's wall, scored for three movements. Perturb the equation and it dissolves into consonance; stand dead center and it holds — not resolved, but proven. Headphones reward the beats.</p>
+</header>
+
+<div class="scope"><span class="lbl">signal</span><canvas id="scope"></canvas></div>
+
+<section id="movements"></section>
+
+<div class="bar">
+  <button class="play" data-m="all">▷ Play all three</button>
+  <button id="stop">■ Stop</button>
+  <span class="vol">level <input id="vol" type="range" min="0" max="100" value="55"></span>
+</div>
+<p class="hint">Audio starts on tap (mobile-safe). Movement III sustains until you stop it.</p>
+
+<footer>solvable · solvable · proven — xik6</footer>
+
+<script>
+const MV = [
+  { id:1, title:"Solvable — the fourth term",
+    seed:"3³ + 4³ + 5³ = 6³   →   just chord 3 : 4 : 5 : 6",
+    gloss:"Add one voice and the impossible opens. Harmonics 3,4,5,6 enter in turn; the major third arrives last and the chord resolves into pure consonance.",
+    dur:58 },
+  { id:2, title:"Solvable — n ± 1",
+    seed:"9³ + 10³ = 12³ + 1   →   beats locking to unison",
+    gloss:"The off-by-one near-miss heard as beating. Detuned pairs shimmer, then slide their beat frequency to zero — the miss closing, the tones locking into one.",
+    dur:58 },
+  { id:3, title:"Proven",
+    seed:"aⁿ + bⁿ ≠ cⁿ , n > 2   →   a drone that will not cadence",
+    gloss:"No solution to find, only a proof no solution exists. A steady spectrum holds; one inner pair beats forever and never closes. It does not resolve. It does not break.",
+    dur:0 },
+];
+
+const wrap = document.getElementById('movements');
+MV.forEach(m=>{
+  const el=document.createElement('div'); el.className='mvt'; el.id='mvt'+m.id;
+  el.innerHTML=`<div class="num">${m.id===1?'I':m.id===2?'II':'III'}</div>
+    <div><div class="mtitle">${m.title}</div>
+    <div class="seed">${m.seed}</div>
+    <div class="gloss">${m.gloss}</div>
+    <div class="prog"><i></i></div></div>
+    <div><button class="play" data-m="${m.id}">▷ Play</button></div>`;
+  wrap.appendChild(el);
+});
+
+/* ---------- audio engine ---------- */
+let ctx, master, comp, conv, wet, dry, analyser;
+let active=[], timers=[], current=null, raf=null;
+
+function ensureAudio(){
+  if(ctx) return;
+  ctx = new (window.AudioContext||window.webkitAudioContext)();
+  master = ctx.createGain();  master.gain.value = vol.value/100*0.6;
+  comp = ctx.createDynamicsCompressor();
+  comp.threshold.value=-14; comp.ratio.value=4; comp.attack.value=.01; comp.release.value=.3;
+  conv = ctx.createConvolver(); conv.buffer = makeIR(3.4, 2.6);
+  wet = ctx.createGain(); wet.gain.value=0.30;
+  dry = ctx.createGain(); dry.gain.value=0.85;
+  analyser = ctx.createAnalyser(); analyser.fftSize=2048;
+  master.connect(dry); dry.connect(comp);
+  master.connect(conv); conv.connect(wet); wet.connect(comp);
+  comp.connect(analyser); analyser.connect(ctx.destination);
+}
+function makeIR(dur, decay){
+  const r=ctx.sampleRate, len=Math.floor(r*dur), b=ctx.createBuffer(2,len,r);
+  for(let c=0;c<2;c++){const d=b.getChannelData(c);
+    for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay);}
+  return b;
+}
+function pan(node,p){
+  if(ctx.createStereoPanner){const sp=ctx.createStereoPanner();sp.pan.value=p;node.connect(sp);return sp;}
+  return node;
+}
+// sustained voice with soft attack; returns {o,g}
+function voice(freq,{t0,attack=5,level=0.14,type='sine',p=0}={}){
+  const o=ctx.createOscillator(); o.type=type; o.frequency.setValueAtTime(freq,t0);
+  const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t0);
+  o.connect(g); pan(g,p).connect(master);
+  g.gain.exponentialRampToValueAtTime(level,t0+attack);
+  o.start(t0);
+  const n={o,g}; active.push(n); return n;
+}
+// short arpeggio note (gives Mvt I its classical motion)
+function pluck(freq,t,dur=1.4,level=0.10,type='triangle',p=0){
+  const o=ctx.createOscillator();o.type=type;o.frequency.setValueAtTime(freq,t);
+  const g=ctx.createGain();g.gain.setValueAtTime(0.0001,t);
+  o.connect(g); pan(g,p).connect(master);
+  g.gain.exponentialRampToValueAtTime(level,t+0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.start(t); o.stop(t+dur+0.05); active.push({o,g});
+}
+function releaseAll(fade=4){
+  if(!ctx) return; const t=ctx.currentTime;
+  active.forEach(n=>{ try{
+    n.g.gain.cancelScheduledValues(t);
+    if(n.g.gain.cancelAndHoldAtTime) n.g.gain.cancelAndHoldAtTime(t);
+    else n.g.gain.setValueAtTime(n.g.gain.value||0.0001,t);
+    n.g.gain.setTargetAtTime(0.0001,t,fade/4);
+    n.o.stop(t+fade);
+  }catch(e){} });
+  active=[];
+}
+function clearTimers(){ timers.forEach(clearTimeout); timers=[]; }
+
+/* ---------- the three movements ---------- */
+function movI(){ // just chord 3:4:5:6 over A2=110 -> 330 440 550 660; third (550) blooms last
+  const t=ctx.currentTime+0.15, f=110;
+  // opening ascent through the harmonics — classical, plain
+  [3,4,5,6].forEach((h,i)=> pluck(f*h, t+i*0.9, 2.2, 0.085, 'triangle', (i-1.5)*0.18));
+  // pad blooms: root-fifth open, then the third completes the consonance
+  voice(f*4,{t0:t+4, attack:6, level:0.15, p:-0.18});           // 440  A4
+  voice(f*6,{t0:t+8, attack:6, level:0.10, p: 0.26});           // 660  E5
+  voice(f*3,{t0:t+12,attack:7, level:0.13, p: 0.00});           // 330  E4
+  voice(f*5,{t0:t+20,attack:8, level:0.12, p:-0.10});           // 550  C#5  ← resolution
+  voice(f*8,{t0:t+26,attack:9, level:0.045,p: 0.40,type:'triangle'}); // 880 shimmer
+  scheduleEnd(58);
+}
+function movII(){ // beating pairs -> unison. detune ramps to 0 = the off-by-one closing
+  const t=ctx.currentTime+0.15, dur=56;
+  const bases=[220,330,440], beat=[3.6,2.6,1.8], pans=[-0.3,0.0,0.3];
+  bases.forEach((f,i)=>{
+    const s=t+i*2.5;
+    voice(f,{t0:s, attack:5, level:0.11, p:pans[i]});            // anchor
+    const b=voice(f+beat[i],{t0:s, attack:5, level:0.11, p:pans[i]}); // detuned partner
+    b.o.frequency.setValueAtTime(f+beat[i], s);
+    b.o.frequency.linearRampToValueAtTime(f, t+dur-4);           // lock just before the end
+  });
+  scheduleEnd(dur);
+}
+function movIII(){ // steady spectrum, one eternal slow beat, never cadences, sustains
+  const t=ctx.currentTime+0.15, f=73.42;                         // ~D2
+  voice(f*1,   {t0:t,    attack:9, level:0.17, p:0.0});
+  voice(f*2,   {t0:t+2,  attack:9, level:0.10, p:-0.22});
+  voice(f*3,   {t0:t+4,  attack:10,level:0.07, p:0.22});
+  // the inner pair that beats forever (~0.22 Hz) and never locks — the miss that won't close
+  voice(f*3+0.22,{t0:t+4,attack:10,level:0.06, p:-0.30});
+  voice(f*5,   {t0:t+7,  attack:11,level:0.05, p:0.34});
+  voice(f*7.13,{t0:t+10, attack:12,level:0.033,p:-0.4});          // inharmonic: tension, no resolution
+  // no scheduleEnd -> holds until Stop
+}
+
+function scheduleEnd(dur){ timers.push(setTimeout(()=>{ if(current){ releaseAll(8); setTimeout(()=>setActive(null), 8200); } }, dur*1000)); }
+
+/* ---------- transport + UI ---------- */
+function setActive(id){
+  current=id;
+  document.querySelectorAll('.mvt').forEach(el=>el.classList.remove('on','sustain'));
+  document.querySelectorAll('.prog > i').forEach(i=>{ i.style.transition='none'; i.style.width='0'; });
+  if(id){
+    const el=document.getElementById('mvt'+id); el.classList.add('on');
+    const m=MV.find(x=>x.id===id), bar=el.querySelector('.prog > i');
+    if(m.dur>0){ requestAnimationFrame(()=>{ bar.style.transition=`width ${m.dur}s linear`; bar.style.width='100%'; }); }
+    else el.classList.add('sustain');
+  }
+  loop();
+}
+function start(id){
+  ensureAudio(); ctx.resume();
+  clearTimers(); releaseAll(1.2);
+  setTimeout(()=>{ if(current!==id) return; ({1:movI,2:movII,3:movIII}[id])(); }, 1250);
+  setActive(id);
+}
+function playAll(){
+  ensureAudio(); ctx.resume(); clearTimers(); releaseAll(1.0);
+  // I
+  setTimeout(()=>{ movI(); setActive(1); },1100);
+  // II
+  timers.push(setTimeout(()=>{ releaseAll(5); },62000));
+  timers.push(setTimeout(()=>{ movII(); setActive(2); },67000));
+  // III (sustains)
+  timers.push(setTimeout(()=>{ releaseAll(5); },129000));
+  timers.push(setTimeout(()=>{ movIII(); setActive(3); },134000));
+}
+function stopAll(){ clearTimers(); releaseAll(2.5); setTimeout(()=>setActive(null),2600); }
+
+document.querySelectorAll('button.play').forEach(b=>{
+  b.addEventListener('click',()=>{ const m=b.dataset.m; m==='all'?playAll():start(+m); });
+});
+document.getElementById('stop').addEventListener('click', stopAll);
+const vol=document.getElementById('vol');
+vol.addEventListener('input',()=>{ if(master) master.gain.setTargetAtTime(vol.value/100*0.6, ctx.currentTime, .05); });
+
+/* ---------- oscilloscope ---------- */
+const cv=document.getElementById('scope'), cx=cv.getContext('2d');
+function size(){ const r=cv.getBoundingClientRect(), d=window.devicePixelRatio||1;
+  cv.width=r.width*d; cv.height=r.height*d; cx.setTransform(d,0,0,d,0,0); }
+window.addEventListener('resize',size); size();
+function loop(){
+  if(raf) cancelAnimationFrame(raf);
+  if(!analyser){ return; }
+  const buf=new Uint8Array(analyser.fftSize); const w=cv.clientWidth, h=cv.clientHeight;
+  const draw=()=>{
+    analyser.getByteTimeDomainData(buf);
+    cx.clearRect(0,0,w,h);
+    cx.lineWidth=1; cx.strokeStyle = current? '#b8995a' : '#2a2a2e';
+    cx.beginPath();
+    for(let i=0;i<buf.length;i++){ const x=i/buf.length*w, y=(buf[i]/255)*h;
+      i?cx.lineTo(x,y):cx.moveTo(x,y); }
+    cx.stroke();
+    raf=requestAnimationFrame(draw);
+  };
+  draw();
+}
+</script>
+</body>
+</html>

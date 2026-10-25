@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>cayley ii — octonion harmonic sequencer</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<!--
+  CAYLEY II — octonion harmonic sequencer
+  ---------------------------------------
+  Everything from CAYLEY (8 voices = one octonion X; unit-octonion rotor Y
+  spinning at SPIN Hz; ROTATE / CASCADE / ASSOC modes; ghost / memory /
+  swap / stasis intrusions; stereo Bode shift chain) plus:
+
+  HARMONIC SEQUENCES — each voice walks the harmonic series in integer
+  patterns. Step t assigns harmonic numbers h to the eight components:
+
+    DRONE    h_k = k+1                    (the original stack, sequencer off)
+    LADDER   h_k = ((2k + t) mod R) + 1   (rolling staircase up the series;
+                                           with the built-in 1/h^0.55 level
+                                           taper it goes quietly Shepard)
+    WALK     h_k random-walks ±1 in 1..R  (drifting overtone cloud)
+    PRIME    h_k climbs 1,2,3,5,7,11,...  (only prime harmonics — the
+                                           integers that don't factor)
+    FRACTAL  h_k from the ruler sequence  (largest power of 2 dividing n:
+             1,2,1,4,1,2,1,8... with occasional x3) — self-similar octaves
+
+    R = RANGE knob (2..16). GLIDE slews pitch between targets (portamento
+    over the integer lattice). GATE = per-voice trigger probability per
+    step (low = Feldman pointillism). ENV = drone .. pluck decay. Voices
+    that exceed 0.45 x samplerate fold down by octaves instead of dying.
+
+  WAVE MIXTURES — each voice is a continuous sine -> triangle -> saw
+  morph (saw is polyBLEP'd). WAVE sets the base position; FAN spreads the
+  eight voices around the morph circle (wrapping), so one octonion can
+  carry sine in e1, triangle in e4, saw in e7 — mixtures of mixtures,
+  then all of it swirled together by the rotor.
+
+  The envelopes gate X *before* the octonion multiply, so plucks are
+  smeared across components by the rotation: arpeggios that turn in 8D.
+
+  Fano nodes now show each component's current harmonic number — watch
+  the integers move.
+
+  ScriptProcessor on the main thread by design (algebra, scheduler and
+  visuals share state with zero plumbing). Crackles? BUFSIZE = 4096.
+  Console: window.CAYLEY = { core, nodes, params }.
+
+  MIT license. wvn / xik6, with Claude. 2026.
+-->
+<style>
+:root{
+  --bg:#0a0a0c; --panel:#101014; --line:#1d1d24;
+  --fg:#c9c9ce; --dim:#5c5c66; --faint:#33333c;
+  --acc:#ffb347; --acc2:#47d7ff; --ghost:#ff5566;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+  font-family:'IBM Plex Mono',Menlo,monospace;font-size:13px;-webkit-text-size-adjust:100%}
+#wrap{max-width:660px;margin:0 auto;padding:14px 14px 44px}
+header{display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px}
+h1{font-size:15px;font-weight:600;letter-spacing:.16em;margin:0}
+h1 span{color:var(--acc)}
+#sub{color:var(--dim);font-size:10px;letter-spacing:.08em}
+#scopes{display:flex;gap:10px;margin-bottom:10px}
+#shadowBox{flex:0 0 56%}
+#sideBox{flex:1;display:flex;flex-direction:column;gap:10px}
+canvas{display:block;width:100%;background:var(--panel);border:1px solid var(--line)}
+#status{font-size:10px;color:var(--dim);letter-spacing:.06em;min-height:14px;padding:2px 0 0}
+#log{font-size:10px;color:var(--faint);letter-spacing:.05em;min-height:40px;
+  padding:2px 0 8px;line-height:1.4}
+#log .new{color:var(--acc2)}
+.btnrow{display:flex;gap:8px;margin-bottom:10px}
+button{font-family:inherit;font-size:11px;letter-spacing:.1em;color:var(--dim);
+  background:var(--panel);border:1px solid var(--line);padding:10px 0;flex:1;
+  cursor:pointer;-webkit-user-select:none;user-select:none;border-radius:0}
+button.on{color:var(--bg);background:var(--acc);border-color:var(--acc);font-weight:600}
+.sect{font-size:9px;letter-spacing:.22em;color:var(--faint);
+  padding:12px 0 2px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.ctl{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--faint)}
+.ctl label{flex:0 0 74px;font-size:10px;letter-spacing:.1em;color:var(--dim)}
+.ctl input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:26px;
+  background:transparent;margin:0}
+.ctl input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--faint)}
+.ctl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:18px;height:18px;margin-top:-8px;background:var(--bg);
+  border:2px solid var(--acc);border-radius:0}
+.ctl input[type=range]::-moz-range-track{height:2px;background:var(--faint)}
+.ctl input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--bg);
+  border:2px solid var(--acc);border-radius:0}
+.ctl .val{flex:0 0 92px;text-align:right;font-size:11px;color:var(--fg)}
+footer{margin-top:18px;color:var(--dim);font-size:10px;line-height:1.7;letter-spacing:.04em}
+footer b{color:var(--acc);font-weight:400}
+@media(max-width:560px){ #scopes{flex-direction:column} #shadowBox{flex:1} }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <h1>CAYLEY II <span>//</span> octonion harmonic sequencer</h1>
+    <div id="sub">integer ladders &middot; wave mixtures &middot; haunted</div>
+  </header>
+
+  <div id="scopes">
+    <div id="shadowBox"><canvas id="shadow"></canvas></div>
+    <div id="sideBox">
+      <canvas id="fano"></canvas>
+      <canvas id="spec"></canvas>
+    </div>
+  </div>
+  <div id="status">tap POWER &mdash; fano nodes show each component's harmonic number</div>
+  <div id="log"></div>
+
+  <div class="btnrow">
+    <button id="power">POWER</button>
+    <button id="scatter">SCATTER</button>
+    <button id="mode">ROTATE</button>
+    <button id="pattern">LADDER</button>
+  </div>
+
+  <div class="sect">VOICES &mdash; sine &rarr; triangle &rarr; saw</div>
+  <div class="ctl"><label>ROOT</label>
+    <input type="range" id="sRoot" min="0" max="1" step="0.001" value="0.277">
+    <span class="val" id="vRoot"></span></div>
+  <div class="ctl"><label>WAVE</label>
+    <input type="range" id="sWave" min="0" max="1" step="0.001" value="0.35">
+    <span class="val" id="vWave"></span></div>
+  <div class="ctl"><label>FAN</label>
+    <input type="range" id="sFan" min="0" max="1" step="0.001" value="0.5">
+    <span class="val" id="vFan"></span></div>
+
+  <div class="sect">SEQUENCE &mdash; patterns on the harmonic series</div>
+  <div class="ctl"><label>RATE</label>
+    <input type="range" id="sRate" min="0" max="1" step="0.001" value="0.519">
+    <span class="val" id="vRate"></span></div>
+  <div class="ctl"><label>RANGE</label>
+    <input type="range" id="sRange" min="0" max="1" step="0.001" value="0.714">
+    <span class="val" id="vRange"></span></div>
+  <div class="ctl"><label>GLIDE</label>
+    <input type="range" id="sGlide" min="0" max="1" step="0.001" value="0.35">
+    <span class="val" id="vGlide"></span></div>
+  <div class="ctl"><label>GATE</label>
+    <input type="range" id="sGate" min="0" max="1" step="0.001" value="0.8">
+    <span class="val" id="vGate"></span></div>
+  <div class="ctl"><label>ENV</label>
+    <input type="range" id="sEnv" min="0" max="1" step="0.001" value="0.4">
+    <span class="val" id="vEnv"></span></div>
+
+  <div class="sect">OCTONION RING &mdash; Z = Y&middot;X</div>
+  <div class="ctl"><label>SPIN</label>
+    <input type="range" id="sSpin" min="0" max="1" step="0.001" value="0.283">
+    <span class="val" id="vSpin"></span></div>
+  <div class="ctl"><label>DRIFT</label>
+    <input type="range" id="sDrift" min="0" max="1" step="0.001" value="0.3">
+    <span class="val" id="vDrift"></span></div>
+  <div class="ctl"><label>DEPTH</label>
+    <input type="range" id="sDepth" min="0" max="1" step="0.001" value="1">
+    <span class="val" id="vDepth"></span></div>
+
+  <div class="sect">SHIFT &mdash; Re[(I+jQ)&middot;e^{j&Delta;&omega;t}]</div>
+  <div class="ctl"><label>SHIFT &Delta;</label>
+    <input type="range" id="sShift" min="0" max="1" step="0.001" value="0.286">
+    <span class="val" id="vShift"></span></div>
+  <div class="ctl"><label>BALANCE</label>
+    <input type="range" id="sBal" min="0" max="1" step="0.001" value="1">
+    <span class="val" id="vBal"></span></div>
+  <div class="ctl"><label>FEEDBACK</label>
+    <input type="range" id="sFb" min="0" max="1" step="0.001" value="0.39">
+    <span class="val" id="vFb"></span></div>
+  <div class="ctl"><label>FB TIME</label>
+    <input type="range" id="sFbt" min="0" max="1" step="0.001" value="0.743">
+    <span class="val" id="vFbt"></span></div>
+  <div class="ctl"><label>SHIFT MIX</label>
+    <input type="range" id="sMix" min="0" max="1" step="0.001" value="0.6">
+    <span class="val" id="vMix"></span></div>
+
+  <div class="sect">MEMORY</div>
+  <div class="ctl"><label>HAUNT</label>
+    <input type="range" id="sHaunt" min="0" max="1" step="0.001" value="0.5">
+    <span class="val" id="vHaunt"></span></div>
+  <div class="ctl"><label>OUT</label>
+    <input type="range" id="sOut" min="0" max="1" step="0.001" value="0.7">
+    <span class="val" id="vOut"></span></div>
+
+  <footer>
+    <b>ladder:</b> harmonics climb, levels taper &mdash; a quiet Shepard staircase.
+    <b>prime:</b> only the unfactorable overtones.
+    <b>fractal:</b> ruler-sequence octaves, self-similar at every zoom.<br>
+    <b>gate low + env high</b> = pointillism scattered through 8D by the rotor.
+    <b>glide high + walk</b> = the lattice melts.
+    envelopes hit X <i>before</i> Y&middot;X &mdash; every pluck is smeared across components by the rotation.
+  </footer>
+</div>
+
+<script>
+(function(){
+'use strict';
+var AC = window.AudioContext || window.webkitAudioContext;
+var ctx = null, running = false;
+var N = {};
+var BUFSIZE = 2048;
+var TAU = Math.PI * 2;
+
+// ---------------- octonion algebra ----------------
+var TRIPLES = [[1,2,4],[2,3,5],[3,4,6],[4,5,7],[5,6,1],[6,7,2],[7,1,3]];
+var MK = new Int8Array(64), MS = new Int8Array(64);
+(function(){
+  var i, j, t;
+  function set(a,b,k,s){ MK[a*8+b] = k; MS[a*8+b] = s; }
+  for (j = 0; j < 8; j++) set(0, j, j, 1);
+  for (i = 1; i < 8; i++){ set(i, 0, i, 1); set(i, i, 0, -1); }
+  for (t = 0; t < 7; t++){
+    var a = TRIPLES[t][0], b = TRIPLES[t][1], c = TRIPLES[t][2];
+    set(a,b,c,1); set(b,a,c,-1);
+    set(b,c,a,1); set(c,b,a,-1);
+    set(c,a,b,1); set(a,c,b,-1);
+  }
+})();
+function omul(x, y, z){
+  var i, j;
+  for (j = 0; j < 8; j++) z[j] = 0;
+  for (i = 0; i < 8; i++){
+    var xi = x[i];
+    if (xi === 0) continue;
+    for (j = 0; j < 8; j++){
+      z[MK[i*8+j]] += MS[i*8+j] * xi * y[j];
+    }
+  }
+}
+
+// ---------------- shared state ----------------
+var P = { root:66, wave:0.35, fan:0.5,
+          rate:1.2, range:12, glide:0.35, gate:0.8, envAmt:0.4, pat:1,
+          spin:0.35, drift:0.3, depth:1, mode:0,
+          shift:1.7, bal:1, fb:0.35, fbt:0.19, mix:0.6, haunt:0.5, out:0.7 };
+var MODES = ['ROTATE','CASCADE','ASSOC'];
+var PATS  = ['DRONE','LADDER','WALK','PRIME','FRACTAL'];
+var PRIMES = [1,2,3,5,7,11,13,17,19,23,29,31];
+
+var VIS_N = 1024, HIST_N = 2048;
+var core = {
+  sr: 44100,
+  phase: new Float64Array(8),
+  curFreq: new Float64Array(8),
+  targetH: [1,2,3,4,5,6,7,8],
+  walkH:   [1,2,3,4,5,6,7,8],
+  dets:  [1,1,1,1,1,1,1,1],
+  levels: new Float64Array(8),
+  envVal: new Float64Array(8),
+  envState: new Int8Array(8),      // 0 idle/sustain, 1 attack, 2 decay
+  stepCtr: 0, stepIdx: 0,
+  yPhi: 0, wPhi: 0,
+  axis: new Float64Array(7), waxis: new Float64Array(7),
+  X: new Float64Array(8), Y: new Float64Array(8), W: new Float64Array(8),
+  T1: new Float64Array(8), T2: new Float64Array(8), T3: new Float64Array(8),
+  Z: new Float64Array(8),
+  M: new Float64Array(8),
+  intrude: 0, intrudeEnd: 0, intrudeEnv: 0, swapA: 1, swapB: 2,
+  sampleCount: 0,
+  hist: new Float32Array(HIST_N * 8), hIdx: 0, hEvery: 256, hCtr: 0,
+  vis: new Float32Array(VIS_N * 8), vIdx: 0, vEvery: 4, vCtr: 0,
+  lvl: new Float32Array(8)
+};
+(function(){
+  var i;
+  for (i = 0; i < 7; i++){
+    core.axis[i]  = Math.random() - 0.5;
+    core.waxis[i] = Math.random() - 0.5;
+  }
+  for (i = 0; i < 8; i++){
+    core.levels[i] = 0.8;
+    core.envVal[i] = 1;
+    core.curFreq[i] = P.root * (i + 1);
+  }
+})();
+function normalize7(v){
+  var i, s = 0;
+  for (i = 0; i < 7; i++) s += v[i]*v[i];
+  s = Math.sqrt(s) || 1;
+  for (i = 0; i < 7; i++) v[i] /= s;
+}
+
+// stereo pans, equal power
+var PL = new Float64Array(8), PR = new Float64Array(8);
+(function(){
+  var pans = [0, -0.85, 0.85, -0.55, 0.55, -0.3, 0.3, 0.05], k, g;
+  for (k = 0; k < 8; k++){
+    g = (pans[k] + 1) / 2;
+    PL[k] = Math.cos(g * Math.PI / 2);
+    PR[k] = Math.sin(g * Math.PI / 2);
+  }
+})();
+
+// ---------------- sequencer ----------------
+function nPrimesUpTo(R){
+  var n = 0, i;
+  for (i = 0; i < PRIMES.length; i++) if (PRIMES[i] <= R) n++;
+  return Math.max(2, n);
+}
+function ruler(n){                       // largest power of 2 dividing n
+  return n & (-n);
+}
+function seqStep(){
+  var t = core.stepIdx++, k, h;
+  var R = Math.max(2, Math.round(P.range));
+  for (k = 0; k < 8; k++){
+    if (P.pat === 1){                    // LADDER
+      h = ((k * 2 + t) % R) + 1;
+    } else if (P.pat === 2){             // WALK
+      core.walkH[k] += Math.floor(Math.random() * 3) - 1;
+      if (core.walkH[k] < 1) core.walkH[k] = 1;
+      if (core.walkH[k] > R) core.walkH[k] = R;
+      h = core.walkH[k];
+    } else if (P.pat === 3){             // PRIME
+      h = PRIMES[(k + t) % nPrimesUpTo(R)];
+    } else if (P.pat === 4){             // FRACTAL — ruler seq, x3 every 4th
+      h = ruler(t + k + 1);
+      if (((t + k) >> 2) & 1) h = h * 3;
+      while (h > R) h >>= 1;
+      if (h < 1) h = 1;
+    } else {                             // DRONE
+      h = Math.min(k + 1, R);
+    }
+    core.targetH[k] = h;
+    if (P.pat !== 0 && P.envAmt > 0.01 && Math.random() < P.gate){
+      core.envState[k] = 1;              // trigger attack
+    }
+  }
+}
+
+// ---------------- SPN: voices + sequencer + octonion core ----------------
+function makeCore(){
+  var spn = ctx.createScriptProcessor(BUFSIZE, 1, 2);
+  core.sr = ctx.sampleRate;
+  spn.onaudioprocess = function(e){
+    var outL = e.outputBuffer.getChannelData(0);
+    var outR = e.outputBuffer.getChannelData(1);
+    var n = outL.length, i, k;
+    var sr = core.sr;
+    var X = core.X, Y = core.Y, W = core.W, Z = core.Z;
+    var T1 = core.T1, T2 = core.T2, T3 = core.T3;
+    var depth = P.depth, mode = P.mode;
+    var dphY = TAU * P.spin / sr;
+    var dphW = TAU * (P.spin * 0.618 + 0.11) / sr;
+    var glideC = Math.pow(10, -1 - 3.5 * P.glide);
+    var decayC = 1 - P.envAmt * 0.002;
+    var droneMode = (P.pat === 0 || P.envAmt <= 0.01);
+    var fLimit = sr * 0.45;
+
+    if (P.drift > 0){
+      for (i = 0; i < 7; i++){
+        core.axis[i]  += P.drift * 0.06 * (Math.random() - 0.5);
+        core.waxis[i] += P.drift * 0.06 * (Math.random() - 0.5);
+      }
+      normalize7(core.axis); normalize7(core.waxis);
+    }
+
+    var frozen = (core.intrude === 3 && core.sampleCount < core.intrudeEnd);
+    var stepLen = Math.max(64, Math.floor(sr / P.rate));
+
+    for (i = 0; i < n; i++){
+      // ---- sequencer clock
+      if (++core.stepCtr >= stepLen){
+        core.stepCtr = 0;
+        seqStep();
+        stepLen = Math.max(64, Math.floor(sr / P.rate));
+      }
+
+      // ---- 8 voices: glide, envelope, wave morph
+      for (k = 0; k < 8; k++){
+        var tf = P.root * core.targetH[k] * core.dets[k];
+        while (tf > fLimit) tf *= 0.5;         // fold, don't die
+        var cf = core.curFreq[k];
+        cf += (tf - cf) * glideC;
+        core.curFreq[k] = cf;
+
+        var ev = core.envVal[k];
+        if (droneMode){
+          ev += (1 - ev) * 0.001;
+        } else if (core.envState[k] === 1){
+          ev += (1.05 - ev) * 0.02;
+          if (ev >= 1){ ev = 1; core.envState[k] = 2; }
+        } else if (core.envState[k] === 2 && decayC < 1){
+          ev *= decayC;
+        }
+        core.envVal[k] = ev;
+
+        var ph = core.phase[k];
+        var dp = cf / sr;
+
+        // wave morph position for this voice (wrapping fan)
+        var pos = P.wave + P.fan * k / 7;
+        pos -= Math.floor(pos);
+        var wS, wT, wZ;
+        if (pos < 0.5){ wT = pos * 2; wS = 1 - wT; wZ = 0; }
+        else { wZ = pos * 2 - 1; wT = 1 - wZ; wS = 0; }
+
+        var s = 0;
+        if (wS > 0) s += wS * Math.sin(TAU * ph);
+        if (wT > 0){
+          var q = ph + 0.25; q -= Math.floor(q);
+          s += wT * (4 * Math.abs(q - 0.5) - 1);
+        }
+        if (wZ > 0){
+          var sv = 2 * ph - 1, xb;
+          if (ph < dp){ xb = ph / dp; sv -= (xb + xb - xb * xb - 1); }
+          else if (ph > 1 - dp){ xb = (ph - 1) / dp; sv -= (xb * xb + xb + xb + 1); }
+          s += wZ * 0.8 * sv;
+        }
+
+        X[k] = core.levels[k] * ev *
+               Math.pow(core.targetH[k], -0.55) * s;
+
+        ph += dp;
+        core.phase[k] = ph - Math.floor(ph);
+      }
+
+      // ---- rotors
+      if (!frozen) core.yPhi += dphY;
+      core.wPhi += dphW;
+      var cy = Math.cos(core.yPhi), sy = Math.sin(core.yPhi);
+      var cw = Math.cos(core.wPhi), sw = Math.sin(core.wPhi);
+      Y[0] = cy; W[0] = cw;
+      for (k = 0; k < 7; k++){ Y[k+1] = sy * core.axis[k]; W[k+1] = sw * core.waxis[k]; }
+
+      if (mode === 0){
+        omul(Y, X, Z);
+      } else if (mode === 1){
+        omul(Y, X, T1); omul(W, T1, Z);
+      } else {
+        omul(W, Y, T1); omul(T1, X, T2);
+        omul(Y, X, T1); omul(W, T1, T3);
+        for (k = 0; k < 8; k++) Z[k] = (T2[k] - T3[k]) * 1.4;
+      }
+
+      // ---- memory intrusions inside the algebra
+      if (core.intrude && core.sampleCount < core.intrudeEnd){
+        if (core.intrudeEnv < 1) core.intrudeEnv += 0.0006;
+        var env = core.intrudeEnv;
+        if (core.intrude === 1){
+          omul(core.M, Z, T1);
+          for (k = 0; k < 8; k++) Z[k] = Z[k] * (1 - env) + T1[k] * env;
+        } else if (core.intrude === 2){
+          var a = core.swapA, b = core.swapB;
+          var tmp = Z[a]; Z[a] = Z[a]*(1-env) + (-Z[b])*env;
+          Z[b] = Z[b]*(1-env) + tmp*env;
+        }
+      } else if (core.intrude && core.sampleCount >= core.intrudeEnd){
+        if (core.intrudeEnv > 0){ core.intrudeEnv -= 0.0008; }
+        else { core.intrude = 0; }
+        if (core.intrude === 1 && core.intrudeEnv > 0){
+          omul(core.M, Z, T1);
+          for (k = 0; k < 8; k++) Z[k] = Z[k]*(1-core.intrudeEnv) + T1[k]*core.intrudeEnv;
+        }
+      }
+
+      // ---- depth mix + stereo spread
+      var L = 0, R2 = 0;
+      for (k = 0; k < 8; k++){
+        var v = X[k] * (1 - depth) + Z[k] * depth;
+        L += v * PL[k]; R2 += v * PR[k];
+        core.lvl[k] += (Math.abs(v) - core.lvl[k]) * 0.0015;
+      }
+      outL[i] = L * 0.30;
+      outR[i] = R2 * 0.30;
+
+      if (++core.hCtr >= core.hEvery){
+        core.hCtr = 0;
+        var hb = core.hIdx * 8;
+        for (k = 0; k < 8; k++) core.hist[hb + k] = Z[k];
+        core.hIdx = (core.hIdx + 1) % HIST_N;
+      }
+      if (++core.vCtr >= core.vEvery){
+        core.vCtr = 0;
+        var vb = core.vIdx * 8;
+        for (k = 0; k < 8; k++) core.vis[vb + k] = X[k]*(1-depth) + Z[k]*depth;
+        core.vIdx = (core.vIdx + 1) % VIS_N;
+      }
+      core.sampleCount++;
+    }
+  };
+  return spn;
+}
+
+// ---------------- hilbert / shift chain (stereo) ----------------
+var A_COEF = [0.6923877778065359, 0.9360654322959357, 0.9882295226860673, 0.9987488452737823];
+var B_COEF = [0.4021921162426, 0.8561710882420, 0.9722909545651, 0.9952884791278];
+var SIGN = 1;
+function apSection(a){
+  var f = ctx.createBiquadFilter();
+  f.type = 'allpass';
+  f.frequency.value = ctx.sampleRate / 4;
+  var a2 = a * a;
+  f.Q.value = (1 - a2) / (2 * (1 + a2));
+  return f;
+}
+function apChain(coefs, input){
+  var node = input, i, s;
+  for (i = 0; i < coefs.length; i++){ s = apSection(coefs[i]); node.connect(s); node = s; }
+  return node;
+}
+
+function build(){
+  ctx = new AC();
+  var t = ctx.currentTime;
+
+  N.spn = makeCore();
+  N.sil = ctx.createOscillator(); var sg0 = ctx.createGain(); sg0.gain.value = 0;
+  N.sil.connect(sg0); sg0.connect(N.spn);
+
+  N.inGain = ctx.createGain(); N.inGain.gain.value = 0.95;
+  N.spn.connect(N.inGain);
+  N.sum = ctx.createGain();
+  N.inGain.connect(N.sum);
+
+  var endA = apChain(A_COEF, N.sum);
+  N.d1 = ctx.createDelay(0.01); N.d1.delayTime.value = 1 / ctx.sampleRate;
+  endA.connect(N.d1);
+  var endB = apChain(B_COEF, N.sum);
+
+  var cosW = ctx.createPeriodicWave(new Float32Array([0,1]), new Float32Array([0,0]));
+  var sinW = ctx.createPeriodicWave(new Float32Array([0,0]), new Float32Array([0,1]));
+  N.loC = ctx.createOscillator(); N.loC.setPeriodicWave(cosW); N.loC.frequency.value = P.shift;
+  N.loS = ctx.createOscillator(); N.loS.setPeriodicWave(sinW); N.loS.frequency.value = P.shift;
+
+  N.rI = ctx.createGain(); N.rI.gain.value = 0; N.d1.connect(N.rI); N.loC.connect(N.rI.gain);
+  N.rQ = ctx.createGain(); N.rQ.gain.value = 0; endB.connect(N.rQ); N.loS.connect(N.rQ.gain);
+  var qNeg = ctx.createGain(); qNeg.gain.value = -1 * SIGN;
+  var qPos = ctx.createGain(); qPos.gain.value =  1 * SIGN;
+  N.rQ.connect(qNeg); N.rQ.connect(qPos);
+  var upSum = ctx.createGain(), dnSum = ctx.createGain();
+  N.rI.connect(upSum); qNeg.connect(upSum);
+  N.rI.connect(dnSum); qPos.connect(dnSum);
+  N.upG = ctx.createGain(); N.dnG = ctx.createGain();
+  upSum.connect(N.upG); dnSum.connect(N.dnG);
+  N.wetSum = ctx.createGain();
+  N.upG.connect(N.wetSum); N.dnG.connect(N.wetSum);
+
+  N.wetGain = ctx.createGain(); N.dryGain = ctx.createGain();
+  N.wetSum.connect(N.wetGain);
+  N.inGain.connect(N.dryGain);
+  N.outSum = ctx.createGain();
+  N.wetGain.connect(N.outSum); N.dryGain.connect(N.outSum);
+
+  N.fbHP = ctx.createBiquadFilter(); N.fbHP.type = 'highpass'; N.fbHP.frequency.value = 28;
+  N.fbLP = ctx.createBiquadFilter(); N.fbLP.type = 'lowpass';  N.fbLP.frequency.value = 13500;
+  N.fbDelay = ctx.createDelay(1.0); N.fbDelay.delayTime.value = P.fbt;
+  N.fbGain = ctx.createGain(); N.fbGain.gain.value = P.fb;
+  N.wetSum.connect(N.fbHP); N.fbHP.connect(N.fbLP);
+  N.fbLP.connect(N.fbDelay); N.fbDelay.connect(N.fbGain); N.fbGain.connect(N.sum);
+
+  N.tape = ctx.createDelay(12.0); N.tape.delayTime.value = 4.0;
+  N.crush = ctx.createWaveShaper();
+  N.gFilt = ctx.createBiquadFilter(); N.gFilt.type = 'bandpass';
+  N.gFilt.frequency.value = 1200; N.gFilt.Q.value = 0.9;
+  N.ghostGain = ctx.createGain(); N.ghostGain.gain.value = 0;
+  N.outSum.connect(N.tape);
+  N.tape.connect(N.crush); N.crush.connect(N.gFilt);
+  N.gFilt.connect(N.ghostGain); N.ghostGain.connect(N.outSum);
+
+  N.master = ctx.createGain(); N.master.gain.value = P.out;
+  N.lim = ctx.createDynamicsCompressor();
+  N.lim.threshold.value = -8; N.lim.knee.value = 2; N.lim.ratio.value = 16;
+  N.lim.attack.value = 0.002; N.lim.release.value = 0.12;
+  N.outSum.connect(N.master); N.master.connect(N.lim); N.lim.connect(ctx.destination);
+
+  N.anS = ctx.createAnalyser(); N.anS.fftSize = 2048;
+  N.anS.smoothingTimeConstant = 0.82; N.outSum.connect(N.anS);
+
+  N.sil.start(t + 0.02);
+  N.loC.start(t + 0.02); N.loS.start(t + 0.02);
+  applyBal(); applyMix();
+}
+
+function ramp(param, v){ param.setTargetAtTime(v, ctx.currentTime, 0.02); }
+function applyBal(){
+  if (!ctx) return;
+  ramp(N.upG.gain, Math.sin(P.bal * Math.PI / 2));
+  ramp(N.dnG.gain, Math.cos(P.bal * Math.PI / 2));
+}
+function applyMix(){
+  if (!ctx) return;
+  ramp(N.wetGain.gain, Math.sin(P.mix * Math.PI / 2));
+  ramp(N.dryGain.gain, Math.cos(P.mix * Math.PI / 2));
+}
+
+// ---------------- intrusion scheduler ----------------
+var nextIntr = 0;
+var fx = { ghostUntil:0, pastUntil:0, swapUntil:0, stasisUntil:0,
+           swapA:1, swapB:2, projSnap:null };
+var projHistory = [];
+
+function crushCurve(bits){
+  var n = 1025, c = new Float32Array(n), i, lv = Math.pow(2, bits);
+  for (i = 0; i < n; i++){
+    var v = (i / (n - 1)) * 2 - 1;
+    c[i] = Math.round(v * lv) / lv;
+  }
+  return c;
+}
+function pushLog(msg){
+  var el = document.getElementById('log');
+  var line = document.createElement('div');
+  line.className = 'new'; line.textContent = msg;
+  el.insertBefore(line, el.firstChild);
+  while (el.childNodes.length > 3) el.removeChild(el.lastChild);
+  var i;
+  for (i = 1; i < el.childNodes.length; i++) el.childNodes[i].className = '';
+}
+
+function fireIntrusion(now){
+  var r = Math.random();
+  var dur;
+  if (r < 0.38){
+    dur = 0.6 + Math.random() * 2.2;
+    var back = 0.5 + Math.random() * 9.0;
+    var warp = (Math.random() - 0.5) * 1.8;
+    var bits = 3 + Math.floor(Math.random() * 7);
+    var t0 = ctx.currentTime;
+    N.tape.delayTime.setValueAtTime(Math.min(11, Math.max(0.05, back)), t0);
+    N.tape.delayTime.linearRampToValueAtTime(
+      Math.min(11, Math.max(0.05, back + warp)), t0 + dur);
+    N.crush.curve = crushCurve(bits);
+    var ftypes = ['bandpass','highpass','lowpass'];
+    N.gFilt.type = ftypes[Math.floor(Math.random()*3)];
+    N.gFilt.frequency.setValueAtTime(300 + Math.random() * 2700, t0);
+    N.ghostGain.gain.setTargetAtTime(0.55 + 0.25 * P.haunt, t0, 0.05);
+    N.ghostGain.gain.setTargetAtTime(0, t0 + dur, 0.3);
+    setTimeout(function(){ N.crush.curve = null; }, (dur + 1.2) * 1000);
+    fx.ghostUntil = now + dur * 1000;
+    pushLog('\u27E8ghost: \u2212' + back.toFixed(1) + 's, ' + bits + '-bit, warp ' +
+            (warp >= 0 ? '+' : '') + warp.toFixed(2) + '\u27E9');
+  } else if (r < 0.63){
+    dur = 0.8 + Math.random() * 2.5;
+    var stepsBack = 200 + Math.floor(Math.random() * (HIST_N - 300));
+    var idx = ((core.hIdx - stepsBack) % HIST_N + HIST_N) % HIST_N;
+    var k, s = 0;
+    for (k = 0; k < 8; k++){ core.M[k] = core.hist[idx*8 + k]; s += core.M[k]*core.M[k]; }
+    s = Math.sqrt(s) || 1;
+    for (k = 0; k < 8; k++) core.M[k] /= s;
+    core.intrude = 1; core.intrudeEnv = 0;
+    core.intrudeEnd = core.sampleCount + Math.floor(dur * core.sr);
+    var ago = (stepsBack * core.hEvery / core.sr).toFixed(1);
+    fx.pastUntil = now + dur * 1000;
+    if (projHistory.length) fx.projSnap = projHistory[Math.floor(Math.random()*projHistory.length)];
+    pushLog('\u27E8memory: self from \u2212' + ago + 's multiplies the present\u27E9');
+  } else if (r < 0.84){
+    dur = 0.5 + Math.random() * 1.5;
+    var a2 = 1 + Math.floor(Math.random() * 7), b2 = a2;
+    while (b2 === a2) b2 = 1 + Math.floor(Math.random() * 7);
+    core.swapA = a2; core.swapB = b2;
+    core.intrude = 2; core.intrudeEnv = 0;
+    core.intrudeEnd = core.sampleCount + Math.floor(dur * core.sr);
+    fx.swapUntil = now + dur * 1000;
+    fx.swapA = a2; fx.swapB = b2;
+    pushLog('\u27E8swap: e' + a2 + ' \u2194 \u2212e' + b2 + '\u27E9');
+  } else {
+    dur = 1.0 + Math.random() * 2.5;
+    core.intrude = 3; core.intrudeEnv = 0;
+    core.intrudeEnd = core.sampleCount + Math.floor(dur * core.sr);
+    fx.stasisUntil = now + dur * 1000;
+    pushLog('\u27E8stasis: rotation held ' + dur.toFixed(1) + 's \u2014 view tumbles on\u27E9');
+  }
+}
+
+// ---------------- UI ----------------
+function $(id){ return document.getElementById(id); }
+function logMap(v, lo, hi){ return lo * Math.pow(hi / lo, v); }
+
+var maps = {
+  sRoot:  function(v){ P.root = logMap(v, 30, 520);
+            return Math.round(P.root) + ' Hz'; },
+  sWave:  function(v){ P.wave = v;
+            return v < 0.15 ? 'sine' : v < 0.4 ? 'sin/tri' : v < 0.6 ? 'triangle' :
+                   v < 0.85 ? 'tri/saw' : 'saw'; },
+  sFan:   function(v){ P.fan = v;
+            return v < 0.02 ? 'unison' : Math.round(v * 100) + '%'; },
+  sRate:  function(v){ P.rate = logMap(v, 0.1, 12);
+            return P.rate.toFixed(2) + ' Hz'; },
+  sRange: function(v){ P.range = 2 + Math.round(v * 14);
+            return 'h1..h' + P.range; },
+  sGlide: function(v){ P.glide = v; return Math.round(v * 100) + '%'; },
+  sGate:  function(v){ P.gate = v; return Math.round(v * 100) + '%'; },
+  sEnv:   function(v){ P.envAmt = v;
+            return v < 0.02 ? 'drone' : v > 0.9 ? 'pluck' : Math.round(v * 100) + '%'; },
+  sSpin:  function(v){ P.spin = logMap(v, 0.02, 500);
+            return (P.spin < 10 ? P.spin.toFixed(2) : Math.round(P.spin)) + ' Hz'; },
+  sDrift: function(v){ P.drift = v; return Math.round(v * 100) + '%'; },
+  sDepth: function(v){ P.depth = v; return Math.round(v * 100) + '%'; },
+  sShift: function(v){ P.shift = logMap(v, 0.1, 2000);
+            if (ctx){ ramp(N.loC.frequency, P.shift); ramp(N.loS.frequency, P.shift); }
+            return (P.shift < 10 ? P.shift.toFixed(1) : Math.round(P.shift)) + ' Hz'; },
+  sBal:   function(v){ P.bal = v; applyBal();
+            return v > 0.98 ? 'UP' : v < 0.02 ? 'DOWN' :
+                   (Math.abs(v - 0.5) < 0.03 ? 'RING MOD' :
+                   Math.round((v * 2 - 1) * 100) + '%'); },
+  sFb:    function(v){ P.fb = v * 0.9;
+            if (ctx) ramp(N.fbGain.gain, P.fb);
+            return Math.round(P.fb * 100) + '%'; },
+  sFbt:   function(v){ P.fbt = logMap(v, 0.003, 0.8);
+            if (ctx) ramp(N.fbDelay.delayTime, P.fbt);
+            return Math.round(P.fbt * 1000) + ' ms'; },
+  sMix:   function(v){ P.mix = v; applyMix(); return Math.round(v * 100) + '%'; },
+  sHaunt: function(v){ P.haunt = v;
+            return v < 0.02 ? 'quiet' : Math.round(v * 100) + '%'; },
+  sOut:   function(v){ P.out = v;
+            if (ctx) ramp(N.master.gain, v);
+            return Math.round(v * 100) + '%'; }
+};
+var vals = { sRoot:'vRoot', sWave:'vWave', sFan:'vFan', sRate:'vRate',
+             sRange:'vRange', sGlide:'vGlide', sGate:'vGate', sEnv:'vEnv',
+             sSpin:'vSpin', sDrift:'vDrift', sDepth:'vDepth', sShift:'vShift',
+             sBal:'vBal', sFb:'vFb', sFbt:'vFbt', sMix:'vMix',
+             sHaunt:'vHaunt', sOut:'vOut' };
+(function(){
+  var id;
+  for (id in maps){
+    (function(id){
+      var el = $(id);
+      var update = function(){ $(vals[id]).textContent = maps[id](parseFloat(el.value)); };
+      el.addEventListener('input', update);
+      update();
+    })(id);
+  }
+})();
+
+$('scatter').addEventListener('click', function(){
+  var k;
+  for (k = 0; k < 8; k++){
+    core.dets[k] = 1 + (Math.random() - 0.5) * 0.008;
+    core.levels[k] = 0.35 + Math.random() * 0.65;
+    core.walkH[k] = 1 + Math.floor(Math.random() * Math.max(2, Math.round(P.range)));
+  }
+  core.stepIdx += Math.floor(Math.random() * 64);
+  pushLog('\u27E8scatter: voices rethrown, pattern displaced\u27E9');
+});
+$('mode').addEventListener('click', function(){
+  P.mode = (P.mode + 1) % 3;
+  this.textContent = MODES[P.mode];
+  pushLog('\u27E8mode: ' + MODES[P.mode] +
+    (P.mode === 2 ? ' \u2014 (WY)X \u2212 W(YX)' : '') + '\u27E9');
+});
+$('pattern').addEventListener('click', function(){
+  P.pat = (P.pat + 1) % 5;
+  this.textContent = PATS[P.pat];
+  pushLog('\u27E8pattern: ' + PATS[P.pat] + '\u27E9');
+});
+$('power').addEventListener('click', function(){
+  if (!ctx){
+    build();
+    if (ctx.state !== 'running' && ctx.resume) ctx.resume();
+    running = true;
+    nextIntr = performance.now() + 4000;
+    flash('live \u2014 integers on the move');
+  } else if (ctx.state === 'running'){
+    ctx.suspend(); running = false; flash('suspended');
+  } else {
+    ctx.resume(); running = true; flash('live');
+  }
+  this.className = running ? 'on' : '';
+});
+function flash(msg){ $('status').textContent = msg; }
+document.addEventListener('touchend', function(){
+  if (ctx && running && ctx.state !== 'running' && ctx.resume) ctx.resume();
+}, false);
+
+// ---------------- visuals ----------------
+var shadow = $('shadow'), fano = $('fano'), spec = $('spec');
+var sh = shadow.getContext('2d'), fg = fano.getContext('2d'), sg = spec.getContext('2d');
+var bufS = new Uint8Array(1024);
+var projA = new Float64Array(8), projRate = new Float64Array(8);
+(function(){
+  var i;
+  for (i = 0; i < 8; i++){
+    projA[i] = Math.random() * TAU;
+    projRate[i] = 0.05 + Math.random() * 0.12;
+  }
+})();
+var lastT = 0, projT = 0, lastSnapT = 0;
+
+function fit(){
+  var dpr = window.devicePixelRatio || 1;
+  var w = shadow.parentNode.clientWidth;
+  shadow.style.height = w + 'px';
+  shadow.width = w * dpr; shadow.height = w * dpr;
+  var sw = fano.parentNode.clientWidth;
+  var fh = Math.max(120, Math.round(w * 0.62));
+  fano.style.height = fh + 'px';
+  fano.width = sw * dpr; fano.height = fh * dpr;
+  var ph = Math.max(80, Math.round(w * 0.32));
+  spec.style.height = ph + 'px';
+  spec.width = sw * dpr; spec.height = ph * dpr;
+  sh.setTransform(dpr,0,0,dpr,0,0);
+  fg.setTransform(dpr,0,0,dpr,0,0);
+  sg.setTransform(dpr,0,0,dpr,0,0);
+  sh.fillStyle = '#101014'; sh.fillRect(0,0,w,w);
+}
+window.addEventListener('resize', fit);
+fit();
+
+function drawShadow(now, dt){
+  var w = shadow.clientWidth;
+  var tumble = 1;
+  if (now < fx.stasisUntil) tumble = 4;
+
+  sh.fillStyle = 'rgba(10,10,12,0.20)';
+  sh.fillRect(0, 0, w, w);
+  sh.strokeStyle = '#1d1d24'; sh.lineWidth = 1;
+  sh.beginPath();
+  sh.moveTo(w/2,0); sh.lineTo(w/2,w); sh.moveTo(0,w/2); sh.lineTo(w,w/2);
+  sh.stroke();
+
+  if (!(ctx && running)) {
+    sh.fillStyle = '#33333c'; sh.font = '11px IBM Plex Mono, monospace';
+    sh.textAlign = 'center';
+    sh.fillText('shadow of \uD835\uDD46', w/2, w/2 - 8);
+    sh.textAlign = 'left';
+    return;
+  }
+
+  projT += dt * tumble;
+  var i, ph;
+  var pastMix = 0;
+  if (now < fx.pastUntil && fx.projSnap){
+    pastMix = Math.min(1, (fx.pastUntil - now) / 900);
+  }
+  var PX = [], PY = [];
+  for (i = 0; i < 8; i++){
+    ph = projA[i] + projT * projRate[i];
+    if (pastMix > 0) ph = ph * (1 - pastMix) + fx.projSnap[i] * pastMix;
+    PX[i] = Math.cos(ph) * 0.5;
+    PY[i] = Math.sin(ph) * 0.5;
+  }
+  if (now - lastSnapT > 2000){
+    lastSnapT = now;
+    var snap = [];
+    for (i = 0; i < 8; i++) snap.push(projA[i] + projT * projRate[i]);
+    projHistory.push(snap);
+    if (projHistory.length > 12) projHistory.shift();
+  }
+
+  var swapping = now < fx.swapUntil;
+  var ghosting = now < fx.ghostUntil;
+  var cx = w/2, cy = w/2, R = w * 0.44;
+  var n = VIS_N, start = core.vIdx, j, k, x, y, px, py;
+
+  var passes = ghosting ? 2 : 1, p;
+  for (p = 0; p < passes; p++){
+    sh.fillStyle = p === 0 ? '#ffb347' : (Math.random() < 0.5 ? '#ff5566' : '#47d7ff');
+    var offX = p === 0 ? 0 : (Math.random()-0.5)*8;
+    var offY = p === 0 ? 0 : (Math.random()-0.5)*8;
+    var lag  = p === 0 ? 0 : 300;
+    for (j = 0; j < n; j += 2){
+      var idx = ((start - 1 - j - lag) % n + n) % n;
+      var vb = idx * 8;
+      px = 0; py = 0;
+      for (k = 0; k < 8; k++){
+        var v = core.vis[vb + k];
+        px += PX[k] * v; py += PY[k] * v;
+      }
+      if (swapping){ var tt = px; px = py; py = tt; }
+      x = cx + px * R; y = cy - py * R;
+      sh.globalAlpha = (0.10 + 0.7 * (1 - j / n)) * (p === 0 ? 1 : 0.45);
+      sh.fillRect(x + offX, y + offY, 1.6, 1.6);
+    }
+  }
+  sh.globalAlpha = 1;
+}
+
+function drawFano(now){
+  var w = fano.clientWidth, h = fano.clientHeight;
+  fg.fillStyle = '#101014'; fg.fillRect(0, 0, w, h);
+  var cx = w/2, cy = h/2, R = Math.min(w, h) * 0.36;
+  var pos = [], i, a;
+  for (i = 0; i < 7; i++){
+    a = -Math.PI/2 + i * TAU / 7;
+    pos.push([cx + Math.cos(a)*R, cy + Math.sin(a)*R]);
+  }
+  var swapping = now < fx.swapUntil;
+  var t, tri, hot;
+  for (t = 0; t < 7; t++){
+    tri = TRIPLES[t];
+    hot = swapping && (tri.indexOf(fx.swapA) >= 0 || tri.indexOf(fx.swapB) >= 0);
+    fg.strokeStyle = hot ? '#47d7ff' : '#1d1d24';
+    fg.lineWidth = hot ? 1.2 : 1;
+    fg.beginPath();
+    fg.moveTo(pos[tri[0]-1][0], pos[tri[0]-1][1]);
+    fg.lineTo(pos[tri[1]-1][0], pos[tri[1]-1][1]);
+    fg.lineTo(pos[tri[2]-1][0], pos[tri[2]-1][1]);
+    fg.closePath();
+    fg.stroke();
+  }
+  var lv, r2, ii;
+  for (i = 0; i < 7; i++){
+    lv = Math.min(1, core.lvl[i+1] * 6);
+    r2 = 2.5 + lv * 7;
+    ii = i + 1;
+    if (swapping){
+      if (ii === fx.swapA) ii = fx.swapB;
+      else if (ii === fx.swapB) ii = fx.swapA;
+    }
+    fg.fillStyle = 'rgba(255,179,71,' + (0.15 + 0.85 * lv).toFixed(2) + ')';
+    fg.beginPath(); fg.arc(pos[i][0], pos[i][1], r2, 0, TAU); fg.fill();
+    fg.fillStyle = '#5c5c66'; fg.font = '9px IBM Plex Mono, monospace';
+    fg.fillText('e' + ii + '\u00B7h' + core.targetH[i+1], pos[i][0] + r2 + 2, pos[i][1] + 3);
+  }
+  lv = Math.min(1, core.lvl[0] * 6);
+  fg.fillStyle = 'rgba(71,215,255,' + (0.15 + 0.85 * lv).toFixed(2) + ')';
+  fg.beginPath(); fg.arc(cx, cy, 2.5 + lv * 6, 0, TAU); fg.fill();
+  fg.fillStyle = '#5c5c66';
+  fg.fillText('e0\u00B7h' + core.targetH[0], cx + 8, cy + 3);
+}
+
+function drawSpec(){
+  var sw = spec.clientWidth, shh = spec.clientHeight;
+  sg.fillStyle = '#101014'; sg.fillRect(0, 0, sw, shh);
+  if (!(ctx && running)) return;
+  N.anS.getByteFrequencyData(bufS);
+  var nyq = ctx.sampleRate / 2, bins = N.anS.frequencyBinCount;
+  var px, f, bi, v, y;
+  sg.strokeStyle = '#ffb347'; sg.lineWidth = 1;
+  sg.beginPath();
+  for (px = 0; px < sw; px++){
+    f = 20 * Math.pow(nyq / 20, px / sw);
+    bi = Math.min(bins - 1, Math.floor(f / nyq * bins));
+    v = bufS[bi] / 255;
+    y = shh - v * (shh - 4) - 2;
+    if (px === 0) sg.moveTo(px, y); else sg.lineTo(px, y);
+  }
+  sg.stroke();
+}
+
+function draw(ts){
+  requestAnimationFrame(draw);
+  var dt = lastT ? (ts - lastT) / 1000 : 0.016;
+  lastT = ts;
+  var now = performance.now();
+
+  if (ctx && running && P.haunt > 0.01 && now > nextIntr){
+    fireIntrusion(now);
+    var mean = 24000 - 21000 * P.haunt;
+    nextIntr = now + mean * (0.35 + -Math.log(1 - Math.random() * 0.95));
+  }
+
+  drawShadow(now, dt);
+  drawFano(now);
+  drawSpec();
+}
+requestAnimationFrame(draw);
+
+window.CAYLEY = { core: core, nodes: N, params: P };
+})();
+</script>
+</body>
+</html>

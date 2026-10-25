@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>serenity — ambient random generator</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<!--
+  serenity — an ambient random generator for the browser
+  --------------------------------------------------------
+  Two generative layers over a stock-node feedback-delay wash (no
+  AudioWorklet, no ConvolverNode -- same "runs anywhere" house rule as
+  shift.html / cayley-ii.html):
+
+  * PADS: 5 detuned OscillatorNodes on a major-pentatonic chord below the
+    root, each with its own gain node re-armed on a random period
+    (setTargetAtTime to a random target over 4-14s) so the chord breathes
+    unevenly, Eno "Music for Airports" style. A slow random walk nudges a
+    shared root-drift offset (semitones) every few seconds; DRIFT scales
+    how far it's allowed to wander.
+
+  * CHIMES: a self-rescheduling setTimeout picks a random scale degree
+    2-3 octaves above root and fires a two-oscillator FM bell (sine
+    carrier + sine modulator into carrier.frequency) with a fast attack
+    and slow exponential decay, panned to a random point in the stereo
+    field. DENSITY controls the average wait between chimes.
+
+  * SPACE: three non-commensurate DelayNodes (0.29 / 0.43 / 0.61s), each
+    with a lowpass filter inside its own feedback loop, summed into a wet
+    bus that SPACE crossfades against the dry pad+chime signal.
+
+  Everything is driven by the same knob-row / status-flash UI pattern as
+  the other two toys.
+
+  MIT license. wvn / xik6, with Claude. 2026.
+-->
+<style>
+:root{
+  --bg:#0a0a0c; --panel:#101014; --line:#1d1d24;
+  --fg:#c9c9ce; --dim:#5c5c66; --faint:#33333c;
+  --acc:#ffb347; --acc2:#47d7ff; --acc3:#ffe66d;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+  font-family:'IBM Plex Mono',Menlo,monospace;font-size:13px;-webkit-text-size-adjust:100%}
+#wrap{max-width:640px;margin:0 auto;padding:14px 14px 40px}
+header{display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px}
+h1{font-size:15px;font-weight:600;letter-spacing:.16em;margin:0;color:var(--fg)}
+h1 span{color:var(--acc)}
+#sub{color:var(--dim);font-size:10px;letter-spacing:.08em}
+#orbBox{margin-bottom:14px}
+canvas{display:block;width:100%;height:220px;background:var(--panel);border:1px solid var(--line)}
+#status{font-size:10px;color:var(--dim);letter-spacing:.06em;min-height:14px;
+  padding:2px 0 8px;white-space:nowrap;overflow:hidden}
+.btnrow{display:flex;gap:8px;margin-bottom:12px}
+button{font-family:inherit;font-size:12px;letter-spacing:.12em;color:var(--dim);
+  background:var(--panel);border:1px solid var(--line);padding:10px 0;flex:1;
+  cursor:pointer;-webkit-user-select:none;user-select:none;border-radius:0}
+button.on{color:var(--bg);background:var(--acc);border-color:var(--acc);font-weight:600}
+#power.on{background:var(--acc);color:var(--bg)}
+.ctl{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed var(--faint)}
+.ctl label{flex:0 0 74px;font-size:10px;letter-spacing:.1em;color:var(--dim)}
+.ctl input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:26px;
+  background:transparent;margin:0}
+.ctl input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--faint)}
+.ctl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:18px;height:18px;margin-top:-8px;background:var(--bg);
+  border:2px solid var(--acc);border-radius:0}
+.ctl input[type=range]::-moz-range-track{height:2px;background:var(--faint)}
+.ctl input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--bg);
+  border:2px solid var(--acc);border-radius:0}
+.ctl .val{flex:0 0 86px;text-align:right;font-size:11px;color:var(--fg)}
+.ctl:focus-within .val{color:var(--acc3)}
+footer{margin-top:18px;color:var(--dim);font-size:10px;line-height:1.7;letter-spacing:.04em}
+footer b{color:var(--acc);font-weight:400}
+#themerow{display:flex;gap:6px;margin-bottom:12px}
+.swatch{flex:1;height:26px;border:1px solid var(--line);cursor:pointer;
+  font-size:8px;letter-spacing:.06em;display:flex;align-items:center;justify-content:center;
+  color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.65);-webkit-user-select:none;user-select:none}
+.swatch.on{outline:2px solid var(--acc3);outline-offset:-2px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <h1>SERENITY <span>//</span> ambient random generator</h1>
+    <div id="sub">no two passes alike</div>
+  </header>
+
+  <div id="themerow"></div>
+
+  <div id="orbBox"><canvas id="orb"></canvas></div>
+  <div id="status">tap POWER — a slow pentatonic chord, wandering root, and random bells</div>
+
+  <div class="btnrow">
+    <button id="power">POWER</button>
+  </div>
+
+  <div class="ctl"><label>DENSITY</label>
+    <input type="range" id="sDensity" min="0" max="1" step="0.001" value="0.35">
+    <span class="val" id="vDensity"></span></div>
+  <div class="ctl"><label>SPACE</label>
+    <input type="range" id="sSpace" min="0" max="1" step="0.001" value="0.55">
+    <span class="val" id="vSpace"></span></div>
+  <div class="ctl"><label>TONE</label>
+    <input type="range" id="sTone" min="0" max="1" step="0.001" value="0.5">
+    <span class="val" id="vTone"></span></div>
+  <div class="ctl"><label>DRIFT</label>
+    <input type="range" id="sDrift" min="0" max="1" step="0.001" value="0.4">
+    <span class="val" id="vDrift"></span></div>
+  <div class="ctl"><label>OUT</label>
+    <input type="range" id="sOut" min="0" max="1" step="0.001" value="0.7">
+    <span class="val" id="vOut"></span></div>
+
+  <footer>
+    pads = 5 detuned oscillators on a major-pentatonic chord, each swelling on its own
+    random clock. <b>chimes</b> are a two-oscillator FM bell fired at random pitches and
+    pan. <b>root</b> wanders slowly within a few semitones — turn DRIFT up for a less
+    settled center. Headphones recommended.
+  </footer>
+</div>
+
+<script>
+(function(){
+'use strict';
+var AC = window.AudioContext || window.webkitAudioContext;
+var ctx = null, running = false;
+var N = {};   // audio nodes
+var chimeTimer = null, driftTimer = null;
+
+// -- theme spectrum: dark monochrome house style -> high-contrast funhouse --
+var THEMES = [
+  { key:'void',     name:'VOID',     bg:'#0a0a0c', panel:'#101014', line:'#1d1d24', fg:'#c9c9ce', dim:'#5c5c66', faint:'#33333c', acc:'#ffb347', acc2:'#47d7ff', acc3:'#ffe66d', sat:45, light:55 },
+  { key:'dusk',     name:'DUSK',     bg:'#0d0a14', panel:'#171226', line:'#2a1f3d', fg:'#e8e2f5', dim:'#8a7ba3', faint:'#4a3d63', acc:'#ff6ec7', acc2:'#34e5c8', acc3:'#ffd23f', sat:60, light:60 },
+  { key:'neon',     name:'NEON',     bg:'#0a0014', panel:'#150726', line:'#2d0f4d', fg:'#f5eaff', dim:'#a684c9', faint:'#5c2e8a', acc:'#ff2e88', acc2:'#00f0ff', acc3:'#c6ff00', sat:90, light:55 },
+  { key:'candy',    name:'CANDY',    bg:'#fff4fb', panel:'#ffffff', line:'#ffd1ec', fg:'#3a1249', dim:'#a15fb3', faint:'#ffe3f5', acc:'#ff3d81', acc2:'#00c2ff', acc3:'#ffbe0b', sat:85, light:65 },
+  { key:'funhouse', name:'FUNHOUSE', bg:'#fff9e6', panel:'#ffffff', line:'#ff006e', fg:'#14003d', dim:'#ff5400', faint:'#ffd400', acc:'#ff006e', acc2:'#3a86ff', acc3:'#06ffa5', sat:95, light:55 }
+];
+var curTheme = THEMES[0];
+function hexToRgb(hex){
+  var r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), b = parseInt(hex.substr(5,2),16);
+  return r + ',' + g + ',' + b;
+}
+function rgba(hex, a){ return 'rgba(' + hexToRgb(hex) + ',' + a + ')'; }
+function applyTheme(idx){
+  curTheme = THEMES[idx];
+  var root = document.documentElement.style;
+  root.setProperty('--bg', curTheme.bg);
+  root.setProperty('--panel', curTheme.panel);
+  root.setProperty('--line', curTheme.line);
+  root.setProperty('--fg', curTheme.fg);
+  root.setProperty('--dim', curTheme.dim);
+  root.setProperty('--faint', curTheme.faint);
+  root.setProperty('--acc', curTheme.acc);
+  root.setProperty('--acc2', curTheme.acc2);
+  root.setProperty('--acc3', curTheme.acc3);
+  try { localStorage.setItem('houseTheme', String(idx)); } catch (e) {}
+  var row = document.getElementById('themerow');
+  if (row) Array.prototype.forEach.call(row.children, function(el, i){ el.classList.toggle('on', i === idx); });
+}
+(function(){
+  var row = document.getElementById('themerow');
+  THEMES.forEach(function(t, i){
+    var b = document.createElement('div');
+    b.className = 'swatch';
+    b.textContent = t.name;
+    b.style.background = t.acc;
+    b.addEventListener('click', function(){ applyTheme(i); });
+    row.appendChild(b);
+  });
+  var saved = 0;
+  try { saved = parseInt(localStorage.getItem('houseTheme'), 10) || 0; } catch (e) {}
+  applyTheme(Math.max(0, Math.min(THEMES.length - 1, saved)));
+})();
+
+var P = { density:0.35, space:0.55, tone:0.5, drift:0.4, out:0.7 };
+
+var ROOT = 110;           // A2
+var PENT = [0, 2, 4, 7, 9]; // major pentatonic, semitones
+var PAD_OFFSETS = [-12, -5, 0, 4, 7]; // semitone offsets from root, spread ~2 octaves
+var driftSemis = 0;
+
+function semi(n){ return Math.pow(2, n / 12); }
+function ramp(param, v, tc){ param.setTargetAtTime(v, ctx.currentTime, tc || 0.02); }
+function rand(lo, hi){ return lo + Math.random() * (hi - lo); }
+function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+function padFreq(i){
+  return ROOT * semi(PAD_OFFSETS[i] + driftSemis);
+}
+
+// -- pad layer: 5 voices, each with its own random-period swell ----------
+function buildPad(i){
+  var osc = ctx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.value = padFreq(i);
+  osc.detune.value = rand(-6, 6);
+
+  var g = ctx.createGain();
+  g.gain.value = 0;
+  var pan = ctx.createStereoPanner();
+  pan.pan.value = rand(-0.6, 0.6);
+
+  osc.connect(g); g.connect(pan); pan.connect(N.padSum);
+  osc.start(ctx.currentTime + 0.02);
+
+  var voice = { osc: osc, gain: g, pan: pan, idx: i };
+  swell(voice);
+  return voice;
+}
+function swell(voice){
+  if (!running) return;
+  var target = rand(0.04, 0.22);
+  var dur = rand(4, 14);
+  ramp(voice.gain.gain, target, dur * 0.5);
+  ramp(voice.pan.pan, rand(-0.7, 0.7), dur);
+  voice.swellTimer = setTimeout(function(){ swell(voice); }, dur * 1000);
+}
+
+// -- root drift: slow random walk, scaled by DRIFT ------------------------
+function driftStep(){
+  if (!running) return;
+  var maxWander = 5 * P.drift;
+  driftSemis += rand(-1, 1) * (0.6 + P.drift);
+  driftSemis = Math.max(-maxWander, Math.min(maxWander, driftSemis));
+  N.pads.forEach(function(v){ ramp(v.osc.frequency, padFreq(v.idx), 3.5); });
+  driftTimer = setTimeout(driftStep, rand(4000, 9000));
+}
+
+// -- chime layer: random FM bell at a random interval ---------------------
+function triggerChime(){
+  var t = ctx.currentTime;
+  var degree = pick(PENT);
+  var octave = pick([12, 24, 36]);
+  var freq = ROOT * semi(degree + octave + driftSemis);
+
+  var carrier = ctx.createOscillator(); carrier.type = 'sine'; carrier.frequency.value = freq;
+  var mod = ctx.createOscillator(); mod.type = 'sine'; mod.frequency.value = freq * 2.01;
+  var modGain = ctx.createGain(); modGain.gain.value = freq * rand(0.3, 0.8);
+  mod.connect(modGain); modGain.connect(carrier.frequency);
+
+  var env = ctx.createGain(); env.gain.value = 0;
+  var pan = ctx.createStereoPanner(); pan.pan.value = rand(-0.85, 0.85);
+  carrier.connect(env); env.connect(pan); pan.connect(N.chimeSum);
+
+  var peak = rand(0.10, 0.22);
+  var decay = rand(1.4, 3.2);
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(peak, t + 0.006);
+  env.gain.setTargetAtTime(0, t + 0.006, decay / 4);
+
+  carrier.start(t); mod.start(t);
+  carrier.stop(t + decay + 1); mod.stop(t + decay + 1);
+}
+function scheduleChime(){
+  if (!running) return;
+  var avgWait = 16000 - P.density * 14500; // density 0 -> ~16s, density 1 -> ~1.5s
+  var wait = rand(avgWait * 0.4, avgWait * 1.6);
+  chimeTimer = setTimeout(function(){ triggerChime(); scheduleChime(); }, wait);
+}
+
+// -- build graph -----------------------------------------------------------
+function build(){
+  ctx = new AC();
+  var t = ctx.currentTime;
+
+  N.padSum = ctx.createGain(); N.padSum.gain.value = 1;
+  N.chimeSum = ctx.createGain(); N.chimeSum.gain.value = 1;
+
+  N.toneFilter = ctx.createBiquadFilter();
+  N.toneFilter.type = 'lowpass';
+  N.toneFilter.frequency.value = 1200;
+  N.padSum.connect(N.toneFilter);
+
+  N.drySum = ctx.createGain();
+  N.toneFilter.connect(N.drySum);
+  N.chimeSum.connect(N.drySum);
+
+  // -- feedback delay network (space) --
+  N.spaceIn = ctx.createGain();
+  N.drySum.connect(N.spaceIn);
+  N.spaceWet = ctx.createGain();
+
+  var times = [0.29, 0.43, 0.61];
+  N.delays = times.map(function(dt, i){
+    var d = ctx.createDelay(1.2); d.delayTime.value = dt;
+    var fb = ctx.createGain(); fb.gain.value = 0.42 - i * 0.04;
+    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200 - i * 500;
+    var pan = ctx.createStereoPanner(); pan.pan.value = (i - 1) * 0.5;
+    N.spaceIn.connect(d);
+    d.connect(lp); lp.connect(fb); fb.connect(d); // feedback loop
+    lp.connect(pan); pan.connect(N.spaceWet);
+    return d;
+  });
+
+  N.dryGain = ctx.createGain();
+  N.drySum.connect(N.dryGain);
+
+  N.outSum = ctx.createGain();
+  N.dryGain.connect(N.outSum);
+  N.spaceWet.connect(N.outSum);
+
+  N.master = ctx.createGain(); N.master.gain.value = P.out;
+  N.lim = ctx.createDynamicsCompressor();
+  N.lim.threshold.value = -10; N.lim.knee.value = 4; N.lim.ratio.value = 12;
+  N.lim.attack.value = 0.01; N.lim.release.value = 0.3;
+  N.analyser = ctx.createAnalyser(); N.analyser.fftSize = 1024; N.analyser.smoothingTimeConstant = 0.8;
+
+  N.outSum.connect(N.master); N.master.connect(N.lim);
+  N.lim.connect(N.analyser); N.analyser.connect(ctx.destination);
+
+  applySpace(); applyTone();
+
+  N.pads = [];
+  for (var i = 0; i < PAD_OFFSETS.length; i++) N.pads.push(buildPad(i));
+}
+
+function applySpace(){ if (!ctx) return; ramp(N.spaceWet.gain, P.space, 0.3); ramp(N.dryGain.gain, 1 - P.space * 0.6, 0.3); }
+function applyTone(){ if (!ctx) return; ramp(N.toneFilter.frequency, 300 + P.tone * P.tone * 6000, 0.3); }
+
+function flash(msg){ document.getElementById('status').textContent = msg; }
+
+// -- UI wiring --------------------------------------------------------------
+function $(id){ return document.getElementById(id); }
+function logMap(v, lo, hi){ return lo * Math.pow(hi / lo, v); }
+
+var maps = {
+  sDensity: function(v){ P.density = v; return v < 0.05 ? 'RARE' : Math.round(v * 100) + '%'; },
+  sSpace:   function(v){ P.space = v; applySpace(); return Math.round(v * 100) + '%'; },
+  sTone:    function(v){ P.tone = v; applyTone(); return Math.round(300 + v * v * 6000) + ' Hz'; },
+  sDrift:   function(v){ P.drift = v; return Math.round(v * 100) + '%'; },
+  sOut:     function(v){ P.out = v; if (ctx) ramp(N.master.gain, v); return Math.round(v * 100) + '%'; }
+};
+var vals = { sDensity:'vDensity', sSpace:'vSpace', sTone:'vTone', sDrift:'vDrift', sOut:'vOut' };
+(function(){
+  var id;
+  for (id in maps){
+    (function(id){
+      var el = $(id);
+      var update = function(){ $(vals[id]).textContent = maps[id](parseFloat(el.value)); };
+      el.addEventListener('input', update);
+      update();
+    })(id);
+  }
+})();
+
+$('power').addEventListener('click', function(){
+  if (!ctx){
+    running = true;
+    build();
+    if (ctx.state !== 'running' && ctx.resume) ctx.resume();
+    scheduleChime();
+    driftTimer = setTimeout(driftStep, rand(4000, 9000));
+    flash('live — drifting');
+  } else if (ctx.state === 'running'){
+    ctx.suspend(); running = false; flash('suspended');
+  } else {
+    running = true;
+    ctx.resume(); flash('live — drifting');
+    scheduleChime();
+    driftTimer = setTimeout(driftStep, rand(4000, 9000));
+  }
+  this.className = running ? 'on' : '';
+});
+
+document.addEventListener('touchend', function(){
+  if (ctx && running && ctx.state !== 'running' && ctx.resume) ctx.resume();
+}, false);
+
+// -- orb visualization: a soft breathing radial gradient reacting to RMS --
+var orb = $('orb'), og = orb.getContext('2d');
+var buf = new Uint8Array(1024);
+var hue = 210, lastT = 0;
+
+function fit(){
+  var dpr = window.devicePixelRatio || 1;
+  var w = orb.parentNode.clientWidth, h = 220;
+  orb.width = w * dpr; orb.height = h * dpr;
+  og.setTransform(dpr, 0, 0, dpr, 0, 0);
+  og.fillStyle = curTheme.panel; og.fillRect(0, 0, w, h);
+}
+window.addEventListener('resize', fit);
+fit();
+
+function rms(){
+  if (!ctx || !running) return 0;
+  N.analyser.getByteTimeDomainData(buf);
+  var sum = 0, i, v;
+  for (i = 0; i < buf.length; i++){ v = (buf[i] - 128) / 128; sum += v * v; }
+  return Math.sqrt(sum / buf.length);
+}
+
+function draw(ts){
+  requestAnimationFrame(draw);
+  var w = orb.clientWidth, h = orb.clientHeight;
+  var dt = lastT ? (ts - lastT) / 1000 : 0.016;
+  lastT = ts;
+
+  og.fillStyle = rgba(curTheme.bg, 0.16);
+  og.fillRect(0, 0, w, h);
+
+  var level = rms();
+  var cx = w / 2, cy = h / 2;
+  var base = Math.min(w, h) * (0.16 + level * 0.6);
+
+  hue += dt * (2 + level * 10);
+  if (hue > 360) hue -= 360;
+
+  var sat = curTheme.sat, lgt = curTheme.light;
+  var grad = og.createRadialGradient(cx, cy, 0, cx, cy, base * 2.2);
+  grad.addColorStop(0, 'hsla(' + hue + ', ' + sat + '%, ' + lgt + '%, 0.55)');
+  grad.addColorStop(0.5, 'hsla(' + (hue + 30) + ', ' + sat + '%, ' + Math.max(30, lgt - 15) + '%, 0.18)');
+  grad.addColorStop(1, rgba(curTheme.bg, 0));
+  og.fillStyle = grad;
+  og.beginPath();
+  og.arc(cx, cy, base * 2.2, 0, Math.PI * 2);
+  og.fill();
+
+  og.strokeStyle = rgba(curTheme.fg, 0.35);
+  og.lineWidth = 1;
+  og.beginPath();
+  og.arc(cx, cy, base, 0, Math.PI * 2);
+  og.stroke();
+
+  if (!ctx || !running){
+    og.fillStyle = curTheme.faint;
+    og.font = '11px IBM Plex Mono, monospace';
+    og.textAlign = 'center';
+    og.fillText('POWER to begin', cx, cy + base + 18 < h ? cy + base + 18 : h - 10);
+    og.textAlign = 'left';
+  }
+}
+requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

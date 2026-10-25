@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>shift — bode frequency shifter</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<!--
+  shift — a bode frequency shifter for the browser
+  ------------------------------------------------
+  out = Re[ (I + jQ) * e^{jΔωt} ]  — complex multiplication as instrument.
+
+  DSP notes (no worklets, no convolver — stock nodes only, iOS-safe):
+
+  * Hilbert pair: Olli Niemitalo's two 4-section allpass cascades,
+    H(z) = (a^2 - z^-2)/(1 - a^2 z^-2) per section. Trick: an RBJ biquad
+    allpass pinned at f = fs/4 has cos(w0)=0, giving H(z) = -(a^2 - z^-2)/(1 - a^2 z^-2)
+    when Q = (1 - a^2) / (2 (1 + a^2)). Four sections per chain -> the four
+    minus signs cancel. So the whole Hilbert transformer is 8 ordinary
+    BiquadFilterNodes plus one exact 1-sample delay. Runs anywhere.
+
+  * Quadrature LO: two OscillatorNodes with PeriodicWave real=[0,1] (cos)
+    and imag=[0,1] (sin), started at the same context time -> phase-locked.
+    Identical frequency automation keeps them locked forever.
+
+  * Ring products via oscillator->GainNode.gain (gain starts at 0).
+      up   = I cosΔ - Q sinΔ      down = I cosΔ + Q sinΔ
+    BALANCE crossfades down<->up (equal power). Dead center sums to
+    2·I·cosΔ = plain double-sideband ring mod. That's the Bode family
+    in one knob.
+
+  * If UP audibly shifts DOWN on your build, the Hilbert lead/lag guess
+    is inverted for this coefficient assignment — flip SIGN below (or
+    just treat the balance ends as swapped; same instrument).
+
+  * Feedback: wet -> HPF 28 Hz -> LPF 13.5 kHz -> delay -> gain -> input.
+    Small Δ + high feedback = the barberpole: each pass shifts again,
+    a spectral staircase spiraling forever.
+
+  MIT license. wvn / xik6, with Claude. 2026.
+-->
+<style>
+:root{
+  --bg:#0a0a0c; --panel:#101014; --line:#1d1d24;
+  --fg:#c9c9ce; --dim:#5c5c66; --faint:#33333c;
+  --acc:#ffb347; --acc2:#47d7ff; --acc3:#ffe66d;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+  font-family:'IBM Plex Mono',Menlo,monospace;font-size:13px;-webkit-text-size-adjust:100%}
+#wrap{max-width:640px;margin:0 auto;padding:14px 14px 40px}
+header{display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px}
+h1{font-size:15px;font-weight:600;letter-spacing:.16em;margin:0;color:var(--fg)}
+h1 span{color:var(--acc)}
+#sub{color:var(--dim);font-size:10px;letter-spacing:.08em}
+#scopes{display:flex;gap:10px;margin-bottom:14px}
+#gonBox{flex:0 0 58%}
+#specBox{flex:1;display:flex;flex-direction:column;gap:10px}
+canvas{display:block;width:100%;background:var(--panel);border:1px solid var(--line)}
+#status{font-size:10px;color:var(--dim);letter-spacing:.06em;min-height:14px;
+  padding:2px 0 8px;white-space:nowrap;overflow:hidden}
+.btnrow{display:flex;gap:8px;margin-bottom:12px}
+button{font-family:inherit;font-size:12px;letter-spacing:.12em;color:var(--dim);
+  background:var(--panel);border:1px solid var(--line);padding:10px 0;flex:1;
+  cursor:pointer;-webkit-user-select:none;user-select:none;border-radius:0}
+button.on{color:var(--bg);background:var(--acc);border-color:var(--acc);font-weight:600}
+#power.on{background:var(--acc);color:var(--bg)}
+.ctl{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed var(--faint)}
+.ctl label{flex:0 0 74px;font-size:10px;letter-spacing:.1em;color:var(--dim)}
+.ctl input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:26px;
+  background:transparent;margin:0}
+.ctl input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--faint)}
+.ctl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:18px;height:18px;margin-top:-8px;background:var(--bg);
+  border:2px solid var(--acc);border-radius:0}
+.ctl input[type=range]::-moz-range-track{height:2px;background:var(--faint)}
+.ctl input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--bg);
+  border:2px solid var(--acc);border-radius:0}
+.ctl .val{flex:0 0 86px;text-align:right;font-size:11px;color:var(--fg)}
+.ctl:focus-within .val{color:var(--acc3)}
+footer{margin-top:18px;color:var(--dim);font-size:10px;line-height:1.7;letter-spacing:.04em}
+footer b{color:var(--acc);font-weight:400}
+#themerow{display:flex;gap:6px;margin-bottom:12px}
+.swatch{flex:1;height:26px;border:1px solid var(--line);cursor:pointer;
+  font-size:8px;letter-spacing:.06em;display:flex;align-items:center;justify-content:center;
+  color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.65);-webkit-user-select:none;user-select:none}
+.swatch.on{outline:2px solid var(--acc3);outline-offset:-2px}
+@media(max-width:560px){
+  #scopes{flex-direction:column}
+  #gonBox{flex:1}
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <h1>SHIFT <span>//</span> bode frequency shifter</h1>
+    <div id="sub">&Delta;f, not &Delta;pitch</div>
+  </header>
+
+  <div id="themerow"></div>
+
+  <div id="scopes">
+    <div id="gonBox"><canvas id="gon"></canvas></div>
+    <div id="specBox"><canvas id="spec"></canvas></div>
+  </div>
+  <div id="status">tap POWER — the circle is the complex plane: x = I, y = Q = Hilbert(I)</div>
+
+  <div class="btnrow">
+    <button id="power">POWER</button>
+  </div>
+  <div class="btnrow">
+    <button id="srcDrone" class="on">DRONE</button>
+    <button id="srcNoise">NOISE</button>
+    <button id="srcMic">MIC</button>
+  </div>
+
+  <div class="ctl"><label>DRONE HZ</label>
+    <input type="range" id="sFreq" min="0" max="1" step="0.001" value="0.456">
+    <span class="val" id="vFreq"></span></div>
+  <div class="ctl"><label>SHIFT &Delta;</label>
+    <input type="range" id="sShift" min="0" max="1" step="0.001" value="0.395">
+    <span class="val" id="vShift"></span></div>
+  <div class="ctl"><label>BALANCE</label>
+    <input type="range" id="sBal" min="0" max="1" step="0.001" value="1">
+    <span class="val" id="vBal"></span></div>
+  <div class="ctl"><label>DRY/WET</label>
+    <input type="range" id="sWet" min="0" max="1" step="0.001" value="1">
+    <span class="val" id="vWet"></span></div>
+  <div class="ctl"><label>FEEDBACK</label>
+    <input type="range" id="sFb" min="0" max="1" step="0.001" value="0">
+    <span class="val" id="vFb"></span></div>
+  <div class="ctl"><label>FB TIME</label>
+    <input type="range" id="sFbt" min="0" max="1" step="0.001" value="0.66">
+    <span class="val" id="vFbt"></span></div>
+  <div class="ctl"><label>OUT</label>
+    <input type="range" id="sOut" min="0" max="1" step="0.001" value="0.7">
+    <span class="val" id="vOut"></span></div>
+
+  <footer>
+    out = Re[ (I + jQ) &middot; e<sup>&plusmn;j&Delta;&omega;t</sup> ] &nbsp;&mdash;&nbsp; complex multiplication, audible.<br>
+    <b>barberpole:</b> feedback .80&ndash;.90, &Delta; 1&ndash;8 Hz, fb time ~150 ms, full UP.
+    <b>ring mod:</b> balance dead center.
+    <b>mic + speaker</b> = acoustic loop &mdash; headphones, or embrace it.
+  </footer>
+</div>
+
+<script>
+(function(){
+'use strict';
+var AC = window.AudioContext || window.webkitAudioContext;
+var ctx = null, running = false;
+var N = {};   // audio nodes
+var SIGN = 1; // flip to -1 if UP/DOWN feel reversed (see header comment)
+
+// -- theme spectrum: dark monochrome house style -> high-contrast funhouse --
+var THEMES = [
+  { key:'void',     name:'VOID',     bg:'#0a0a0c', panel:'#101014', line:'#1d1d24', fg:'#c9c9ce', dim:'#5c5c66', faint:'#33333c', acc:'#ffb347', acc2:'#47d7ff', acc3:'#ffe66d' },
+  { key:'dusk',     name:'DUSK',     bg:'#0d0a14', panel:'#171226', line:'#2a1f3d', fg:'#e8e2f5', dim:'#8a7ba3', faint:'#4a3d63', acc:'#ff6ec7', acc2:'#34e5c8', acc3:'#ffd23f' },
+  { key:'neon',     name:'NEON',     bg:'#0a0014', panel:'#150726', line:'#2d0f4d', fg:'#f5eaff', dim:'#a684c9', faint:'#5c2e8a', acc:'#ff2e88', acc2:'#00f0ff', acc3:'#c6ff00' },
+  { key:'candy',    name:'CANDY',    bg:'#fff4fb', panel:'#ffffff', line:'#ffd1ec', fg:'#3a1249', dim:'#a15fb3', faint:'#ffe3f5', acc:'#ff3d81', acc2:'#00c2ff', acc3:'#ffbe0b' },
+  { key:'funhouse', name:'FUNHOUSE', bg:'#fff9e6', panel:'#ffffff', line:'#ff006e', fg:'#14003d', dim:'#ff5400', faint:'#ffd400', acc:'#ff006e', acc2:'#3a86ff', acc3:'#06ffa5' }
+];
+var curTheme = THEMES[0];
+function hexToRgb(hex){
+  var r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), b = parseInt(hex.substr(5,2),16);
+  return r + ',' + g + ',' + b;
+}
+function rgba(hex, a){ return 'rgba(' + hexToRgb(hex) + ',' + a + ')'; }
+function applyTheme(idx){
+  curTheme = THEMES[idx];
+  var root = document.documentElement.style;
+  root.setProperty('--bg', curTheme.bg);
+  root.setProperty('--panel', curTheme.panel);
+  root.setProperty('--line', curTheme.line);
+  root.setProperty('--fg', curTheme.fg);
+  root.setProperty('--dim', curTheme.dim);
+  root.setProperty('--faint', curTheme.faint);
+  root.setProperty('--acc', curTheme.acc);
+  root.setProperty('--acc2', curTheme.acc2);
+  root.setProperty('--acc3', curTheme.acc3);
+  try { localStorage.setItem('houseTheme', String(idx)); } catch (e) {}
+  var row = document.getElementById('themerow');
+  if (row) Array.prototype.forEach.call(row.children, function(el, i){ el.classList.toggle('on', i === idx); });
+}
+(function(){
+  var row = document.getElementById('themerow');
+  THEMES.forEach(function(t, i){
+    var b = document.createElement('div');
+    b.className = 'swatch';
+    b.textContent = t.name;
+    b.style.background = t.acc;
+    b.addEventListener('click', function(){ applyTheme(i); });
+    row.appendChild(b);
+  });
+  var saved = 0;
+  try { saved = parseInt(localStorage.getItem('houseTheme'), 10) || 0; } catch (e) {}
+  applyTheme(Math.max(0, Math.min(THEMES.length - 1, saved)));
+})();
+
+var P = { src:'drone', srcF:110, shift:5, bal:1, wet:1, fb:0, fbt:0.12, out:0.7 };
+
+// Niemitalo Hilbert pair — allpass coefficients (chain A gets +1 sample delay)
+var A_COEF = [0.6923877778065359, 0.9360654322959357, 0.9882295226860673, 0.9987488452737823];
+var B_COEF = [0.4021921162426,    0.8561710882420,    0.9722909545651,    0.9952884791278];
+
+function apSection(a){
+  // biquad allpass at fs/4 realizes -(a^2 - z^-2)/(1 - a^2 z^-2); signs cancel over 4 sections
+  var f = ctx.createBiquadFilter();
+  f.type = 'allpass';
+  f.frequency.value = ctx.sampleRate / 4;
+  var a2 = a * a;
+  f.Q.value = (1 - a2) / (2 * (1 + a2));
+  return f;
+}
+function apChain(coefs, input){
+  var node = input, i, s;
+  for (i = 0; i < coefs.length; i++){ s = apSection(coefs[i]); node.connect(s); node = s; }
+  return node;
+}
+
+function build(){
+  ctx = new AC();
+  var t = ctx.currentTime;
+
+  N.inGain = ctx.createGain(); N.inGain.gain.value = 0.9;
+  N.sum = ctx.createGain();     // shifter input (source + feedback)
+
+  // -- sources -------------------------------------------------
+  N.droneGain = ctx.createGain(); N.droneGain.gain.value = 0;
+  N.o1 = ctx.createOscillator(); N.o1.type = 'sawtooth'; N.o1.frequency.value = P.srcF;
+  N.o2 = ctx.createOscillator(); N.o2.type = 'sawtooth'; N.o2.frequency.value = P.srcF * 1.004;
+  var oG = ctx.createGain(); oG.gain.value = 0.20;
+  N.o1.connect(oG); N.o2.connect(oG); oG.connect(N.droneGain);
+  N.droneGain.connect(N.inGain);
+
+  N.noiseGain = ctx.createGain(); N.noiseGain.gain.value = 0;
+  var nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+  var nd = nb.getChannelData(0), i;
+  for (i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  N.noise = ctx.createBufferSource(); N.noise.buffer = nb; N.noise.loop = true;
+  var nG = ctx.createGain(); nG.gain.value = 0.22;
+  N.noise.connect(nG); nG.connect(N.noiseGain);
+  N.noiseGain.connect(N.inGain);
+
+  N.micGain = ctx.createGain(); N.micGain.gain.value = 0;
+  N.micGain.connect(N.inGain);
+
+  N.inGain.connect(N.sum);
+
+  // -- hilbert pair --------------------------------------------
+  var endA = apChain(A_COEF, N.sum);
+  N.d1 = ctx.createDelay(0.01);
+  N.d1.delayTime.value = 1 / ctx.sampleRate;   // exact 1-sample compensation
+  endA.connect(N.d1);                           // I
+  var endB = apChain(B_COEF, N.sum);            // Q
+
+  // -- quadrature LO -------------------------------------------
+  var cosW = ctx.createPeriodicWave(new Float32Array([0,1]), new Float32Array([0,0]));
+  var sinW = ctx.createPeriodicWave(new Float32Array([0,0]), new Float32Array([0,1]));
+  N.loC = ctx.createOscillator(); N.loC.setPeriodicWave(cosW); N.loC.frequency.value = P.shift;
+  N.loS = ctx.createOscillator(); N.loS.setPeriodicWave(sinW); N.loS.frequency.value = P.shift;
+
+  // -- ring products: up = I cos - Q sin, down = I cos + Q sin --
+  N.rI = ctx.createGain(); N.rI.gain.value = 0;
+  N.d1.connect(N.rI); N.loC.connect(N.rI.gain);
+  N.rQ = ctx.createGain(); N.rQ.gain.value = 0;
+  endB.connect(N.rQ); N.loS.connect(N.rQ.gain);
+  var qNeg = ctx.createGain(); qNeg.gain.value = -1 * SIGN;
+  var qPos = ctx.createGain(); qPos.gain.value =  1 * SIGN;
+  N.rQ.connect(qNeg); N.rQ.connect(qPos);
+
+  var upSum = ctx.createGain(), dnSum = ctx.createGain();
+  N.rI.connect(upSum); qNeg.connect(upSum);
+  N.rI.connect(dnSum); qPos.connect(dnSum);
+  N.upG = ctx.createGain(); N.dnG = ctx.createGain();
+  upSum.connect(N.upG); dnSum.connect(N.dnG);
+
+  N.wetSum = ctx.createGain();
+  N.upG.connect(N.wetSum); N.dnG.connect(N.wetSum);
+
+  N.wetGain = ctx.createGain(); N.dryGain = ctx.createGain();
+  N.wetSum.connect(N.wetGain);
+  N.inGain.connect(N.dryGain);
+
+  N.outSum = ctx.createGain();
+  N.wetGain.connect(N.outSum); N.dryGain.connect(N.outSum);
+
+  // -- feedback loop -------------------------------------------
+  N.fbHP = ctx.createBiquadFilter(); N.fbHP.type = 'highpass'; N.fbHP.frequency.value = 28;
+  N.fbLP = ctx.createBiquadFilter(); N.fbLP.type = 'lowpass';  N.fbLP.frequency.value = 13500;
+  N.fbDelay = ctx.createDelay(1.0); N.fbDelay.delayTime.value = P.fbt;
+  N.fbGain = ctx.createGain(); N.fbGain.gain.value = P.fb;
+  N.wetSum.connect(N.fbHP); N.fbHP.connect(N.fbLP);
+  N.fbLP.connect(N.fbDelay); N.fbDelay.connect(N.fbGain);
+  N.fbGain.connect(N.sum);
+
+  // -- output --------------------------------------------------
+  N.master = ctx.createGain(); N.master.gain.value = P.out;
+  N.lim = ctx.createDynamicsCompressor();
+  N.lim.threshold.value = -8; N.lim.knee.value = 2; N.lim.ratio.value = 16;
+  N.lim.attack.value = 0.002; N.lim.release.value = 0.12;
+  N.outSum.connect(N.master); N.master.connect(N.lim); N.lim.connect(ctx.destination);
+
+  // -- analysers -----------------------------------------------
+  N.anI = ctx.createAnalyser(); N.anI.fftSize = 1024; N.d1.connect(N.anI);
+  N.anQ = ctx.createAnalyser(); N.anQ.fftSize = 1024; endB.connect(N.anQ);
+  N.anS = ctx.createAnalyser(); N.anS.fftSize = 2048;
+  N.anS.smoothingTimeConstant = 0.82; N.outSum.connect(N.anS);
+
+  N.o1.start(t + 0.02); N.o2.start(t + 0.02); N.noise.start(t + 0.02);
+  N.loC.start(t + 0.02); N.loS.start(t + 0.02);
+
+  applyBal(); applyWet(); setSource(P.src);
+}
+
+// -- parameter application -------------------------------------
+function ramp(param, v){ param.setTargetAtTime(v, ctx.currentTime, 0.02); }
+function applyBal(){
+  if (!ctx) return;
+  ramp(N.upG.gain, Math.sin(P.bal * Math.PI / 2));
+  ramp(N.dnG.gain, Math.cos(P.bal * Math.PI / 2));
+}
+function applyWet(){
+  if (!ctx) return;
+  ramp(N.wetGain.gain, Math.sin(P.wet * Math.PI / 2));
+  ramp(N.dryGain.gain, Math.cos(P.wet * Math.PI / 2));
+}
+function setShift(f){
+  P.shift = f;
+  if (!ctx) return;
+  ramp(N.loC.frequency, f); ramp(N.loS.frequency, f); // identical automation keeps quadrature
+}
+function setSource(s){
+  P.src = s;
+  var ids = { drone:'srcDrone', noise:'srcNoise', mic:'srcMic' }, k;
+  for (k in ids){
+    document.getElementById(ids[k]).className = (k === s) ? 'on' : '';
+  }
+  if (!ctx) return;
+  ramp(N.droneGain.gain, s === 'drone' ? 1 : 0);
+  ramp(N.noiseGain.gain, s === 'noise' ? 1 : 0);
+  ramp(N.micGain.gain,   s === 'mic'   ? 1 : 0);
+  if (s === 'mic' && !N.micSrc) initMic();
+}
+function initMic(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    flash('mic unavailable in this browser'); return;
+  }
+  navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false }
+  }).then(function(stream){
+    N.micSrc = ctx.createMediaStreamSource(stream);
+    N.micSrc.connect(N.micGain);
+    flash('mic live — raw, no processing');
+  }).catch(function(){
+    flash('mic denied'); setSource('drone');
+  });
+}
+function flash(msg){
+  var el = document.getElementById('status');
+  el.textContent = msg;
+}
+
+// -- UI wiring --------------------------------------------------
+function $(id){ return document.getElementById(id); }
+function logMap(v, lo, hi){ return lo * Math.pow(hi / lo, v); }
+
+var maps = {
+  sFreq:  function(v){ var f = logMap(v, 30, 520); P.srcF = f;
+            if (ctx){ ramp(N.o1.frequency, f); ramp(N.o2.frequency, f * 1.004); }
+            return Math.round(f) + ' Hz'; },
+  sShift: function(v){ var f = logMap(v, 0.1, 2000); setShift(f);
+            return (f < 10 ? f.toFixed(1) : Math.round(f)) + ' Hz'; },
+  sBal:   function(v){ P.bal = v; applyBal();
+            return v > 0.98 ? 'UP' : v < 0.02 ? 'DOWN' :
+                   (Math.abs(v - 0.5) < 0.03 ? 'RING MOD' :
+                   Math.round((v * 2 - 1) * 100) + '%'); },
+  sWet:   function(v){ P.wet = v; applyWet(); return Math.round(v * 100) + '%'; },
+  sFb:    function(v){ P.fb = v * 0.9;
+            if (ctx) ramp(N.fbGain.gain, P.fb);
+            return Math.round(P.fb * 100) + '%'; },
+  sFbt:   function(v){ P.fbt = logMap(v, 0.003, 0.8);
+            if (ctx) ramp(N.fbDelay.delayTime, P.fbt);
+            return Math.round(P.fbt * 1000) + ' ms'; },
+  sOut:   function(v){ P.out = v;
+            if (ctx) ramp(N.master.gain, v);
+            return Math.round(v * 100) + '%'; }
+};
+var vals = { sFreq:'vFreq', sShift:'vShift', sBal:'vBal', sWet:'vWet',
+             sFb:'vFb', sFbt:'vFbt', sOut:'vOut' };
+(function(){
+  var id;
+  for (id in maps){
+    (function(id){
+      var el = $(id);
+      var update = function(){ $(vals[id]).textContent = maps[id](parseFloat(el.value)); };
+      el.addEventListener('input', update);
+      update();
+    })(id);
+  }
+})();
+
+$('srcDrone').addEventListener('click', function(){ setSource('drone'); });
+$('srcNoise').addEventListener('click', function(){ setSource('noise'); });
+$('srcMic').addEventListener('click', function(){ setSource('mic'); });
+
+$('power').addEventListener('click', function(){
+  if (!ctx){
+    build();
+    if (ctx.state !== 'running' && ctx.resume) ctx.resume();
+    running = true;
+    flash('live — watch the circle spin');
+  } else if (ctx.state === 'running'){
+    ctx.suspend(); running = false; flash('suspended');
+  } else {
+    ctx.resume(); running = true; flash('live');
+  }
+  this.className = running ? 'on' : '';
+});
+
+// iOS interruption recovery
+document.addEventListener('touchend', function(){
+  if (ctx && running && ctx.state !== 'running' && ctx.resume) ctx.resume();
+}, false);
+
+// -- scopes ------------------------------------------------------
+var gon = $('gon'), spec = $('spec');
+var gg = gon.getContext('2d'), sg = spec.getContext('2d');
+var bufI = new Uint8Array(1024), bufQ = new Uint8Array(1024), bufS = new Uint8Array(1024);
+var theta = 0, lastT = 0;
+
+function fit(){
+  var dpr = window.devicePixelRatio || 1;
+  var w = gon.parentNode.clientWidth;
+  gon.style.height = w + 'px';
+  gon.width = w * dpr; gon.height = w * dpr;
+  var sw = spec.parentNode.clientWidth;
+  var sh = Math.max(110, Math.round(w * 0.55));
+  spec.style.height = sh + 'px';
+  spec.width = sw * dpr; spec.height = sh * dpr;
+  gg.setTransform(dpr, 0, 0, dpr, 0, 0);
+  sg.setTransform(dpr, 0, 0, dpr, 0, 0);
+  gg.fillStyle = curTheme.panel; gg.fillRect(0, 0, w, w);
+  sg.fillStyle = curTheme.panel; sg.fillRect(0, 0, sw, sh);
+}
+window.addEventListener('resize', fit);
+fit();
+
+function drawGrid(w){
+  gg.strokeStyle = curTheme.line; gg.lineWidth = 1;
+  gg.beginPath();
+  gg.moveTo(w/2, 0); gg.lineTo(w/2, w);
+  gg.moveTo(0, w/2); gg.lineTo(w, w/2);
+  gg.stroke();
+  gg.beginPath();
+  gg.arc(w/2, w/2, w * 0.38, 0, Math.PI * 2);
+  gg.stroke();
+}
+
+function draw(ts){
+  requestAnimationFrame(draw);
+  var w = gon.clientWidth, i, x, y;
+  var dt = lastT ? (ts - lastT) / 1000 : 0.016;
+  lastT = ts;
+
+  // goniometer: fade for trails
+  gg.fillStyle = rgba(curTheme.bg, 0.22);
+  gg.fillRect(0, 0, w, w);
+  drawGrid(w);
+
+  if (ctx && running){
+    N.anI.getByteTimeDomainData(bufI);
+    N.anQ.getByteTimeDomainData(bufQ);
+    var R = w * 0.42, cx = w / 2, cy = w / 2, n = bufI.length;
+    gg.fillStyle = curTheme.acc;
+    for (i = 0; i < n; i += 2){
+      x = cx + ((bufI[i] - 128) / 128) * R;
+      y = cy - ((bufQ[i] - 128) / 128) * R;
+      gg.globalAlpha = 0.12 + 0.75 * (i / n);
+      gg.fillRect(x, y, 1.6, 1.6);
+    }
+    gg.globalAlpha = 1;
+
+    // Δ phasor — slowed for the eye, direction follows balance
+    var dir = (P.bal >= 0.5 ? 1 : -1) * SIGN;
+    var rate = 0.08 + 0.35 * (Math.log(1 + P.shift) / Math.LN10);
+    theta += dir * rate * Math.PI * 2 * dt;
+    gg.strokeStyle = curTheme.acc2; gg.lineWidth = 1.5;
+    gg.beginPath();
+    gg.moveTo(cx, cy);
+    gg.lineTo(cx + Math.cos(theta) * w * 0.38, cy - Math.sin(theta) * w * 0.38);
+    gg.stroke();
+
+    // spectrum
+    N.anS.getByteFrequencyData(bufS);
+    var sw = spec.clientWidth, sh = spec.clientHeight;
+    sg.fillStyle = curTheme.panel; sg.fillRect(0, 0, sw, sh);
+    var nyq = ctx.sampleRate / 2, bins = N.anS.frequencyBinCount, px, f, bi, v;
+    sg.strokeStyle = curTheme.acc; sg.lineWidth = 1;
+    sg.beginPath();
+    for (px = 0; px < sw; px++){
+      f = 20 * Math.pow(nyq / 20, px / sw);
+      bi = Math.min(bins - 1, Math.floor(f / nyq * bins));
+      v = bufS[bi] / 255;
+      y = sh - v * (sh - 4) - 2;
+      if (px === 0) sg.moveTo(px, y); else sg.lineTo(px, y);
+    }
+    sg.stroke();
+    sg.fillStyle = curTheme.dim; sg.font = '9px IBM Plex Mono, monospace';
+    sg.fillText('20', 2, sh - 3);
+    sg.fillText('1k', sw * Math.log(1000/20) / Math.log(nyq/20), sh - 3);
+    sg.fillText('10k', sw * Math.log(10000/20) / Math.log(nyq/20), sh - 3);
+  } else {
+    gg.fillStyle = curTheme.faint;
+    gg.font = '11px IBM Plex Mono, monospace';
+    gg.textAlign = 'center';
+    gg.fillText('I / Q', w / 2, w / 2 - 10);
+    gg.textAlign = 'left';
+  }
+}
+requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

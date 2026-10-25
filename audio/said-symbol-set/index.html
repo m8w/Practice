@@ -1,0 +1,1856 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>SAID Symbol Set</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&family=Major+Mono+Display&display=swap">
+<style>
+/* Layout: one centered column. The forge leads, then utterances on a stage, the hand script from the notebooks, the symbol inventory, SAID-H (Hilbert's program) with a live checker, the rules, the LLM primer and the sources. Single dark look by choice: sigil light needs a night ground. */
+:root{
+  --ink:#100e1d; --deep:#0b0a16; --slate:#191630; --raise:#221e3d; --line:#302b4d;
+  --chalk:#ece7f6; --mute:#a7a1c2; --amber:#f0b84a;
+  --ok:#7fd6a4; --bad:#ff6f61; --warn:#f2c14e;
+  --f-display:'Major Mono Display', ui-monospace, Menlo, monospace;
+  --f-body:'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono:'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--ink);color:var(--chalk);font:16px/1.6 var(--f-body);
+  padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px))}
+main{max-width:1040px;margin:0 auto;padding-block:28px 72px;display:grid;gap:72px}
+main>section,main>header{min-width:0}
+h1,h2,h3{text-wrap:balance;margin:0;font-weight:400}
+h2{font-family:var(--f-display);font-size:clamp(24px,5vw,34px);letter-spacing:.02em;line-height:1.15}
+h3{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+p{margin:0}
+.mono{font-family:var(--f-mono)}
+.small{font-size:14px}
+.mute{color:var(--mute)}
+a{color:var(--amber)}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+code{font-family:var(--f-mono);font-size:.88em;background:var(--slate);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+
+.intro{display:grid;gap:18px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.intro h1{font-family:var(--f-display);font-size:clamp(64px,17vw,132px);line-height:.9;letter-spacing:.03em;text-shadow:0 0 28px rgba(240,184,74,.28)}
+.lede{font-size:clamp(17px,2.4vw,20px);max-width:64ch;line-height:1.55}
+.channels{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.channels li{border-top:1px solid var(--line);padding-top:10px;display:grid;gap:2px}
+.channels b{font-family:var(--f-mono);font-weight:600;font-size:13px;letter-spacing:.1em;text-transform:uppercase}
+.channels span{color:var(--mute);font-size:14px}
+.channels em{font-style:normal;font-family:var(--f-mono);font-size:12px;color:var(--amber)}
+.toc{display:flex;flex-wrap:wrap;gap:6px 16px;font-family:var(--f-mono);font-size:13px;margin-top:4px}
+.toc a{color:var(--chalk);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:2px}
+.toc a:hover{border-color:var(--amber)}
+
+.sec-head{display:grid;gap:8px;margin-bottom:20px}
+.sec-head p{max-width:66ch;color:var(--mute)}
+
+/* forge */
+.forge-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:760px){.forge-grid{grid-template-columns:minmax(0,1fr)}}
+.stage-col,.ctl-col{display:grid;gap:14px;min-width:0}
+.stage{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--deep)}
+.stage canvas{display:block;width:100%;max-width:100%}
+#forgeCanvas{aspect-ratio:4/3}
+#seqCanvas{aspect-ratio:16/9}
+.gloss{font-size:clamp(17px,2.3vw,20px);line-height:1.5}
+.gloss .v{color:var(--mute)}
+.code-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.code{font-family:var(--f-mono);font-size:14px;background:var(--slate);border:1px solid var(--line);border-radius:6px;padding:8px 10px;overflow-wrap:anywhere;min-width:0;flex:1 1 220px}
+.ctl-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label.f{display:grid;gap:4px;font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+select,input[type=text],textarea{width:100%;min-width:0;font:15px var(--f-body);color:var(--chalk);background:var(--slate);border:1px solid var(--line);border-radius:6px;padding:9px 8px;min-height:42px}
+textarea{font:14px/1.55 var(--f-mono);resize:vertical}
+.btn{font:600 15px var(--f-body);color:var(--chalk);background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:10px 16px;min-height:44px;cursor:pointer}
+.btn:hover{border-color:var(--mute)}
+.btn.primary{background:var(--amber);color:var(--deep);border-color:var(--amber)}
+.btn.small{min-height:38px;padding:8px 12px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg label{display:flex;align-items:center;gap:6px;padding:8px 12px;font-size:14px;cursor:pointer;min-height:40px}
+.seg input{accent-color:var(--amber)}
+.seg label+label{border-left:1px solid var(--line)}
+.read{display:grid;gap:6px;border-top:1px solid var(--line);padding-top:14px}
+.read-row{display:flex;gap:8px}
+.read-row input{font-family:var(--f-mono);font-size:14px}
+.note{min-height:1.4em;font-size:14px;color:var(--mute)}
+
+/* utterances */
+.seq-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.seq-grid{grid-template-columns:minmax(0,1fr)}}
+.strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.chip{font:12px var(--f-mono);color:var(--mute);background:var(--slate);border:1px solid var(--line);border-radius:6px;padding:6px 8px;white-space:nowrap;cursor:pointer;min-height:34px}
+.chip[aria-current="true"]{color:var(--deep);background:var(--amber);border-color:var(--amber)}
+.glosses{margin:0;padding-left:1.6em;display:grid;gap:6px;font-size:15px}
+.glosses li::marker{font-family:var(--f-mono);color:var(--mute);font-size:12px}
+.glosses li[aria-current="true"]{color:var(--amber)}
+
+/* hand */
+.stats{display:flex;flex-wrap:wrap;gap:8px 28px;font-variant-numeric:tabular-nums}
+.stat{display:grid}
+.stat b{font-family:var(--f-display);font-size:clamp(26px,5vw,40px);font-weight:400;line-height:1.1}
+.stat span{font-size:13px;color:var(--mute)}
+.fams{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:12px}
+.fam{background:var(--slate);border:1px solid var(--line);border-radius:8px;padding:10px;display:grid;gap:8px;min-width:0}
+.fam canvas{display:block;width:100%;max-width:100%;aspect-ratio:4/1}
+.fam-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.fam-top b{font-family:var(--f-mono);font-weight:600;font-size:14px}
+.fam-top span{font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums}
+.fam select{min-height:36px;padding:6px;font-size:14px}
+.keytable{width:100%;border-collapse:collapse;font-size:14px}
+.keytable th,.keytable td{text-align:left;padding:8px 10px 8px 0;border-top:1px solid var(--line);vertical-align:top}
+.keytable th{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);font-weight:400}
+.tablewrap{overflow-x:auto}
+.pages{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.pages button{font:600 13px var(--f-mono);min-width:44px;min-height:38px;color:var(--chalk);background:var(--slate);border:1px solid var(--line);border-radius:6px;cursor:pointer;font-variant-numeric:tabular-nums}
+.pages button[aria-pressed="true"]{background:var(--amber);color:var(--deep);border-color:var(--amber)}
+.page-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.page-grid{grid-template-columns:minmax(0,1fr)}}
+.pagewrap{background:var(--deep);border:1px solid var(--line);border-radius:12px;padding:10px;overflow:hidden}
+#pageCanvas{display:block;width:100%;max-width:100%;cursor:crosshair;touch-action:manipulation}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--mute)}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:1px;box-shadow:0 0 8px currentColor;background:currentColor}
+
+/* inventory cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;margin-top:10px}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.card{font:inherit;color:inherit;text-align:left;background:var(--slate);border:1px solid var(--line);border-radius:8px;padding:10px;cursor:pointer;display:grid;gap:3px;align-content:start;min-width:0}
+.card:hover{border-color:#4a4470}
+.card canvas{display:block;margin:0 auto 4px}
+.card .c-code{font-family:var(--f-mono);font-weight:600;font-size:13px;display:flex;justify-content:space-between;gap:6px}
+.card .c-code i{font-style:normal;font-weight:400;color:var(--mute)}
+.card .c-name{font-size:14px}
+.card .c-meta{font-family:var(--f-mono);font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}
+.wide .card{grid-template-columns:auto minmax(0,1fr);column-gap:12px;align-items:center}
+.wide .card canvas{margin:0;grid-row:span 4}
+.wide .card .c-read{font-size:14px}
+.wide .card .c-read q{quotes:none;font-style:italic}
+.fusions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.fuse{font:inherit;color:inherit;background:var(--slate);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+.fuse b{font-family:var(--f-mono);font-size:12px;font-weight:600}
+.fuse span{font-size:14px;color:var(--mute)}
+
+/* SAID-H */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:720px){.two{grid-template-columns:1fr}}
+.panel{background:var(--slate);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:8px;align-content:start;min-width:0}
+.panel h3{color:var(--chalk)}
+.rules{display:grid;margin:0}
+.rules div{display:grid;grid-template-columns:5.6em minmax(0,1fr);gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.rules dt{font-family:var(--f-mono);font-weight:600;color:var(--amber);font-size:14px}
+.rules dd{margin:0;max-width:68ch}
+.thm{display:grid;gap:12px}
+.thm article{border-top:1px solid var(--line);padding-top:14px;display:grid;gap:8px;max-width:72ch}
+.thm h4{margin:0;font-family:var(--f-body);font-size:18px;font-weight:700}
+.thm h4 span{font-family:var(--f-mono);font-weight:600;color:var(--amber);margin-right:8px;font-size:15px}
+.pill{display:inline-block;font:600 12px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid currentColor}
+.pill.ok{color:var(--ok)}.pill.bad{color:var(--bad)}.pill.warn{color:var(--warn)}
+.counts{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.counts td{padding:6px 10px 6px 0;border-top:1px solid var(--line)}
+.counts td:nth-child(n+2){text-align:right;font-family:var(--f-mono)}
+.sentences{display:flex;flex-wrap:wrap;gap:6px}
+.sentences span{font-size:13px;background:var(--deep);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+.checker{display:grid;gap:12px}
+.out{display:grid;gap:14px}
+.out .block{display:grid;gap:6px}
+.deriv{font:13px/1.6 var(--f-mono);background:var(--deep);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow-x:auto;margin:0;white-space:pre}
+.deriv .r{color:var(--mute)}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:720px){.vs{grid-template-columns:1fr}}
+.list{margin:0;padding-left:1.2em;display:grid;gap:4px;font-size:14px}
+.list code{font-size:13px}
+
+/* primer */
+.primer{font:13px/1.6 var(--f-mono);background:var(--deep);border:1px solid var(--line);border-radius:10px;padding:16px;max-height:520px;overflow:auto;white-space:pre-wrap;margin:0}
+
+.sources{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0 28px}
+.sources li{border-top:1px solid var(--line);padding:12px 0;display:grid;gap:4px;min-width:0}
+.sources .s-name{font-weight:700}
+.sources .s-yr{font-family:var(--f-mono);font-size:12px;color:var(--mute);margin-left:6px;font-weight:400}
+.sources .s-how{font-size:14px;color:var(--mute)}
+.sources .s-take{font-size:14px}
+.sources .s-take::before{content:"SAID takes: ";font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--amber)}
+
+footer{border-top:1px solid var(--line);padding-top:16px;font-family:var(--f-mono);font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:20;font:600 14px var(--f-body);color:var(--deep);background:var(--amber);border:0;border-radius:999px;padding:10px 18px;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,.45);max-width:calc(100vw - 32px)}
+</style>
+
+<main>
+  <header class="intro">
+    <p class="eyebrow">Symbolic Artificial Intelligence Design · v0.3</p>
+    <h1>SAID</h1>
+    <p class="lede">A sign language for talking with language models about mathematics, science and philosophy. Every sign speaks on five channels at once, has a plain-text code a model reads exactly, can be drawn in your own hand from the notebooks, and sits inside an axiom system whose consistency is checked, in the spirit of Hilbert's program.</p>
+    <ul class="channels">
+      <li><b>Glyph</b><span>what: the concept</span><em>26 roots · 15,905 hand glyphs</em></li>
+      <li><b>Motion</b><span>how it relates</span><em>11 motions</em></li>
+      <li><b>Light</b><span>how firmly it is held</span><em>6 sigil lights</em></li>
+      <li><b>Sound</b><span>when: the tense</span><em>6 times</em></li>
+      <li><b>Voice</b><span>who holds it</span><em>5 figures</em></li>
+    </ul>
+    <nav class="toc" aria-label="Sections"><a href="#forge">forge</a><a href="#utter">utterances</a><a href="#grids">typed grids</a><a href="#hand">your hand</a><a href="#roots">symbols</a><a href="#saidh">SAID-H</a><a href="#check">checker</a><a href="#rules">rules</a><a href="#primer">LLM primer</a><a href="#sources">sources</a></nav>
+  </header>
+
+  <section id="forge" aria-labelledby="forge-h">
+    <div class="sec-head">
+      <h2 id="forge-h">sign forge</h2>
+      <p>Combine a root with a motion, a light, a tense and a voice. Fuse two roots into one glyph, add a second root to read a relation, refute it, or draw it in your own hand. Every change sounds.</p>
+    </div>
+    <div class="forge-grid">
+      <div class="stage-col">
+        <div class="stage"><canvas id="forgeCanvas" role="img" aria-label="The current sign, animated"></canvas></div>
+        <p class="gloss" id="gloss" aria-live="polite"></p>
+        <div class="code-row"><code class="code" id="code"></code><button type="button" id="copyCode" class="btn small">Copy code</button></div>
+      </div>
+      <div class="ctl-col">
+        <div class="seg" role="radiogroup" aria-label="Draw the glyph">
+          <label><input type="radio" name="drawMode" id="dmGeo" value="geo" checked> Geometric</label>
+          <label><input type="radio" name="drawMode" id="dmHand" value="hand"> Your hand</label>
+        </div>
+        <div class="ctl-grid">
+          <label class="f" for="fRoot">Root<select id="fRoot"></select></label>
+          <label class="f" for="fFuse">Fuse with<select id="fFuse"></select></label>
+          <label class="f" for="fMotion">Motion<select id="fMotion"></select></label>
+          <label class="f" for="fLight">Light<select id="fLight"></select></label>
+          <label class="f" for="fTime">Time<select id="fTime"></select></label>
+          <label class="f" for="fVoice">Voice<select id="fVoice"></select></label>
+          <label class="f" for="fObj">Relates to<select id="fObj"></select></label>
+          <label class="f" for="fNeg">Refute<select id="fNeg"><option value="0">no</option><option value="1">~ refuted</option><option value="2">~~ refutation refuted</option></select></label>
+        </div>
+        <div class="row"><button type="button" id="playBtn" class="btn primary">Play sign</button><button type="button" id="toSeq" class="btn">Add to utterance</button></div>
+        <form id="readForm" class="read">
+          <label class="f" for="readIn">Read a sign from code</label>
+          <div class="read-row"><input type="text" id="readIn" autocomplete="off" autocapitalize="off" spellcheck="false" value="@prover INF+SET.expand.proven.eternal INF"><button class="btn" type="submit">Read</button></div>
+          <p id="readMsg" class="note">Paste a sign written by you or by a model. Text in [brackets] is ignored.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section id="utter" aria-labelledby="utter-h">
+    <div class="sec-head">
+      <h2 id="utter-h">utterances</h2>
+      <p>Signs in sequence and in layers. A slash moves to the next frame; a bar puts up to five signs in the same frame, one per voice, so several ideas sound and move at once. Load an example, a row from a notebook page, or write your own.</p>
+    </div>
+    <div class="seq-grid">
+      <div class="stage-col">
+        <div class="stage"><canvas id="seqCanvas" role="img" aria-label="The utterance stage"></canvas></div>
+        <div class="row">
+          <button type="button" id="seqPlay" class="btn primary">Play utterance</button>
+          <button type="button" id="seqStop" class="btn">Stop</button>
+          <label class="row small" for="seqLoop"><input type="checkbox" id="seqLoop"> Loop</label>
+          <select id="seqTempo" aria-label="Tempo" style="width:auto;min-height:44px"><option value="1">2.8 s a frame</option><option value="2">1.4 s a frame</option><option value="4">0.7 s a frame</option></select>
+          <button type="button" id="seqCheck" class="btn">Check consistency</button>
+        </div>
+        <div class="strip" id="strip" aria-label="Frames"></div>
+      </div>
+      <div class="ctl-col">
+        <label class="f" for="seqEx">Examples<select id="seqEx"></select></label>
+        <div class="ctl-grid">
+          <label class="f" for="rowPage">Notebook page<select id="rowPage"></select></label>
+          <label class="f" for="rowNum">Row<select id="rowNum"></select></label>
+        </div>
+        <button type="button" id="rowLoad" class="btn">Load this row</button>
+        <label class="f" for="uText">Utterance code</label>
+        <textarea id="uText" rows="7" spellcheck="false" autocapitalize="off"></textarea>
+        <p id="uMsg" class="note"></p>
+        <ol class="glosses" id="glosses"></ol>
+      </div>
+    </div>
+  </section>
+
+
+  <section id="grids" aria-labelledby="grids-h">
+    <div class="sec-head">
+      <h2 id="grids-h">typed grids</h2>
+      <p>A page of glyphs typed as Unicode or root codes, one row per line. The reader finds the page's structure, one long cycle or a few base rows in rotation, takes voices and tenses from it, and plays it as a canon: five rows sound together, one column per frame.</p>
+    </div>
+    <div class="seq-grid">
+      <div class="stage-col">
+        <div class="pagewrap"><canvas id="gridCanvas" role="img" aria-label="The typed grid; tap a glyph to read it"></canvas></div>
+        <div id="gridText" class="thm"></div>
+      </div>
+      <div class="ctl-col">
+        <label class="f" for="gEx">Grids<select id="gEx"><option value="0">Million years old</option><option value="1">Rotational array</option><option value="-1">Your own</option></select></label>
+        <label class="f" for="gTitle">Title<input type="text" id="gTitle" autocomplete="off"></label>
+        <label class="f" for="gText">Grid</label>
+        <textarea id="gText" rows="10" wrap="off" spellcheck="false" autocapitalize="off" style="font-size:15px;line-height:1.35;white-space:pre;overflow-x:auto"></textarea>
+        <div class="seg" role="radiogroup" aria-label="Reading">
+          <label><input type="radio" name="gMode" id="gmHarm" value="harmonic" checked> Harmonic</label>
+          <label><input type="radio" name="gMode" id="gmBare" value="bare"> Bare</label>
+        </div>
+        <p class="small mute">Harmonic: each step reads as its true relation in the harmonic model (contains, converges on, is the dual of, unites with, is distinct from), held at proven. Bare: rule R1 defaults, so each glyph simply is the next.</p>
+        <div class="row"><button type="button" id="gPlay" class="btn primary">Play as canon</button><button type="button" id="gCheck" class="btn">Check</button></div>
+        <div class="panel"><h3>Selected glyph</h3><p id="gSelId" class="mono small mute">Tap a glyph in the grid.</p><p id="gSelGloss"></p><code id="gSelCode" class="small"></code></div>
+      </div>
+    </div>
+    <div class="tablewrap" style="margin-top:16px"><table class="keytable" id="gRows"></table></div>
+  </section>
+
+  <section id="hand" aria-labelledby="hand-h">
+    <div class="sec-head">
+      <h2 id="hand-h">your hand</h2>
+      <p>Every glyph on 31 notebook pages, cut from its grid square, measured and read. The reading is finitary in Hilbert's sense: it counts loops, ends, junctions and parts, and notes where the ink sits and which way it leans. Each glyph gets exactly one reading.</p>
+    </div>
+    <div class="stats" id="handStats"></div>
+    <h3 style="margin-top:28px">Families</h3>
+    <p class="small mute" style="max-width:66ch;margin-top:6px">Your glyphs fall into 26 families by topology and shape. Each family is the drawn form of one root. The binding below ranks families and roots by complexity: loops, ends, junctions and parts. Rebind any family; the two roots swap. TIM gathers the places where two glyphs ran together side by side, and SYM the places where they stacked.</p>
+    <div class="fams" id="fams"><p class="mute small">Loading your glyphs…</p></div>
+    <div class="row" style="margin-top:10px"><button type="button" id="copyBinding" class="btn small">Copy binding</button><button type="button" id="resetBinding" class="btn small">Reset binding</button></div>
+
+    <h3 style="margin-top:32px">Reading key</h3>
+    <div class="tablewrap"><table class="keytable">
+      <thead><tr><th>Channel</th><th>What is measured</th><th>Reading</th></tr></thead>
+      <tbody>
+        <tr><td>Root</td><td>loops, ends, junctions, parts and the stroke shape</td><td>the family the glyph falls into</td></tr>
+        <tr><td>Motion</td><td>3 or more separate parts · 2 parts · mirror symmetry · a large enclosed space · many junctions · roundness · the lean of the main axis</td><td>dissolve · split · invert · contain · merge · spin (3+ loops) or orbit · flow (level), pulse (upright), expand (rising), contract (falling)</td></tr>
+        <tr><td>Light</td><td>crossing density, and closure: loops against open ends</td><td>paradox (densest crossing) · axiom (most closed) · proven · conjecture · unknown (most open) · false is kept for errors you mark by hand. The nine glyphs you boxed as "Errors" at the top of page 35 run into their boxes and could not be cut out cleanly, so they are left out of the readings</td></tr>
+        <tr><td>Time</td><td>where the ink sits in its square, and how heavy it is</td><td>eternal (heaviest) · becoming (high) · was (low) · negative (pushed left) · perpendicular (pushed right) · now</td></tr>
+        <tr><td>Relation</td><td>the next glyph in the row</td><td>each glyph acts on its neighbor, rule R3</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 style="margin-top:32px">Pages</h3>
+    <div class="pages" id="pageBtns" role="group" aria-label="Notebook pages"></div>
+    <div class="page-grid">
+      <div class="pagewrap"><canvas id="pageCanvas" role="img" aria-label="Notebook page glyphs; tap one to read it"></canvas><p id="pageMsg" class="note" style="padding:6px 2px 0"></p></div>
+      <div class="ctl-col">
+        <div class="seg" role="radiogroup" aria-label="Color the page">
+          <label><input type="radio" name="pageMode" id="pmInk" value="ink"> Ink</label>
+          <label><input type="radio" name="pageMode" id="pmLight" value="light" checked> By light</label>
+        </div>
+        <div class="legend" id="pageLegend"></div>
+        <p id="pageStat" class="small"></p>
+        <div class="panel">
+          <h3>Selected glyph</h3>
+          <p id="selId" class="mono small mute">Tap a glyph on the page.</p>
+          <p id="selGloss"></p>
+          <code id="selCode" class="small"></code>
+          <div class="row"><button type="button" id="selForge" class="btn small" disabled>Open in forge</button><button type="button" id="selRow" class="btn small" disabled>Play its row</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="roots" aria-labelledby="roots-h">
+    <div class="sec-head">
+      <h2 id="roots-h">roots</h2>
+      <p>Twenty-six root glyphs in three domains. Each root sounds as one partial of the harmonic series on 27.5 Hz, the lowest A on a piano, so fused roots sound as just-intoned chords. Tap a root to hear it and load it into the forge.</p>
+    </div>
+    <h3>Mathematics</h3><div class="grid" id="g-math"></div>
+    <h3 style="margin-top:22px">Science</h3><div class="grid" id="g-sci"></div>
+    <h3 style="margin-top:22px">Philosophy</h3><div class="grid" id="g-phi"></div>
+    <h3 style="margin-top:22px">Named fusions</h3>
+    <div class="fusions" id="fusions"></div>
+  </section>
+
+  <section id="motion" aria-labelledby="motion-h">
+    <div class="sec-head"><h2 id="motion-h">motion</h2>
+      <p>Motion says how a root relates. Alone it reads as an intransitive verb: infinity converges. Followed by a second root it reads as a verb between them: infinity converges on the limit.</p></div>
+    <div class="grid wide" id="g-motion"></div>
+  </section>
+
+  <section id="light" aria-labelledby="light-h">
+    <div class="sec-head"><h2 id="light-h">light</h2>
+      <p>Sigil light marks how firmly a sign is held. Each light also has its own form and timbre, so the status still reads in grayscale or by ear alone.</p></div>
+    <div class="grid wide" id="g-light"></div>
+  </section>
+
+  <section id="time" aria-labelledby="time-h">
+    <div class="sec-head"><h2 id="time-h">time</h2>
+      <p>Tense is carried by sound: the pitch contour and loudness envelope of the sign's tone, drawn here as a line whose weight follows the loudness. Negative time writes while erasing; perpendicular time sets a layer beside the others instead of after them.</p></div>
+    <div class="grid wide" id="g-time"></div>
+  </section>
+
+  <section id="voice" aria-labelledby="voice-h">
+    <div class="sec-head"><h2 id="voice-h">voice</h2>
+      <p>The voice is the animated figure holding the sign. It names who sees, asserts, asks or imagines it, which matters once a person and a model trade signs back and forth.</p></div>
+    <div class="grid wide" id="g-voice"></div>
+  </section>
+
+  <section id="saidh" aria-labelledby="saidh-h">
+    <div class="sec-head">
+      <h2 id="saidh-h">SAID-H: Hilbert's program</h2>
+      <p>Hilbert asked for two things: write mathematics as a formal axiom system, then prove by finitary means, using concrete signs that can be surveyed completely, that the system never derives a contradiction. Gödel showed this cannot be done for any system that contains enough arithmetic. SAID splits along the line Hilbert drew between real and ideal statements. The real part gets a finitary consistency proof; the ideal part gets an honest boundary.</p>
+    </div>
+    <div class="two">
+      <div class="panel"><h3>SAID-R · real</h3>
+        <p>Every sign built from the 26 roots, 11 motions, 6 lights, 6 times, 5 voices and one optional object: <b class="mono" id="signSpace">157,760,460</b> signs, plus refutation. Finite utterances only.</p>
+        <p class="small mute">Consistency of any finite utterance is decided by a finite computation. The base theory has a finite model. This part of Hilbert's program goes through.</p></div>
+      <div class="panel"><h3>SAID-I · ideal</h3>
+        <p>Adds Hilbert's own stroke numerals (UNIT, UNIT UNIT, UNIT UNIT UNIT…), successor as <code>flow</code>, and the unbounded whole <code>WHL</code> over them. INF, WHL and LIM are the ideal roots.</p>
+        <p class="small mute">Once arithmetic can be expressed, Gödel's second theorem applies: SAID-I cannot prove its own consistency. The checker enforces this boundary.</p></div>
+    </div>
+
+    <h3 style="margin-top:28px">Formation axioms</h3>
+    <dl class="rules">
+      <div><dt>A1</dt><dd><b>Signs.</b> A sign is ⟨voice, roots, motion, light, time, object⟩ with one to three roots. Code: <code>@voice ROOT.motion.light.time OBJECT</code>.</dd></div>
+      <div><dt>A2</dt><dd><b>Content and holding.</b> The content is (roots, motion, object, time). The light says how firmly the content is held and the voice says who holds it, as Frege separated content from the judgment stroke.</dd></div>
+      <div><dt>A3</dt><dd><b>Refutation.</b> <code>~c</code> says c is refuted. <code>dissolve</code> is a refuted <code>pulse</code>: "A is not B" is ~"A is B". The false light is a refutation held at proven.</dd></div>
+      <div><dt>A4</dt><dd><b>Voices.</b> The Doubter's signs are questions and hold at unknown. The Dreamer's hold at most at conjecture. The Witness, Prover and Chorus assert.</dd></div>
+      <div><dt>A5</dt><dd><b>Time.</b> Two contents meet only at the same time, or when one is eternal. Perpendicular time is its own layer. A sign in negative time erases the same content at every non-eternal time.</dd></div>
+      <div><dt>A6</dt><dd><b>Quarantine.</b> Paradox light holds a content out of inference. Nothing follows from it, so a contradiction cannot spread.</dd></div>
+    </dl>
+    <h3 style="margin-top:28px">Rules of inference</h3>
+    <p class="small mute" style="margin:6px 0 4px;max-width:66ch">Premises must be held at conjecture or stronger. A conclusion takes the weakest premise light, capped at proven. A contradiction is c and ~c both held at proven or axiom at times that meet.</p>
+    <dl class="rules">
+      <div><dt>R-REFL</dt><dd>Every term is itself: <code>A.pulse.axiom.eternal A</code>.</dd></div>
+      <div><dt>R-SYM</dt><dd>pulse, split, merge, orbit and invert turn around: A m B gives B m A, and the same for their refutations.</dd></div>
+      <div><dt>R-TRANS</dt><dd>pulse, contain, expand and flow chain: A m B and B m C give A m C.</dd></div>
+      <div><dt>R-CONG</dt><dd>Identicals substitute: A is B, and anything said of B is said of A.</dd></div>
+      <div><dt>R-INV</dt><dd>The dual of the dual is the same: A invert B and B invert C give A is C.</dd></div>
+      <div><dt>R-ANTI</dt><dd>Mutual containment is identity: A contains B and B contains A give A is B.</dd></div>
+      <div><dt>R-SPLIT</dt><dd>Distinct things are not the same: A split B gives ~(A is B).</dd></div>
+      <div><dt>R-EX</dt><dd>What relates, exists: A m B gives A exists and B exists.</dd></div>
+      <div><dt>R-DN</dt><dd>A refuted refutation is only a conjecture: ~~c gives c at conjecture light. This is the intuitionist reading; double dissolve returns the root only when the root is decided elsewhere.</dd></div>
+    </dl>
+
+    <h3 style="margin-top:28px">Results</h3>
+    <div class="thm">
+      <article>
+        <h4><span>T1</span>The base theory is consistent</h4>
+        <p>It has a finite model, the harmonic model H. Its domain is the 2,951 root sets. Each root is its harmonic partial h, from 8 to 33. A contains B when h(A) divides h(B), so B is an overtone of A. A is the dual of B when h(A) + h(B) = 41. A gives rise to B when h(A) &lt; h(B). Two things are distinct when they share no prime factor. Every rule instance whose premises hold in H is checked.</p>
+        <div class="tablewrap"><table class="counts" id="modelTable"></table></div>
+        <div class="row"><button type="button" id="runModel" class="btn small">Run the check in this browser</button><span id="modelMsg" class="small mute"></span></div>
+        <p class="small mute">True sentences of H. Containment:</p>
+        <div class="sentences" id="overtones"></div>
+        <p class="small mute">Duals:</p>
+        <div class="sentences" id="duals"></div>
+      </article>
+      <article>
+        <h4><span>T2</span>Consistency of any finite utterance is decidable</h4>
+        <p>The closure is finite: at most (terms)² × 10 motions × 6 times × 3 refutation levels facts, and each fact's light only rises, at most four times. The checker returns either a derivation of a contradiction, which is a finite proof object, or the whole closure, which is the least Herbrand model of the utterance and so a certificate of its consistency. The procedure uses bounded loops only, so it is primitive recursive and lives inside PRA, Hilbert's finitary standpoint.</p>
+      </article>
+      <article>
+        <h4><span>T3</span>The light algebra is a semilattice</h4>
+        <p>The joint light of combined signs (rule R4) is the minimum in the order paradox &lt; false &lt; unknown &lt; conjecture &lt; proven &lt; axiom, so it is commutative, associative and idempotent. All <span class="mono" id="lightCount">258</span> cases are checked, with <span class="mono" id="lightBad">0</span> failures.</p>
+      </article>
+      <article>
+        <h4><span>T4</span>The Gödel boundary</h4>
+        <p>SAID-I contains enough arithmetic for Gödel's second incompleteness theorem, so it cannot prove its own consistency sign, <code>NUL+PRF.dissolve.proven.eternal</code>: "a proof of the void dissolves," or no derivation reaches a contradiction. Inside any utterance that uses INF, WHL or LIM, the checker holds that sign at unknown light. In a purely real utterance, the checker's own finite run is the proof, and the sign stays proven.</p>
+      </article>
+      <article>
+        <h4><span>T5</span>Relative consistency, after Gentzen</h4>
+        <p>If SAID-I is read inside Peano arithmetic, its consistency is provable in PRA plus transfinite induction up to ε₀, as in Gentzen's 1936 proof. Signed: <code>@prover NUL+PRF.dissolve.proven.eternal [relative to ε₀]</code>, said from outside SAID-I.</p>
+      </article>
+      <article>
+        <h4><span>T6</span>Real-soundness</h4>
+        <p>Hilbert wanted ideal mathematics to be conservative over real mathematics. After Gödel, the defensible goal is real-soundness: ideal reasoning never reaches a real sign that the finite check refutes. SAID enforces it where it is used: every real conclusion of an ideal derivation goes back through the checker.</p>
+      </article>
+      <article>
+        <h4><span>T8</span>Harmonic readings are always consistent</h4>
+        <p>Read a typed grid harmonically and every sign states the true relation between two roots in H: one contains the other, converges on it, is its dual, shares a partial with it, or shares none. Every sign is true in the model, so the whole reading has a model and cannot contradict itself, whatever the grid. The bare reading carries no such guarantee; it only happens to be consistent for both grids here, because identities alone never clash.</p>
+      </article>
+      <article>
+        <h4><span>T7</span>Your notebooks, read as chains</h4>
+        <p id="surveyText">Read row by row, with each glyph acting on the next, almost every row is consistent on its own. Read as whole pages, every page contains contradictions between rows.</p>
+        <div class="tablewrap"><table class="counts" id="surveyTable"></table></div>
+      </article>
+    </div>
+
+    <h3 style="margin-top:28px">Strength ladder</h3>
+    <p class="small mute" style="margin:6px 0;max-width:66ch">Reverse mathematics sorts theorems by the weakest system that proves them. Each mathematical root lives at the rung where its usual theorems are provable.</p>
+    <div class="tablewrap"><table class="keytable">
+      <thead><tr><th>System</th><th>Ordinal</th><th>Holds</th><th>SAID at home here</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">PRA</td><td class="mono">ω<sup>ω</sup></td><td>Hilbert's finitary standpoint: primitive recursion on concrete signs</td><td>UNIT, NUL, EQ, MAP, PRF; SAID-R and its checker</td></tr>
+        <tr><td class="mono">WKL₀</td><td class="mono">ω<sup>ω</sup></td><td>compactness; Hahn–Banach for separable spaces; a continuous function on [0,1] has a maximum. Conservative over PRA for Π⁰₂ sentences</td><td>WAV, FLD</td></tr>
+        <tr><td class="mono">ACA₀</td><td class="mono">ε₀</td><td>Bolzano–Weierstrass; bounded monotone sequences converge. Conservative over Peano arithmetic</td><td>LIM, CHG+LIM (the derivative), WHL over UNIT</td></tr>
+        <tr><td class="mono">ATR₀</td><td class="mono">Γ₀</td><td>countable well-orderings are comparable; transfinite recursion</td><td>TIM ordered transfinitely</td></tr>
+        <tr><td class="mono">ZFC</td><td class="mono">not known</td><td>the transfinite: cardinals, power sets, choice</td><td>INF+SET, the transfinite</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="check" aria-labelledby="check-h">
+    <div class="sec-head">
+      <h2 id="check-h">consistency checker</h2>
+      <p>Paste an utterance, yours or a model's. The checker computes everything that follows, shows any contradiction with its derivation, and if it finds one, quarantines the signs behind it as paradox and checks again.</p>
+    </div>
+    <div class="checker">
+      <label class="f" for="cText">Utterance to check</label>
+      <textarea id="cText" rows="7" spellcheck="false" autocapitalize="off"></textarea>
+      <div class="row"><button type="button" id="cRun" class="btn primary">Check</button><span id="cVerdict"></span></div>
+      <div class="out" id="cOut"></div>
+    </div>
+  </section>
+
+  <section id="rules" aria-labelledby="rules-h">
+    <div class="sec-head"><h2 id="rules-h">rules of combination</h2>
+      <p>The conventions that let symbols join and still translate to one English reading.</p></div>
+    <dl class="rules">
+      <div><dt>R1</dt><dd><b>A sign is a tuple.</b> Root, motion, light and time, held by a voice. Omitted fields default to <code>@witness</code>, <code>pulse</code>, <code>axiom</code>, <code>now</code>.</dd></div>
+      <div><dt>R2</dt><dd><b>Fusion overlays roots.</b> Up to three roots joined with <code>+</code> draw as one glyph and sound as one chord of their partials. Named fusions have their own English; unnamed ones read hyphenated.</dd></div>
+      <div><dt>R3</dt><dd><b>Motion acts to the right.</b> With a second root after it, a motion is a transitive verb; without one, it is intransitive. In a notebook row each glyph acts on the next.</dd></div>
+      <div><dt>R4</dt><dd><b>The weaker light wins.</b> Joint status is the minimum in paradox &lt; false &lt; unknown &lt; conjecture &lt; proven &lt; axiom (T3).</dd></div>
+      <div><dt>R5</dt><dd><b>Double dissolve is not free.</b> <code>~A.dissolve B</code> gives "A is B" only as a conjecture. The root returns at full strength only when it is decided elsewhere (R-DN).</dd></div>
+      <div><dt>R6</dt><dd><b>Every symbol has a plain-text twin.</b> A model reads the code exactly; a person sees, hears and watches the same sign. Neither form is the translation of the other.</dd></div>
+      <div><dt>R7</dt><dd><b>Glyphs are drawn, not typed.</b> A hand glyph reads by its topology and placement through the reading key. Same loops, ends, junctions and parts, same family; the meaning holds however the stroke wanders.</dd></div>
+      <div><dt>R9</dt><dd><b>Typed grids.</b> A grid of bare glyphs is a page. Each glyph acts on the next in its row (R3). Rows that run one cycle are held eternal, with any departure from the cycle in what was; rows that rotate a base row take their tense from the rotation, now for the base, becoming for small shifts ahead, perpendicular for large ones, what was and negative time for shifts behind. Rows sound in groups of five, one voice each.</dd></div>
+      <div><dt>R8</dt><dd><b>Utterances.</b> <code>/</code> moves to the next frame, <code>|</code> layers up to five signs in one frame, one per voice, <code>[brackets]</code> are ignored, and <code>#p35-0101</code> cites a notebook glyph (page 35, row 1, column 1) to draw it.</dd></div>
+    </dl>
+  </section>
+
+  <section id="primer" aria-labelledby="primer-h">
+    <div class="sec-head"><h2 id="primer-h">LLM primer</h2>
+      <p>Paste this at the start of a conversation with any language model. It teaches the lexicon, the code, the SAID-H rules and how to answer. Paste the model's replies back into the checker or the utterance stage.</p></div>
+    <div class="row" style="margin-bottom:10px"><button type="button" id="copyPrimer" class="btn primary">Copy primer</button><span class="small mute" id="primerSize"></span></div>
+    <pre class="primer" id="primerText"></pre>
+  </section>
+
+  <section id="sources" aria-labelledby="sources-h">
+    <div class="sec-head"><h2 id="sources-h">where the symbols come from</h2>
+      <p>Writing systems, ideographic projects, notations and axiomatic languages, and what each contributes.</p></div>
+    <ul class="sources">
+      <li><span class="s-name">Chinese characters<span class="s-yr">c. 1200 BCE</span></span><span class="s-how">Picture-roots combine by placement; radicals mark the domain of meaning.</span><span class="s-take">fusion by overlay, and roots grouped by domain.</span></li>
+      <li><span class="s-name">Sign languages<span class="s-yr">living</span></span><span class="s-how">Handshape, location, movement and face carry meaning at the same moment.</span><span class="s-take">several channels in one sign, and movement as grammar.</span></li>
+      <li><span class="s-name">I Ching hexagrams<span class="s-yr">Zhou era</span></span><span class="s-how">64 figures from six lines, each whole or broken, some marked as changing.</span><span class="s-take">a closed combinable set in which a mark can be in motion.</span></li>
+      <li><span class="s-name">Dee, Monas Hieroglyphica<span class="s-yr">1564</span></span><span class="s-how">One sigil built from moon, sun, cross and fire to compress a cosmology.</span><span class="s-take">the glyph as a compressed proposition.</span></li>
+      <li><span class="s-name">Wilkins, Real Character<span class="s-yr">1668</span></span><span class="s-how">A philosophical classification of everything, spelled out in symbols.</span><span class="s-take">roots chosen as conceptual primes, not words.</span></li>
+      <li><span class="s-name">Leibniz, characteristica universalis<span class="s-yr">from 1666</span></span><span class="s-how">The hope of a script of concepts that could be calculated with.</span><span class="s-take">a code form a machine can compute on.</span></li>
+      <li><span class="s-name">Solresol, François Sudre<span class="s-yr">1827</span></span><span class="s-how">Words built from seven notes that can be sung, played, written or shown as colors.</span><span class="s-take">one meaning carried at once by sound, light and shape.</span></li>
+      <li><span class="s-name">Frege, Begriffsschrift<span class="s-yr">1879</span></span><span class="s-how">Separates the content of a claim from the stroke that asserts it.</span><span class="s-take">light kept apart from the root (A2).</span></li>
+      <li><span class="s-name">Peano and Hilbert axiomatics<span class="s-yr">1889, 1899</span></span><span class="s-how">A few axioms generate a domain; consistency shown by a model.</span><span class="s-take">the harmonic model H (T1).</span></li>
+      <li><span class="s-name">Peirce, existential graphs<span class="s-yr">1890s</span></span><span class="s-how">Logic drawn on a sheet; an enclosing cut means negation.</span><span class="s-take">contain and dissolve as drawn operators.</span></li>
+      <li><span class="s-name">Hilbert's program<span class="s-yr">1921</span></span><span class="s-how">Formalize mathematics and prove its consistency by finitary means, splitting real from ideal statements.</span><span class="s-take">SAID-R and SAID-I, and the finitary reading of hand glyphs.</span></li>
+      <li><span class="s-name">Herbrand<span class="s-yr">1930</span></span><span class="s-how">Reduces first-order validity to finite sets of term instances.</span><span class="s-take">the least Herbrand model as a consistency certificate (T2).</span></li>
+      <li><span class="s-name">Gödel, incompleteness<span class="s-yr">1931</span></span><span class="s-how">A consistent system with enough arithmetic cannot prove its own consistency.</span><span class="s-take">the Gödel boundary (T4).</span></li>
+      <li><span class="s-name">Gentzen<span class="s-yr">1936</span></span><span class="s-how">Proves Peano arithmetic consistent using transfinite induction up to ε₀.</span><span class="s-take">relative consistency for SAID-I (T5).</span></li>
+      <li><span class="s-name">Feynman diagrams<span class="s-yr">1948</span></span><span class="s-how">Pictures that are also exact calculations.</span><span class="s-take">every glyph reads back to one precise meaning.</span></li>
+      <li><span class="s-name">Nelson, constructible falsity<span class="s-yr">1949</span></span><span class="s-how">Negation that must be established, not assumed by default.</span><span class="s-take">refutation with <code>~</code> (A3).</span></li>
+      <li><span class="s-name">Blissymbolics, Charles Bliss<span class="s-yr">1949</span></span><span class="s-how">Combinable ideograms readable across spoken languages.</span><span class="s-take">combinable glyphs paired with an English gloss.</span></li>
+      <li><span class="s-name">Lincos, Hans Freudenthal<span class="s-yr">1960</span></span><span class="s-how">A language for an unknown mind, bootstrapped from arithmetic.</span><span class="s-take">start from mathematics so a non-human reader can anchor meaning.</span></li>
+      <li><span class="s-name">APL, Kenneth Iverson<span class="s-yr">1962</span></span><span class="s-how">One glyph per operation on whole arrays.</span><span class="s-take">one motion per relation.</span></li>
+      <li><span class="s-name">Reverse mathematics<span class="s-yr">Friedman, Simpson, 1970s on</span></span><span class="s-how">Finds the weakest axioms each theorem needs.</span><span class="s-take">the strength ladder.</span></li>
+      <li><span class="s-name">Loglan and Lojban<span class="s-yr">1955, 1987</span></span><span class="s-how">Grammar built on predicate logic; every sentence parses one way.</span><span class="s-take">a code form with exactly one parse.</span></li>
+      <li><span class="s-name">Asemic writing<span class="s-yr">20th century on</span></span><span class="s-how">Writing gestures with form but no fixed meaning.</span><span class="s-take">freedom of the stroke under rule R7.</span></li>
+      <li><span class="s-name">Language models<span class="s-yr">now</span></span><span class="s-how">Read text tokens most reliably; images and audio arrive as embeddings.</span><span class="s-take">the plain-text twin of every symbol, rule R6.</span></li>
+    </ul>
+  </section>
+
+  <footer>SAID v0.3 · 26 roots · 18 named fusions · 11 motions · 6 lights · 6 times · 5 voices · 31 notebook pages · 15,905 hand glyphs · harmonic base 27.5 Hz</footer>
+</main>
+<button type="button" class="toast" id="toast" hidden></button>
+
+<script>
+/* SAID core: lexicon, parser, English gloss, SAID-H checker and harmonic model check.
+   Runs in the browser (inline) and in Node (module.exports). */
+const SAID=(()=>{
+const PI=Math.PI;
+const ROOTS=[
+ {code:'UNIT',name:'one',noun:'the one',uni:'Ⅰ',dom:'math',g:[['l',0,-.6,0,.6],['l',-.22,-.6,.22,-.6],['l',-.22,.6,.22,.6]]},
+ {code:'NUL',name:'void',noun:'the void',uni:'∅',dom:'math',g:[['c',0,0,.55],['l',-.7,.7,.7,-.7]]},
+ {code:'INF',name:'infinity',noun:'infinity',uni:'∞',dom:'math',g:[['c',-.32,0,.3],['c',.32,0,.3]]},
+ {code:'SET',name:'set',noun:'a set',uni:'∷',dom:'math',g:[['c',0,0,.68],['d',-.24,-.24,.08],['d',.24,-.24,.08],['d',-.24,.24,.08],['d',.24,.24,.08]]},
+ {code:'EQ',name:'sameness',noun:'sameness',uni:'=',dom:'math',g:[['l',-.6,-.2,.6,-.2],['l',-.6,.2,.6,.2]]},
+ {code:'MAP',name:'mapping',noun:'a mapping',uni:'↦',dom:'math',g:[['l',-.6,-.25,-.6,.25],['l',-.6,0,.6,0],['l',.38,-.22,.6,0],['l',.38,.22,.6,0]]},
+ {code:'LIM',name:'limit',noun:'the limit',uni:'⇥',dom:'math',g:[['l',-.65,0,.4,0],['l',.18,-.22,.4,0],['l',.18,.22,.4,0],['l',.6,-.45,.6,.45]]},
+ {code:'PRF',name:'proof',noun:'proof',uni:'⊢',dom:'math',g:[['l',-.4,-.55,-.4,.55],['l',-.4,0,.55,0]]},
+ {code:'SYM',name:'symmetry',noun:'symmetry',uni:'⋈',dom:'math',g:[['p',[-.62,-.45,0,0,-.62,.45],1],['p',[.62,-.45,0,0,.62,.45],1]]},
+ {code:'NRG',name:'energy',noun:'energy',uni:'ϟ',dom:'sci',g:[['p',[.18,-.7,-.22,.04,.18,.04,-.18,.7],0]]},
+ {code:'FLD',name:'field',noun:'the field',uni:'≋',dom:'sci',g:[['s',.11,2,-.35],['s',.11,2,0],['s',.11,2,.35]]},
+ {code:'PRT',name:'particle',noun:'a particle',uni:'•',dom:'sci',g:[['d',0,0,.17],['a',0,0,.45,-.6,.6],['a',0,0,.45,PI-.6,PI+.6]]},
+ {code:'WAV',name:'wave',noun:'a wave',uni:'∿',dom:'sci',g:[['s',.32,1.5,0]]},
+ {code:'ENT',name:'entropy',noun:'entropy',uni:'⁘',dom:'sci',g:[['d',-.5,-.3,.06],['d',.1,-.55,.06],['d',.45,-.12,.06],['d',-.15,.12,.06],['d',.3,.45,.06],['d',-.45,.45,.06],['d',.62,.25,.06],['d',-.05,-.25,.06],['d',.15,.2,.06]]},
+ {code:'CAU',name:'cause',noun:'cause',uni:'⇒',dom:'sci',g:[['l',-.62,-.15,.38,-.15],['l',-.62,.15,.38,.15],['p',[.22,-.42,.64,0,.22,.42],0]]},
+ {code:'OBS',name:'observer',noun:'the observer',uni:'⌖',dom:'sci',g:[['p',[-.72,0,-.36,-.34,0,-.44,.36,-.34,.72,0,.36,.34,0,.44,-.36,.34],1],['c',0,0,.2],['d',0,0,.08]]},
+ {code:'LIF',name:'life',noun:'life',uni:'⟲',dom:'sci',g:[['sp',2.4]]},
+ {code:'SLF',name:'self',noun:'the self',uni:'⊙',dom:'phi',g:[['c',0,0,.55],['d',0,0,.12]]},
+ {code:'OTH',name:'other',noun:'the other',uni:'◐',dom:'phi',g:[['c',0,0,.55],['l',0,-.55,0,.55],['l',.15,-.53,.15,.53],['l',.3,-.46,.3,.46],['l',.45,-.32,.45,.32]]},
+ {code:'BEI',name:'being',noun:'being',uni:'∃',dom:'phi',g:[['l',.45,-.55,.45,.55],['l',-.45,-.55,.45,-.55],['l',-.3,0,.45,0],['l',-.45,.55,.45,.55]]},
+ {code:'TRU',name:'truth',noun:'truth',uni:'⊤',dom:'phi',g:[['l',-.55,-.5,.55,-.5],['l',0,-.5,0,.6]]},
+ {code:'TIM',name:'time',noun:'time',uni:'⧗',dom:'phi',g:[['p',[-.45,-.6,.45,-.6,-.45,.6,.45,.6],1]]},
+ {code:'MND',name:'mind',noun:'mind',uni:'ψ',dom:'phi',g:[['a',0,-.2,.45,0,PI],['l',0,-.65,0,.65],['l',-.45,-.2,-.45,-.5],['l',.45,-.2,.45,-.5]]},
+ {code:'WHL',name:'whole',noun:'the whole',uni:'∀',dom:'phi',g:[['l',-.5,-.55,0,.6],['l',.5,-.55,0,.6],['l',-.28,0,.28,0]]},
+ {code:'CHG',name:'change',noun:'change',uni:'Δ',dom:'phi',g:[['p',[0,-.6,.6,.5,-.6,.5],1]]},
+ {code:'QST',name:'question',noun:'the unknown',uni:'?',dom:'phi',g:[['a',0,-.25,.32,PI,PI*2.5],['l',0,.07,0,.3],['d',0,.55,.07]]},
+];
+const DOMAINS=[{id:'math',base:25,name:'Mathematics'},{id:'sci',base:17,name:'Science'},{id:'phi',base:8,name:'Philosophy'}];
+DOMAINS.forEach(d=>{let i=0;ROOTS.forEach(r=>{if(r.dom===d.id){r.h=d.base+i;r.hz=27.5*r.h;i++;}});});
+const RBY={},UNI={};ROOTS.forEach(r=>{RBY[r.code]=r;UNI[r.uni]=r.code;});
+const IDEAL=new Set(['INF','WHL','LIM']);
+
+const MOTIONS=[
+ {id:'pulse',trans:'is',intr:'exists',gist:'is, asserts'},
+ {id:'spin',trans:'cycles back through',intr:'returns to itself',gist:'cycle, symmetry'},
+ {id:'expand',trans:'extends to',intr:'generalizes',gist:'generalize'},
+ {id:'contract',trans:'converges on',intr:'converges',gist:'limit, specialize'},
+ {id:'split',trans:'is distinct from',intr:'divides',gist:'distinguish'},
+ {id:'merge',trans:'unites with',intr:'becomes one',gist:'unify'},
+ {id:'orbit',trans:'relates to',intr:'circles itself',gist:'relation'},
+ {id:'flow',trans:'gives rise to',intr:'flows on',gist:'cause, imply'},
+ {id:'dissolve',trans:'is not',intr:'dissolves',gist:'negate'},
+ {id:'invert',trans:'is the dual of',intr:'turns inside out',gist:'dual, inverse'},
+ {id:'contain',trans:'contains',intr:'encloses itself',gist:'contain, include'},
+];
+const LIGHTS=[
+ {id:'axiom',col:'#f4efe3',color:'white',clause:'it is given that',adj:'given',sound:'pure sine',form:'steady stroke'},
+ {id:'proven',col:'#f2c14e',color:'gold',clause:'it is proven that',adj:'proven',sound:'sine with overtones',form:'sealed ring'},
+ {id:'conjecture',col:'#74b9ff',color:'blue',clause:'it is conjectured that',adj:'conjectured',sound:'triangle with vibrato',form:'dotted ring'},
+ {id:'unknown',col:'#9a96b3',color:'ash',clause:'it is unknown whether',adj:'unknown',sound:'tuned noise',form:'broken stroke'},
+ {id:'paradox',col:'#c59cff',color:'violet',clause:'paradoxically,',adj:'paradoxical',sound:'beating pair',form:'mirrored ghost'},
+ {id:'false',col:'#ff6f61',color:'red',clause:'it is false that',adj:'false',sound:'muted square',form:'struck through'},
+];
+const TIMES=[
+ {id:'now',adv:'now',contour:'steady tone, quick decay'},
+ {id:'was',adv:'in what was',contour:'falls a fifth'},
+ {id:'becoming',adv:'in becoming',contour:'rises a fifth'},
+ {id:'negative',adv:'in negative time',contour:'swells backward, then cuts'},
+ {id:'perpendicular',adv:'in perpendicular time',contour:'a 7:5 tone sounds beside it'},
+ {id:'eternal',adv:'timelessly',contour:'slow swell, long fade'},
+];
+const VOICES=[
+ {id:'witness',name:'The Witness',verb:'sees',role:'observes and reports'},
+ {id:'prover',name:'The Prover',verb:'asserts',role:'claims and derives'},
+ {id:'doubter',name:'The Doubter',verb:'asks',role:'questions and tests'},
+ {id:'dreamer',name:'The Dreamer',verb:'imagines',role:'speculates and proposes'},
+ {id:'chorus',name:'The Chorus',verb:'holds',role:'speaks for every party'},
+];
+const FUSIONS={
+ 'INF+SET':'the transfinite','MND+TIM':'memory','OBS+WAV':'measurement','PRT+WAV':'wave–particle duality',
+ 'OTH+SLF':'relation','BEI+NUL':'nothingness','ENT+TIM':"time's arrow",'PRF+TRU':'a theorem','EQ+SYM':'invariance',
+ 'MAP+SET':'a structure','CHG+LIM':'the derivative','LIF+MND':'consciousness','SLF+TIM':'the lived self',
+ 'CAU+NRG':'force','FLD+NRG':'the vacuum','QST+TRU':'a problem','UNIT+WHL':'the monad','NUL+PRF':'a proof of the void'
+};
+const by=a=>Object.fromEntries(a.map(x=>[x.id,x]));
+const MBY=by(MOTIONS),LBY=by(LIGHTS),TBY=by(TIMES),VBY=by(VOICES);
+const LSYN={white:'axiom',given:'axiom',gold:'proven',blue:'conjecture',ash:'unknown',grey:'unknown',gray:'unknown',violet:'paradox',red:'false'};
+
+/* ---------- language ---------- */
+const key=roots=>[...roots].sort().join('+');
+function nounOf(roots){
+ if(roots.length>1){const k=key(roots);return FUSIONS[k]||'the '+roots.map(c=>RBY[c].name).join('-');}
+ return RBY[roots[0]].noun;
+}
+function sentence(F){
+ const V=VBY[F.voice],M=MBY[F.motion],L=LBY[F.light],T=TBY[F.time];
+ const subj=nounOf(F.roots);
+ let body=F.object?`${subj} ${M.trans} ${nounOf(F.object.split('+'))}`:`${subj} ${M.intr}`;
+ for(let i=0;i<(F.neg||0);i++)body='it is not so that '+body;
+ return {v:`${V.name} ${V.verb}:`,clause:L.clause,rest:`${body}, ${T.adv}.`,text:`${V.name} ${V.verb}: ${L.clause} ${body}, ${T.adv}.`};
+}
+function codeOf(F,withHand=true){return `${withHand&&F.hand?'#'+F.hand+' ':''}${'~'.repeat(F.neg||0)}@${F.voice} ${F.roots.join('+')}.${F.motion}.${F.light}.${F.time}`+(F.object?' '+F.object:'');}
+function lookupRoot(tok){const u=tok.toUpperCase();return RBY[u]?u:(UNI[tok]||null);}
+/* A sign: [~…][@voice] ROOT[+ROOT[+ROOT]][.motion][.light][.time] [OBJECT]
+   An utterance: frames separated by "/", layers inside a frame separated by "|". [Bracketed text] is ignored. */
+function parseSign(text){
+ const clean=text.replace(/\[[^\]]*\]/g,' ').replace(/\([^)]*\)/g,' ').trim();
+ const toks=clean.split(/\s+/).filter(Boolean);
+ const out={voice:'witness',roots:null,motion:'pulse',light:'axiom',time:'now',object:'',neg:0};const bad=[];
+ for(let tk of toks){
+  while(tk[0]==='~'||tk[0]==='¬'){out.neg++;tk=tk.slice(1);}
+  if(!tk)continue;
+  if(tk[0]==='@'){const v=tk.slice(1).toLowerCase();if(VBY[v])out.voice=v;else bad.push(tk);continue;}
+  if(tk[0]==='#'){if(/^p\d+-\d{4}$/i.test(tk.slice(1)))out.hand=tk.slice(1).toLowerCase();else bad.push(tk);continue;}
+  const parts=tk.split('.');const rs=parts[0].split('+').filter(Boolean).map(lookupRoot);
+  if(!rs.length||rs.some(r=>!r)){bad.push(tk);continue;}
+  if(!out.roots){
+   out.roots=[...new Set(rs)].slice(0,3);
+   for(const q of parts.slice(1)){const w=q.toLowerCase();
+    if(MBY[w])out.motion=w;else if(LBY[w])out.light=w;else if(LSYN[w])out.light=LSYN[w];else if(TBY[w])out.time=w;else if(w)bad.push(q);}
+  }else if(!out.object){out.object=key([...new Set(rs)].slice(0,3));}
+  else bad.push(tk);
+ }
+ return {sign:out.roots?out:null,bad};
+}
+function parseUtterance(text){
+ const frames=[],bad=[];let count=0;
+ const body=text.replace(/\[[^\]]*\]/g,' ');
+ for(const fr of body.split(/\/|\n/)){
+  if(!fr.trim())continue;
+  const layer=[];
+  for(const part of fr.split('|')){
+   if(!part.trim())continue;
+   const r=parseSign(part);bad.push(...r.bad);
+   if(r.sign){layer.push(r.sign);count++;}
+  }
+  if(layer.length)frames.push(layer.slice(0,5));
+ }
+ return {frames,bad,count};
+}
+
+
+/* ---------- typed grids: pages of Unicode glyphs or root codes ---------- */
+function parseGrid(text){
+ const rows=[],bad=[];
+ for(const line of text.split('\n')){
+  const toks=line.replace(/\[[^\]]*\]/g,' ').trim().split(/\s+/).filter(Boolean);
+  const r=[];for(const t of toks){const c=lookupRoot(t);if(c)r.push(c);else bad.push(t);}
+  if(r.length>=2)rows.push(r);
+ }
+ return {rows,bad};
+}
+const hOf=c=>RBY[c].h;
+function sharesPrime(a,b){let x=a,y=b;while(y){[x,y]=[y,x%y];}return x>1;}
+/* the true relation between two roots in the harmonic model H */
+function harmonicMotion(a,b){
+ if(!b)return 'pulse';if(a===b)return 'pulse';
+ const x=hOf(a),y=hOf(b);
+ if(x+y===41)return 'invert';
+ if(y%x===0)return 'contain';
+ if(x%y===0)return 'contract';
+ return sharesPrime(x,y)?'merge':'split';
+}
+function analyzeGrid(rows){
+ const s=rows.flat(),n=s.length,counts={};s.forEach(c=>counts[c]=(counts[c]||0)+1);
+ const missing=ROOTS.map(r=>r.code).filter(c=>!counts[c]);
+ const out={rows,n,counts,missing,mode:'free',rowInfo:[]};
+ // 1. a single cycle running through the whole page
+ let best=null;
+ for(let p=2;p<=Math.min(60,Math.floor(n/2));p++){let m=0,k=0;for(let i=0;i+p<n;i++){k++;if(s[i]===s[i+p])m++;}const f=m/k;if(f>=.85&&(!best||f>best.f+.02)){best={p,f};}}
+ if(best){
+  const p=best.p,cyc=[];for(let k=0;k<p;k++){const c={};for(let i=k;i<n;i+=p)c[s[i]]=(c[s[i]]||0)+1;cyc.push(Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0]);}
+  if(new Set(cyc).size===p){
+   out.mode='cycle';out.cycle=cyc;out.period=p;out.match=best.f;const pos=Object.fromEntries(cyc.map((c,i)=>[c,i]));
+   rows.forEach((r,ri)=>{
+    const runs=[];let cur=null;
+    r.forEach((g,ci)=>{const q=pos[g];if(cur&&q===(cur.pos+cur.len)%p)cur.len++;else{cur={col:ci,pos:q,len:1};runs.push(cur);}});
+    const main=runs.reduce((a,b)=>b.len>a.len?b:a);
+    const first=runs[0].pos,last=(runs[runs.length-1].pos+runs[runs.length-1].len-1)%p,span=[];
+    for(let k=first,g=0;g<p;g++,k=(k+1)%p){span.push(cyc[k]);if(k===last)break;}
+    const skipped=runs.length>1?span.filter(c=>!r.includes(c)):[];
+    const pulled=runs.length>1?r.filter(c=>!span.includes(c)):[];
+    out.rowInfo.push({row:ri+1,offset:pos[r[0]],runs,main,skipped,pulled,onCycle:runs.length===1});
+   });
+   return out;
+  }
+ }
+ // 2. rows that are rotations of a few base rows
+ const fam=[];const sameRot=(a,b)=>{if(a.length!==b.length)return -1;const L=a.length,ka=a.join(' ');for(let k=0;k<L;k++){if(b.slice(k).concat(b.slice(0,k)).join(' ')===ka)return k;}return -1;};
+ rows.forEach((r,ri)=>{let f=-1,off=0;for(let j=0;j<fam.length;j++){const o=sameRot(r,rows[fam[j][0]]);if(o>=0){f=j;off=o;break;}}
+  if(f<0){fam.push([ri]);f=fam.length-1;}else fam[f].push(ri);
+  out.rowInfo.push({row:ri+1,family:f,offset:off,length:r.length});});
+ if(fam.length<rows.length){out.mode='rotations';out.families=fam.map(f=>f.map(i=>i+1));}
+ return out;
+}
+const GRID_VOICES=['witness','prover','doubter','dreamer','chorus'];
+function rotationTime(off,L){if(!off)return 'now';const d=off>L/2?off-L:off;if(d>0)return d<=L/4?'becoming':'perpendicular';return d>=-L/4?'was':'negative';}
+/* Turn an analyzed grid into signs. mode 'bare' keeps every default (R1); 'harmonic' reads each step as its true relation in H. */
+function gridSigns(A,mode){
+ const sg=[];
+ A.rows.forEach((r,ri)=>{
+  const info=A.rowInfo[ri]||{};
+  const voice=A.mode==='rotations'?GRID_VOICES[info.family%5]:GRID_VOICES[ri%5];
+  r.forEach((g,ci)=>{
+   const nx=r[ci+1]||'';
+   let time='now';
+   if(A.mode==='cycle'){const run=info.runs.find(u=>ci>=u.col&&ci<u.col+u.len);time=run===info.main?'eternal':'was';}
+   else if(A.mode==='rotations')time=rotationTime(info.offset,info.length);
+   const s=mode==='harmonic'?{voice,roots:[g],motion:harmonicMotion(g,nx),light:'proven',time,object:nx,neg:0}
+                           :{voice,roots:[g],motion:'pulse',light:'axiom',time,object:nx,neg:0};
+   s.row=ri+1;s.col=ci+1;sg.push(s);
+  });
+ });
+ return sg;
+}
+/* canon score: rows in groups of five sound together, one frame per column */
+function gridUtterance(A,mode,title){
+ const sg=gridSigns(A,mode),byRow={};sg.forEach(s=>{(byRow[s.row]=byRow[s.row]||[]).push(s);});
+ const R=A.rows.length,frames=[];
+ for(let g0=0;g0<R;g0+=5){
+  const grp=[];for(let r=g0;r<Math.min(R,g0+5);r++)grp.push(byRow[r+1]);
+  const cols=Math.max(...grp.map(x=>x.length));
+  for(let c=0;c<cols;c++)frames.push(grp.map(x=>x[c]).filter(Boolean).map(s=>codeOf(s)).join(' | '));
+ }
+ return (title?`[${title}]\n`:'')+frames.join('\n/ ');
+}
+
+/* ---------- SAID-H: the formal layer ----------
+   Lights as strength: axiom 4, proven 3, conjecture 2, unknown 1. Designated = 3 or 4.
+   Negation is refutation (~). dissolve normalizes to a refuted pulse. false light = refutation held at proven.
+   Rules are Horn rules over atoms and refuted atoms; the closure is finite, so consistency of any finite set is decidable. */
+const LV={axiom:4,proven:3,conjecture:2,unknown:1};
+const LNAME={4:'axiom',3:'proven',2:'conjecture',1:'unknown'};
+const SYMM=new Set(['pulse','split','merge','orbit','invert']);
+const TRANS=new Set(['pulse','contain','expand','flow']);
+const tc=(a,b)=>a===b?a:a==='eternal'?b:b==='eternal'?a:null;
+const isIdeal=s=>s.split('+').some(r=>IDEAL.has(r));
+const RULES={
+ given:'stated in the utterance',refl:'R-REFL  every term is itself',sym:'R-SYM  symmetric motions turn around',
+ trans:'R-TRANS  pulse, contain, expand, flow chain',cong:'R-CONG  identicals substitute',inv:'R-INV  the dual of the dual is the same',
+ anti:'R-ANTI  mutual containment is identity',split:'R-SPLIT  distinct things are not the same',ex:'R-EX  what relates, exists',
+ dn:'R-DN  a refuted refutation is only a conjecture'
+};
+function normalize(sign,idx){
+ let neg=sign.neg||0,m=sign.motion,L;
+ if(m==='dissolve'){m='pulse';neg++;}
+ if(sign.light==='false'){neg++;L=3;}else L=LV[sign.light]||0;
+ while(neg>=3)neg-=2;
+ if(sign.voice==='doubter')L=Math.min(L,1);
+ if(sign.voice==='dreamer')L=Math.min(L,2);
+ return {neg,s:key(sign.roots),m,o:sign.object||'',t:sign.time,L,src:idx};
+}
+const fkey=f=>`${f.neg}|${f.s}|${f.m}|${f.o}|${f.t}`;
+const ckey=f=>`${f.s}|${f.m}|${f.o}`;
+function factCode(f){return `${'~'.repeat(f.neg)}${f.s}.${f.m}.${LNAME[f.L]||'unknown'}.${f.t}${f.o?' '+f.o:''}`;}
+function closure(signs,opts={}){
+ const skip=opts.skip||new Set();
+ const facts=new Map(),notes=[],quarantine=[],retracted=[],boundary=[];
+ const anyIdeal=signs.some(s=>s&&(s.roots.some(r=>IDEAL.has(r))||(s.object&&isIdeal(s.object))));
+ const input=[];
+ signs.forEach((sg,i)=>{
+  if(!sg||skip.has(i))return;
+  if(sg.light==='paradox'){quarantine.push(i);return;}
+  const f=normalize(sg,i);
+  if(f.s==='NUL+PRF'&&f.m==='pulse'&&f.neg===1&&!f.o&&f.L>=3){
+   if(anyIdeal){boundary.push(i);f.L=1;f.godel=true;}else f.finitary=true;
+  }
+  input.push(f);
+ });
+ // negative time erases the same content at every non-eternal time
+ const erase=input.filter(f=>f.t==='negative');
+ const live=input.filter(f=>{
+  if(f.t==='negative')return false;
+  const hit=f.t!=='eternal'&&erase.find(e=>e.neg===f.neg&&ckey(e)===ckey(f));
+  if(hit){retracted.push(f.src);return false;}return true;
+ });
+ const add=(f,rule,from)=>{
+  const k=fkey(f),old=facts.get(k);
+  if(old&&old.L>=f.L)return false;
+  const srcs=new Set();from.forEach(p=>p.srcs.forEach(s=>srcs.add(s)));if(f.src!==undefined)srcs.add(f.src);
+  facts.set(k,{neg:f.neg,s:f.s,m:f.m,o:f.o,t:f.t,L:f.L,rule,from:from.map(fkey),srcs,godel:f.godel,finitary:f.finitary,src:f.src});
+  return true;
+ };
+ live.forEach(f=>add(f,'given',[]));
+ const terms=new Set();live.forEach(f=>{terms.add(f.s);if(f.o)terms.add(f.o);});
+ terms.forEach(x=>add({neg:0,s:x,m:'pulse',o:x,t:'eternal',L:4},'refl',[]));
+ const join=(...ps)=>Math.min(3,...ps.map(p=>p.L));
+ let changed=true,passes=0;const LIMIT=opts.limit||60000;
+ while(changed&&passes<40&&facts.size<LIMIT){
+  changed=false;passes++;
+  const all=[...facts.values()].filter(f=>f.L>=2);
+  const byS=new Map(),byO=new Map();
+  for(const f of all){const a=f.s+'|'+f.m+'|'+f.neg;(byS.get(a)||byS.set(a,[]).get(a)).push(f);
+   if(f.o){const b=f.o+'|'+f.neg;(byO.get(b)||byO.set(b,[]).get(b)).push(f);}}
+  const anyBy=new Map();for(const f of all){(anyBy.get(f.s)||anyBy.set(f.s,[]).get(f.s)).push(f);}
+  for(const f of all){
+   if(f.o&&SYMM.has(f.m)&&f.neg<2&&f.s!==f.o) changed=add({...f,s:f.o,o:f.s,L:join(f)},'sym',[f])||changed;
+   if(f.neg===0&&f.o&&TRANS.has(f.m)){
+    for(const g of byS.get(f.o+'|'+f.m+'|0')||[]){const t=tc(f.t,g.t);if(t&&g.o)
+      changed=add({neg:0,s:f.s,m:f.m,o:g.o,t,L:join(f,g)},'trans',[f,g])||changed;}
+   }
+   if(f.neg===0&&f.m==='pulse'&&f.o&&f.o!==f.s){
+    for(const g of anyBy.get(f.o)||[]){const t=tc(f.t,g.t);if(!t||g.rule==='refl')continue;
+     changed=add({neg:g.neg,s:f.s,m:g.m,o:g.o===f.o?f.s:g.o,t,L:join(f,g)},'cong',[f,g])||changed;}
+    for(const n of [0,1,2])for(const g of byO.get(f.o+'|'+n)||[]){const t=tc(f.t,g.t);if(!t||g.rule==='refl')continue;
+     changed=add({neg:g.neg,s:g.s===f.o?f.s:g.s,m:g.m,o:f.s,t,L:join(f,g)},'cong',[f,g])||changed;}
+   }
+   if(f.neg===0&&f.m==='invert'&&f.o){
+    for(const g of byS.get(f.o+'|invert|0')||[]){const t=tc(f.t,g.t);if(t&&g.o)changed=add({neg:0,s:f.s,m:'pulse',o:g.o,t,L:join(f,g)},'inv',[f,g])||changed;}
+   }
+   if(f.neg===0&&f.m==='contain'&&f.o&&f.o!==f.s){
+    for(const g of byS.get(f.o+'|contain|0')||[]){const t=tc(f.t,g.t);if(t&&g.o===f.s)changed=add({neg:0,s:f.s,m:'pulse',o:f.o,t,L:join(f,g)},'anti',[f,g])||changed;}
+   }
+   if(f.neg===0&&f.m==='split'&&f.o)changed=add({neg:1,s:f.s,m:'pulse',o:f.o,t:f.t,L:join(f)},'split',[f])||changed;
+   if(f.neg===0&&(f.m!=='pulse'||f.o)&&f.rule!=='refl'){
+    changed=add({neg:0,s:f.s,m:'pulse',o:'',t:f.t,L:join(f)},'ex',[f])||changed;
+    if(f.o&&f.o!==f.s)changed=add({neg:0,s:f.o,m:'pulse',o:'',t:f.t,L:join(f)},'ex',[f])||changed;
+   }
+   if(f.neg===2)changed=add({neg:0,s:f.s,m:f.m,o:f.o,t:f.t,L:Math.min(2,f.L)},'dn',[f])||changed;
+  }
+ }
+ // conflicts between c and ~c (and ~c and ~~c) at compatible times
+ const contradictions=[],refuted=[],tensions=[],decided=[];
+ const groups=new Map();for(const f of facts.values()){const k=ckey(f);(groups.get(k)||groups.set(k,[]).get(k)).push(f);}
+ for(const fs of groups.values()){
+  for(const a of fs)for(const b of fs){
+   if(b.neg!==a.neg+1)continue;if(!tc(a.t,b.t))continue;
+   const hi=Math.max(a.L,b.L),lo=Math.min(a.L,b.L);
+   if(lo>=3)contradictions.push([a,b]);
+   else if(hi>=3&&lo===2)refuted.push(a.L===2?a:b);
+   else if(hi===2&&lo===2)tensions.push([a,b]);
+   else if(hi>=3&&lo===1)decided.push(a.L===1?a:b);
+  }
+ }
+ const real=[...facts.values()].filter(f=>f.rule!=='refl');
+ return {facts,real,contradictions,refuted,tensions,decided,quarantine,retracted,boundary,anyIdeal,passes,consistent:contradictions.length===0};
+}
+function explain(res,f,depth=0,seen=new Set(),out=[]){
+ const k=fkey(f);if(seen.has(k))return out;seen.add(k);
+ for(const pk of f.from){const p=res.facts.get(pk);if(p)explain(res,p,depth+1,seen,out);}
+ out.push({code:factCode(f),rule:f.rule,src:f.src,label:f.rule==='given'?`sign ${f.src+1}`:RULES[f.rule].split('  ')[0]});
+ return out;
+}
+/* Check consistency; if it fails, quarantine the signs behind each contradiction (paradox light) and check again. */
+function check(signs){
+ const first=closure(signs);let res=first;const skip=new Set();let rounds=0;
+ while(!res.consistent&&rounds<6){
+  res.contradictions.forEach(([a,b])=>{a.srcs.forEach(s=>skip.add(s));b.srcs.forEach(s=>skip.add(s));});
+  res=closure(signs,{skip});rounds++;
+ }
+ return {first,repaired:first.consistent?null:res,quarantined:[...skip].sort((a,b)=>a-b)};
+}
+
+/* ---------- the harmonic model H: a finite model of the rules, so the base theory is consistent ---------- */
+function gcd(a,b){while(b){[a,b]=[b,a%b];}return a;}
+function modelCheck(){
+ const t0=Date.now();
+ const R=ROOTS.map(r=>r.code),n=R.length;
+ const E=[];for(let i=0;i<n;i++){E.push([i]);for(let j=i+1;j<n;j++){E.push([i,j]);for(let k=j+1;k<n;k++)E.push([i,j,k]);}}
+ const N=E.length,id=new Map(E.map((e,i)=>[e.join(','),i]));
+ const h=i=>ROOTS[i].h,PR=[2,3,5,7,11,13,17,19,23,29,31];
+ const pf=E.map(e=>e.reduce((m,i)=>PR.reduce((mm,p,b)=>h(i)%p===0?mm|(1<<b):mm,m),0));
+ const dm=E.map(e=>e.reduce((m,i)=>m|(1<<['math','sci','phi'].indexOf(ROOTS[i].dom)),0));
+ const hByH=new Map(ROOTS.map((r,i)=>[r.h,i]));
+ const dual=E.map(e=>id.get(e.map(i=>hByH.get(41-h(i))).sort((a,b)=>a-b).join(',')));
+ const single=E.map(e=>e.length===1?e[0]:-1);
+ const rel={
+  pulse:(x,y)=>x===y,
+  contain:(x,y)=>x===y||(single[x]>=0&&single[y]>=0&&h(single[y])%h(single[x])===0),
+  expand:(x,y)=>x!==y&&single[x]>=0&&single[y]>=0&&h(single[y])%h(single[x])===0,
+  flow:(x,y)=>single[x]>=0&&single[y]>=0&&h(single[x])<h(single[y]),
+  invert:(x,y)=>dual[x]===y,
+  merge:(x,y)=>(pf[x]&pf[y])!==0,
+  orbit:(x,y)=>(dm[x]&dm[y])!==0,
+  split:(x,y)=>(pf[x]&pf[y])===0,
+ };
+ const S=[];let total=0;const rec=(name,checked,viol)=>{S.push({name,checked,violations:viol});total+=checked;};
+ let c=0,v=0;
+ for(const m of SYMM){for(let x=0;x<N;x++)for(let y=x+1;y<N;y++){c+=2;if(rel[m](x,y)!==rel[m](y,x))v+=2;}}
+ rec('R-SYM (and its refutations)',c,v);
+ c=0;v=0;
+ for(const m of TRANS){
+  const succ=Array.from({length:N},()=>[]);
+  if(m==='pulse')for(let x=0;x<N;x++)succ[x].push(x);
+  else for(let a=0;a<n;a++)for(let b=0;b<n;b++){const x=id.get(''+a),y=id.get(''+b);if(rel[m](x,y))succ[x].push(y);}
+  if(m==='contain')for(let x=0;x<N;x++)if(single[x]<0)succ[x].push(x);
+  for(let x=0;x<N;x++)for(const y of succ[x])for(const z of succ[y]){c++;if(!rel[m](x,z))v++;}
+ }
+ rec('R-TRANS',c,v);
+ c=0;v=0;for(let x=0;x<N;x++){c++;if(!rel.pulse(x,x))v++;}rec('R-REFL',c,v);
+ c=0;v=0;for(let x=0;x<N;x++){const y=dual[x],z=dual[y];c++;if(!rel.invert(x,y)||!rel.invert(y,z)||!rel.pulse(x,z))v++;}rec('R-INV',c,v);
+ c=0;v=0;for(let a=0;a<n;a++)for(let b=0;b<n;b++){const x=id.get(''+a),y=id.get(''+b);if(rel.contain(x,y)&&rel.contain(y,x)){c++;if(!rel.pulse(x,y))v++;}}
+ for(let x=0;x<N;x++)if(single[x]<0){c++;}rec('R-ANTI',c,v);
+ c=0;v=0;for(let x=0;x<N;x++)for(let y=0;y<N;y++){if(rel.split(x,y)){c++;if(rel.pulse(x,y))v++;}}rec('R-SPLIT',c,v);
+ c=0;v=0;for(let x=0;x<N;x++){c++;}rec('R-CONG (pulse is identity in H)',c,v);
+ rec('R-EX (everything in H exists)',N,0);
+ // the true containments among single roots: the overtone relation
+ const overtones=[];for(let a=0;a<n;a++)for(let b=0;b<n;b++)if(a!==b&&h(b)%h(a)===0)overtones.push([R[a],R[b]]);
+ const duals=[];for(let a=0;a<n;a++){const b=hByH.get(41-h(a));if(a<b)duals.push([R[a],R[b]]);}
+ return {domain:N,schemas:S,total,violations:S.reduce((s,x)=>s+x.violations,0),overtones,duals,ms:Date.now()-t0};
+}
+/* R4: joint light of combined signs is the minimum in the order paradox < false < unknown < conjecture < proven < axiom */
+function lightAlgebra(){
+ const O=['paradox','false','unknown','conjecture','proven','axiom'],j=(a,b)=>O[Math.min(O.indexOf(a),O.indexOf(b))];
+ let n=0,bad=0;
+ for(const a of O)for(const b of O){n++;if(j(a,b)!==j(b,a))bad++;for(const c of O){n++;if(j(j(a,b),c)!==j(a,j(b,c)))bad++;}}
+ for(const a of O){n++;if(j(a,a)!==a)bad++;}
+ return {checked:n,violations:bad};
+}
+
+function buildPrimer(){
+ const pad=(x,n)=>String(x).padEnd(n);
+ const L=[];
+ L.push('SAID: Symbolic Artificial Intelligence Design');
+ L.push('A sign language for talking about mathematics, science and philosophy. Use it with me for the rest of this conversation.');
+ L.push('');
+ L.push('1. A SIGN');
+ L.push('   [~][@voice] ROOT[+ROOT[+ROOT]].motion.light.time [OBJECT] [#glyph]');
+ L.push('   Reads in English as: "<Voice> <verb>: <light clause> <subject> <motion> <object>, <time>."');
+ L.push('   Example: @prover INF+SET.expand.proven.eternal INF');
+ L.push('     = "The Prover asserts: it is proven that the transfinite extends to infinity, timelessly."');
+ L.push('   Defaults when a field is left out: @witness, pulse, axiom, now.');
+ L.push('   ~ in front refutes the sign ("it is not so that ..."). ~~ refutes the refutation.');
+ L.push('   #p35-0101 cites a glyph in the author\'s notebooks (page 35, row 1, column 1). It changes the drawing, not the meaning.');
+ L.push('');
+ L.push('2. AN UTTERANCE');
+ L.push('   sign / sign / sign      frames, one after another');
+ L.push('   sign | sign | sign      layers in one frame, at once (at most 5, one per voice)');
+ L.push('   A grid of bare glyphs (one row per line) is a typed page: each glyph acts on the next.');
+ L.push('   [any text in brackets]  ignored by the reader; put your English gloss there');
+ L.push('');
+ L.push('3. LEXICON');
+ L.push('   Roots (26). Each sounds as harmonic partial h of 27.5 Hz.');
+ for(const d of DOMAINS){L.push('   '+d.name+':');ROOTS.filter(r=>r.dom===d.id).forEach(r=>L.push('     '+pad(r.code,5)+pad(r.uni,3)+pad(r.name,10)+'"'+r.noun+'"  h'+r.h+(IDEAL.has(r.code)?'  (ideal)':'')));}
+ L.push('   Named fusions (roots joined with +, any order):');
+ Object.entries(FUSIONS).forEach(([k,v])=>L.push('     '+pad(k,9)+v));
+ L.push('     Unnamed fusions read hyphenated: SLF+WAV = "the self-wave".');
+ L.push('   Motions: with an object "A ... B" / alone "A ..."');
+ MOTIONS.forEach(m=>L.push('     '+pad(m.id,9)+pad('"'+m.trans+'"',22)+'/ "'+m.intr+'"'));
+ L.push('   Lights: how firmly the content is held');
+ LIGHTS.forEach(l=>L.push('     '+pad(l.id,11)+pad('('+l.color+')',9)+'"'+l.clause+'"'));
+ L.push('   Times:');
+ TIMES.forEach(t=>L.push('     '+pad(t.id,14)+'"'+t.adv+'"'));
+ L.push('     negative = written while erased: it retracts the same content at every non-eternal time.');
+ L.push('     perpendicular = a layer beside the others, not after them.');
+ L.push('   Voices:');
+ VOICES.forEach(v=>L.push('     @'+pad(v.id,9)+pad(v.verb,9)+v.role));
+ L.push('');
+ L.push('4. SAID-H RULES (keep these; the reader checks them)');
+ L.push('   Strength: axiom > proven > conjecture > unknown. Paradox holds a content out of all inference.');
+ L.push('   false light = the refutation (~) held at proven. dissolve = refuted pulse: "A is not B" is ~"A is B".');
+ L.push('   @doubter signs are questions (held at unknown). @dreamer signs are held at most at conjecture.');
+ L.push('   Contents meet only at the same time, or when one of them is eternal.');
+ L.push('   Inference (premises at conjecture or stronger; a conclusion takes the weakest premise light, at most proven):');
+ L.push('     R-REFL  every term is itself');
+ L.push('     R-SYM   pulse, split, merge, orbit, invert turn around: A m B gives B m A');
+ L.push('     R-TRANS pulse, contain, expand, flow chain: A m B, B m C give A m C');
+ L.push('     R-CONG  identicals substitute: if A is B, what holds of B holds of A');
+ L.push('     R-INV   A invert B, B invert C give A is C');
+ L.push('     R-ANTI  A contains B and B contains A give A is B');
+ L.push('     R-SPLIT A split B gives ~(A is B)');
+ L.push('     R-EX    A m B gives: A exists, B exists');
+ L.push('     R-DN    ~~c gives c only as a conjecture (intuitionist double negation)');
+ L.push('   A contradiction is c and ~c both held at proven or axiom at times that meet. Never produce one.');
+ L.push('   If you meet one you cannot resolve, re-send the weaker sign at paradox light.');
+ L.push('   Gödel boundary: INF, WHL and LIM are ideal roots. Do not assert consistency (NUL+PRF.dissolve) at proven');
+ L.push('   light from inside an utterance that uses them. Hold it at unknown, or say it is proven relative to a stronger system.');
+ L.push('');
+ L.push('5. HOW TO ANSWER');
+ L.push('   - Reply first with one utterance in SAID code, then a short English answer.');
+ L.push('   - Put the English gloss of each sign in [brackets] right after it.');
+ L.push('   - Use light honestly: axiom for definitions and stipulations, proven for established results,');
+ L.push('     conjecture for open claims, unknown for open questions, false for refuted claims, paradox to quarantine.');
+ L.push('   - Use the voice that fits: @witness to report, @prover to assert, @doubter to ask, @dreamer to speculate,');
+ L.push('     @chorus for what we both hold.');
+ L.push('   - Keep to the lexicon. If a concept has no root, fuse two or three roots and gloss the fusion.');
+ L.push('');
+ L.push('6. EXAMPLES');
+ L.push('   Me: What does a measurement do to a wave?');
+ L.push('   You: @witness OBS+WAV.contract.proven.now PRT [measurement converges on a particle]');
+ L.push('        / @dreamer PRT+WAV.spin.conjecture.becoming [duality keeps cycling]');
+ L.push('        Measurement gives one outcome; what happens to the wave itself is still argued over.');
+ L.push('   Me: Can arithmetic prove itself consistent?');
+ L.push('   You: @prover WHL.contain.axiom.eternal UNIT [arithmetic holds every numeral]');
+ L.push('        / @doubter NUL+PRF.dissolve.unknown.eternal [from inside: unknown (Gödel)]');
+ L.push('        / @prover PRF.flow.proven.eternal INF+SET [from outside: proven relative to transfinite induction (Gentzen)]');
+ L.push('   Me: Is the self the same as the other?');
+ L.push('   You: @chorus SLF.split.axiom.eternal OTH [the self is distinct from the other]');
+ L.push('        / @dreamer OTH+SLF.merge.conjecture.becoming MND [relation unites with mind, in becoming]');
+ return L.join('\n');
+}
+const SIGN_SPACE=(()=>{const n=26,sets=n+n*(n-1)/2+n*(n-1)*(n-2)/6;return sets*11*6*6*5*27;})();
+return {ROOTS,DOMAINS,RBY,UNI,IDEAL,MOTIONS,LIGHTS,TIMES,VOICES,FUSIONS,MBY,LBY,TBY,VBY,LSYN,LNAME,RULES,
+ key,nounOf,sentence,codeOf,parseSign,parseUtterance,normalize,closure,check,explain,factCode,fkey,modelCheck,lightAlgebra,buildPrimer,SIGN_SPACE,parseGrid,analyzeGrid,gridSigns,gridUtterance,harmonicMotion,GRID_VOICES};
+})();
+if(typeof module!=='undefined')module.exports=SAID;
+
+</script>
+<script>
+(()=>{
+const S=SAID;
+const {ROOTS,RBY,MOTIONS,LIGHTS,TIMES,VOICES,FUSIONS,MBY,LBY,TBY,VBY}=S;
+const TAU=Math.PI*2, PI=Math.PI;
+const CHALK='#ece7f6', MONO="'JetBrains Mono', ui-monospace, Menlo, monospace", BODY="'Atkinson Hyperlegible', system-ui, sans-serif";
+const REDUCED=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+const store={get(k){try{return localStorage.getItem(k);}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
+
+/* ---------- hand assets ---------- */
+const HAND={data:null,fam:null,pages:{},loading:{},stats:null,binding:null,ready:false};
+const LIGHT_IDS=LIGHTS.map(l=>l.id),MOT_IDS=MOTIONS.map(m=>m.id),TIME_IDS=TIMES.map(t=>t.id);
+function loadMask(src){
+ return new Promise(res=>{const im=new Image();im.onload=()=>{
+  const cv=document.createElement('canvas');cv.width=im.naturalWidth;cv.height=im.naturalHeight;const c=cv.getContext('2d');c.drawImage(im,0,0);
+  try{const d=c.getImageData(0,0,cv.width,cv.height),a=d.data;for(let i=0;i<a.length;i+=4){a[i+3]=a[i];a[i]=a[i+1]=a[i+2]=255;}c.putImageData(d,0,0);}catch(e){}
+  res(cv);};im.onerror=()=>res(null);im.src=src;});
+}
+function famIndexOf(root){const b=HAND.binding;return b?b.indexOf(root):-1;}
+function pageById(id){return HAND.data&&HAND.data.pages.find(p=>p.id===id);}
+function ensurePage(id){
+ if(HAND.pages[id]||HAND.loading[id])return HAND.loading[id]||Promise.resolve(HAND.pages[id]);
+ HAND.loading[id]=loadMask('page-'+id+'.webp').then(cv=>{HAND.pages[id]=cv;delete HAND.loading[id];onPageLoaded(id);return cv;});
+ return HAND.loading[id];
+}
+let onPageLoaded=()=>{};
+function glyphRec(handId){
+ const m=/^(p\d+)-(\d\d)(\d\d)$/.exec(handId||'');if(!m)return null;
+ const pg=pageById(m[1]);if(!pg)return null;const r=+m[2],c=+m[3];
+ const g=pg.g.find(x=>x[0]===r&&x[1]===c);return g?{pg,g,r,c}:null;
+}
+function spritesFor(s,forceHand){
+ if(!HAND.ready)return null;
+ if(s.hand){const rec=glyphRec(s.hand);
+  if(rec){const cv=HAND.pages[rec.pg.id];if(cv){const k=HAND.data.cellPage;return [{cv,id:rec.pg.id,sx:(rec.c-1)*k,sy:(rec.r-1)*k,k}];}ensurePage(rec.pg.id);}
+ }
+ if(!(s.hand||forceHand||s.handMode))return null;
+ if(!HAND.fam)return null;
+ const k=HAND.data.cellFam;
+ return s.roots.map(r=>{const i=famIndexOf(r);return i<0?null:{cv:HAND.fam,id:'fam',sx:0,sy:i*k,k};}).filter(Boolean);
+}
+const tintCache=new Map();
+function tinted(sp,col){
+ const key=sp.id+':'+sp.sx+':'+sp.sy+':'+col;let cv=tintCache.get(key);if(cv)return cv;
+ if(tintCache.size>900)tintCache.clear();
+ cv=document.createElement('canvas');cv.width=sp.k;cv.height=sp.k;const c=cv.getContext('2d');
+ c.drawImage(sp.cv,sp.sx,sp.sy,sp.k,sp.k,0,0,sp.k,sp.k);c.globalCompositeOperation='source-in';c.fillStyle=col;c.fillRect(0,0,sp.k,sp.k);
+ tintCache.set(key,cv);return cv;
+}
+
+/* ---------- drawing ---------- */
+const ease=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+function hexA(h,a){const n=parseInt(h.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;}
+function pen(c,R,col,glow){c.strokeStyle=col;c.fillStyle=col;c.lineWidth=Math.max(1.3,R*.075);c.lineCap='round';c.lineJoin='round';c.shadowColor=col;c.shadowBlur=glow?R*glow:0;}
+function ln(c,a,b,d,e){c.beginPath();c.moveTo(a,b);c.lineTo(d,e);c.stroke();}
+function prim(c,p,R){
+ const k=p[0];c.beginPath();
+ if(k==='c'){c.arc(p[1]*R,p[2]*R,p[3]*R,0,TAU);c.stroke();}
+ else if(k==='l'){c.moveTo(p[1]*R,p[2]*R);c.lineTo(p[3]*R,p[4]*R);c.stroke();}
+ else if(k==='a'){c.arc(p[1]*R,p[2]*R,p[3]*R,p[4],p[5]);c.stroke();}
+ else if(k==='d'){c.arc(p[1]*R,p[2]*R,(p[3]||.07)*R,0,TAU);c.fill();}
+ else if(k==='p'){const a=p[1];c.moveTo(a[0]*R,a[1]*R);for(let i=2;i<a.length;i+=2)c.lineTo(a[i]*R,a[i+1]*R);if(p[2])c.closePath();c.stroke();}
+ else if(k==='s'){const amp=p[1],cyc=p[2],yo=p[3];for(let i=0;i<=40;i++){const u=i/40,x=(-.7+1.4*u)*R,y=(yo+amp*Math.sin(u*cyc*TAU))*R;i?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();}
+ else if(k==='sp'){for(let i=0;i<=90;i++){const u=i/90,a=u*p[1]*TAU,r=(.06+u*.6)*R,x=Math.cos(a)*r,y=Math.sin(a)*r;i?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();}
+}
+function glyph(c,roots,R){roots.forEach(code=>RBY[code].g.forEach(p=>prim(c,p,R)));}
+function shape(c,s,R,col,sprites){
+ if(sprites&&sprites.length){
+  const size=R*2.2,al=c.globalAlpha;
+  sprites.forEach((sp,i)=>{c.globalAlpha=al*(sprites.length>1?.85:1);c.drawImage(tinted(sp,col),-size/2,-size/2,size,size);});
+  c.globalAlpha=al;return;
+ }
+ glyph(c,s.roots,R);
+}
+function drawSign(c,s,R,p,t,hand){
+ const col=LBY[s.light].col,e=ease(p),sprites=spritesFor(s,hand);
+ c.save();
+ const ag=c.createRadialGradient(0,0,0,0,0,R*1.8);ag.addColorStop(0,hexA(col,.17));ag.addColorStop(1,hexA(col,0));
+ c.fillStyle=ag;c.beginPath();c.arc(0,0,R*1.8,0,TAU);c.fill();
+ pen(c,R,col,.4);
+ const dash=s.light==='unknown'?[R*.18,R*.13]:[];
+ const G=()=>{c.setLineDash(dash);if(sprites&&s.light==='unknown')c.globalAlpha*=.62;shape(c,s,R,col,sprites);c.setLineDash([]);};
+ switch(s.motion){
+  case 'spin':c.save();c.rotate(p*TAU);G();c.restore();break;
+  case 'expand':{c.save();c.globalAlpha*=.35*(1-p);c.beginPath();c.arc(0,0,R*(.7+p),0,TAU);c.stroke();c.restore();
+   const k=.6+.6*e;c.save();c.scale(k,k);c.globalAlpha*=1-Math.max(0,(p-.82)/.18)*.5;G();c.restore();break;}
+  case 'contract':{const k=1.25-.6*e,rr=R*(1.6-1.1*e);c.save();c.globalAlpha*=.6;
+   for(let i=0;i<8;i++){const a=i/8*TAU;c.beginPath();c.arc(Math.cos(a)*rr,Math.sin(a)*rr,R*.05,0,TAU);c.fill();}
+   c.restore();c.save();c.scale(k,k);G();c.restore();break;}
+  case 'split':{const d=R*.42*e;[-d,d].forEach(dx=>{c.save();c.translate(dx,0);c.globalAlpha*=.8;G();c.restore();});break;}
+  case 'merge':{const d=R*.42*(1-e);[-d,d].forEach(dx=>{c.save();c.translate(dx,0);c.globalAlpha*=.8;G();c.restore();});break;}
+  case 'orbit':{G();const a=t*.003;c.save();c.rotate(-.35);c.save();c.globalAlpha*=.25;c.beginPath();c.ellipse(0,0,R*1.2,R*.5,0,0,TAU);c.stroke();c.restore();
+   c.beginPath();c.arc(Math.cos(a)*R*1.2,Math.sin(a)*R*.5,R*.085,0,TAU);c.fill();c.restore();break;}
+  case 'flow':{c.save();c.translate(Math.sin(t*.004)*R*.06,0);G();c.restore();
+   for(let k=0;k<4;k++){const u=((t*.0006)+k/4)%1;c.save();c.globalAlpha*=(1-u)*.8;c.beginPath();c.arc(R*(.85+u*.9),Math.sin(u*TAU+k)*R*.15,R*.05,0,TAU);c.fill();c.restore();}break;}
+  case 'dissolve':{c.save();c.globalAlpha*=1-.75*p;const j=R*.05*p;c.translate(Math.sin(t*.09)*j,Math.cos(t*.07)*j);
+   if(!sprites)c.setLineDash([R*.22*(1-p)+1,R*.3*p+1]);shape(c,s,R,col,sprites);c.restore();break;}
+  case 'invert':{c.save();const k=Math.cos(p*TAU);c.scale(Math.abs(k)<.02?.02:k,1);G();c.restore();break;}
+  case 'contain':{c.save();c.scale(.7,.7);G();c.restore();c.beginPath();c.arc(0,0,R*1.05,-PI/2,-PI/2+TAU*Math.max(.02,e));c.stroke();break;}
+  default:{const k=1+.07*Math.sin(t*.006);c.save();c.scale(k,k);G();c.restore();}
+ }
+ c.setLineDash([]);c.shadowBlur=0;
+ if(s.light==='proven'){c.strokeStyle=hexA(col,.5);c.lineWidth=1;c.beginPath();c.arc(0,0,R*1.35,0,TAU);c.stroke();
+  for(let i=0;i<4;i++){const a=i*PI/2+PI/4;ln(c,Math.cos(a)*R*1.35,Math.sin(a)*R*1.35,Math.cos(a)*R*1.5,Math.sin(a)*R*1.5);}}
+ if(s.light==='conjecture'){c.strokeStyle=hexA(col,.7);c.lineWidth=1.8;c.setLineDash([.5,R*.16]);c.beginPath();c.arc(0,0,R*1.35,0,TAU);c.stroke();c.setLineDash([]);}
+ if(s.light==='paradox'){c.save();c.globalAlpha*=.24+.16*Math.sin(t*.005);c.scale(-1,-1);pen(c,R,col,.4);shape(c,s,R,col,sprites);c.restore();}
+ if(s.light==='false'){c.strokeStyle=col;c.lineWidth=Math.max(1.5,R*.07);ln(c,-R*.95,R*.95,R*.95,-R*.95);}
+ for(let i=0;i<(s.neg||0);i++){c.strokeStyle=hexA('#ff6f61',.85);c.lineWidth=Math.max(1.4,R*.05);const y=-R*1.55-i*R*.16;ln(c,-R*.32,y,R*.32,y);ln(c,R*.32,y,R*.32,y+R*.14);}
+ c.restore();
+}
+function timeMark(c,id,r,p,col){
+ c.save();c.strokeStyle=col;c.fillStyle=col;c.lineWidth=Math.max(1.4,r*.16);c.lineCap='round';c.shadowBlur=0;
+ const head=(x,dir)=>{ln(c,x,0,x-dir*r*.45,-r*.4);ln(c,x,0,x-dir*r*.45,r*.4);};
+ switch(id){
+  case 'now':c.beginPath();c.arc(0,0,r*.35,0,TAU);c.fill();break;
+  case 'was':ln(c,r,0,-r,0);head(-r,-1);break;
+  case 'becoming':ln(c,-r,0,r,0);head(r,1);break;
+  case 'negative':c.setLineDash([r*.3,r*.25]);c.lineDashOffset=p*r*3;ln(c,r,0,-r,0);c.setLineDash([]);head(-r,-1);c.globalAlpha*=.5;ln(c,-r*.2,-r*.6,r*.2,r*.6);break;
+  case 'perpendicular':ln(c,-r,0,r,0);ln(c,0,0,0,-r*1.1);break;
+  case 'eternal':{c.beginPath();c.arc(0,0,r*.7,0,TAU);c.stroke();const a=p*TAU;c.beginPath();c.arc(Math.cos(a)*r*.7,Math.sin(a)*r*.7,r*.15,0,TAU);c.fill();break;}
+ }
+ c.restore();
+}
+function contour(c,id,x0,y0,w,h,p,col){
+ const fr=u=>id==='was'?Math.pow(2/3,u):id==='becoming'?Math.pow(1.5,u):1;
+ const env=u=>id==='negative'?(u<.88?Math.exp(5*(u-.88)):Math.max(0,1-(u-.88)/.03))
+   :id==='eternal'?(u<.5?u/.5:Math.max(0,1-(u-.5)/.5)):(u<.03?u/.03:Math.exp(-3.2*(u-.03)));
+ const yOf=r=>y0+h*.5-Math.log2(r)*h*.7;
+ c.save();c.lineCap='round';c.strokeStyle=hexA(CHALK,.12);c.lineWidth=1;ln(c,x0,y0+h*.5,x0+w,y0+h*.5);
+ const mult=[1];if(id==='perpendicular')mult.push(7/5);
+ for(const m of mult)for(let i=0;i<40;i++){const u=i/40,u2=(i+1)/40,ev=env((u+u2)/2);
+  c.strokeStyle=hexA(col,.18+.82*ev);c.lineWidth=.8+ev*2.6;ln(c,x0+u*w,yOf(fr(u)*m),x0+u2*w,yOf(fr(u2)*m));}
+ c.strokeStyle=hexA(CHALK,.35);c.lineWidth=1;ln(c,x0+p*w,y0,x0+p*w,y0+h);
+ c.restore();
+}
+function figure(c,v,S2,t,p,label){
+ c.save();c.strokeStyle=CHALK;c.fillStyle=CHALK;c.lineCap='round';c.lineJoin='round';c.shadowColor='rgba(236,231,246,.45)';c.shadowBlur=S2*.07;
+ if(v==='chorus'){[[-.34,.6,0],[.34,.6,700],[0,.78,1400]].forEach(([dx,k,o])=>{c.save();c.translate(dx*S2,0);body(c,'chorus',S2*k,t+o,p);c.restore();});}
+ else body(c,v,S2,t,p);
+ if(label){c.shadowBlur=0;c.globalAlpha*=.62;c.font=`${Math.max(9,Math.round(S2*.1))}px ${MONO}`;c.textAlign='center';c.textBaseline='top';
+  c.fillText(VBY[v].name.replace('The ','').toUpperCase(),0,S2*.08);}
+ c.restore();
+}
+function body(c,v,S2,t,p){
+ const bob=Math.sin(t*.0025)*S2*.025,hipY=-S2*.38,shY=-S2*.72+bob,hy=-S2*.92+bob,hr=S2*.15,sy=shY+S2*.04;
+ c.lineWidth=Math.max(1.3,S2*.04);
+ ln(c,-S2*.13,0,0,hipY);ln(c,S2*.13,0,0,hipY);ln(c,0,hipY,0,shY+S2*.02);
+ if(v==='witness'){
+  ln(c,0,sy,-S2*.16,-S2*.42);ln(c,0,sy,S2*.16,-S2*.42);
+  if((t%3600)<150&&t>0){ln(c,-hr*1.3,hy,hr*1.3,hy);}
+  else{c.beginPath();c.moveTo(-hr*1.3,hy);c.quadraticCurveTo(0,hy-hr*1.35,hr*1.3,hy);c.quadraticCurveTo(0,hy+hr*1.35,-hr*1.3,hy);c.stroke();
+   c.beginPath();c.arc(hr*.35+Math.sin(t*.0012)*hr*.15,hy,hr*.32,0,TAU);c.fill();}
+ }else if(v==='prover'){
+  const lift=Math.sin(Math.min(1,p*2.2)*PI)*S2*.08;
+  ln(c,0,sy,S2*.42,-S2*.92-lift);ln(c,0,sy,-S2*.15,-S2*.42);
+  c.strokeRect(-hr,hy-hr,hr*2,hr*2);c.beginPath();c.arc(hr*.42,hy-hr*.15,hr*.16,0,TAU);c.fill();
+ }else if(v==='doubter'){
+  const sw=Math.sin(t*.004)*S2*.04;
+  ln(c,0,sy,-S2*.24,-S2*.56);ln(c,-S2*.24,-S2*.56,-S2*.3,-S2*.8+sw);
+  ln(c,0,sy,S2*.24,-S2*.56);ln(c,S2*.24,-S2*.56,S2*.3,-S2*.8-sw);
+  c.beginPath();c.ellipse(0,hy,hr*1.05,hr*.9,-.3,0,TAU);c.stroke();
+  c.beginPath();c.arc(hr*.6,hy-hr*2.05,hr*.42,PI,PI*2.45);c.stroke();
+  c.beginPath();c.arc(hr*.64,hy-hr*1.2,hr*.09,0,TAU);c.fill();
+ }else if(v==='dreamer'){
+  const fl=Math.sin(t*.0018)*S2*.05;
+  ln(c,0,sy,-S2*.34,-S2*.6+fl);ln(c,0,sy,S2*.34,-S2*.6-fl);
+  c.beginPath();c.arc(0,hy,hr*1.05,PI*.3,PI*1.7);c.arc(hr*.42,hy,hr*.78,PI*1.62,PI*.38,true);c.closePath();c.stroke();
+  for(let k=0;k<3;k++){const u=((t*.00035)+k/3)%1;c.save();c.globalAlpha*=(1-u);c.beginPath();
+   c.arc(hr*.3+Math.sin(u*6+k*2)*hr*.6,hy-hr*1.4-u*S2*.55,hr*.12,0,TAU);c.fill();c.restore();}
+ }else{
+  ln(c,0,sy,-S2*.36,-S2*.52);ln(c,0,sy,S2*.36,-S2*.52);
+  c.beginPath();c.arc(0,hy,hr,0,TAU);c.stroke();
+ }
+}
+function thread(c,ax,bx,y,R,s,t){
+ if(bx<=ax)return;const col=LBY[s.light].col,cy=y-R*1.1,mx=(ax+bx)/2;
+ c.save();c.shadowBlur=0;c.strokeStyle=hexA(col,.4);c.lineWidth=1.2;if(s.motion==='dissolve'||s.neg)c.setLineDash([3,5]);
+ c.beginPath();c.moveTo(ax,y);c.quadraticCurveTo(mx,cy,bx,y);c.stroke();c.setLineDash([]);
+ const fast=s.motion==='flow',cnt=fast?5:2,sp=fast?.0007:.00028;c.fillStyle=col;
+ for(let k=0;k<cnt;k++){let u=((t*sp)+k/cnt)%1;if(s.motion==='invert')u=.5+.5*Math.sin(t*.002+k*PI);
+  const q=1-u,x=q*q*ax+2*q*u*mx+u*u*bx,yy=q*q*y+2*q*u*cy+u*u*y;c.beginPath();c.arc(x,yy,2,0,TAU);c.fill();}
+ c.restore();
+}
+const STARS=Array.from({length:90},(_,i)=>({x:(Math.sin(i*12.9898)*43758.5453)%1,y:(Math.sin(i*78.233)*12345.678)%1,r:((i*37)%11)/10+.3,ph:i*.7})).map(s=>({...s,x:Math.abs(s.x),y:Math.abs(s.y)}));
+function backdrop(c,W,H,tt,cx,cy){
+ const bg=c.createRadialGradient(W*cx,H*cy,8,W*cx,H*cy,Math.max(W,H)*.75);bg.addColorStop(0,'#1a1631');bg.addColorStop(1,'#0b0a16');
+ c.fillStyle=bg;c.fillRect(0,0,W,H);
+ c.strokeStyle='rgba(236,231,246,.05)';c.lineWidth=1;
+ for(let k=1;k<=5;k++){c.beginPath();c.ellipse(W*cx,H*cy,k*W*.09,k*H*.075,0,0,TAU);c.stroke();}
+ STARS.forEach(s=>{c.fillStyle=`rgba(236,231,246,${.18+.2*Math.sin(tt*.001+s.ph)})`;c.fillRect(s.x*W,s.y*H,s.r,s.r);});
+}
+/* one sign with its voice and object, laid out in a band of the stage */
+function drawBand(c,s,x0,y0,W,H,tt,p,hand,showFigure){
+ const S2=Math.min(H*.62,W*.16);
+ if(showFigure){c.save();c.translate(x0+W*.1,y0+H*.9);figure(c,s.voice,S2,tt,p,true);c.restore();}
+ const y=y0+H*.45,obj=s.object,sx=obj?x0+W*.44:x0+W*.58,R=Math.min(H*.24,W*(obj?.09:.13));
+ const objRoots=obj?obj.split('+'):null;
+ if(obj)thread(c,sx+R*1.15,x0+W*.78-R*.95,y,R,s,tt);
+ c.save();c.translate(sx,y);drawSign(c,s,R,p,tt,hand);c.restore();
+ c.save();c.translate(sx,y+R*1.62);timeMark(c,s.time,Math.max(5,R*.2),p,LBY[s.light].col);c.restore();
+ c.fillStyle='rgba(236,231,246,.55)';c.font=`${Math.max(9,Math.round(R*.24))}px ${MONO}`;c.textAlign='center';c.textBaseline='top';
+ c.fillText(('~'.repeat(s.neg||0))+s.roots.join('+'),sx,y+R*1.98);
+ if(obj){const R2=R*.78;c.save();c.translate(x0+W*.78,y);drawSign(c,{roots:objRoots,motion:'pulse',light:s.light,time:s.time,handMode:s.handMode},R2,p,tt,hand);c.restore();
+  c.fillStyle='rgba(236,231,246,.55)';c.fillText(obj,x0+W*.78,y+R*1.98);}
+}
+
+/* ---------- audio ---------- */
+function seeded(n){let x=n>>>0;return()=>{x^=x<<13;x>>>=0;x^=x>>17;x^=x<<5;x>>>=0;return x/4294967296;};}
+function makeBus(A){
+ const comp=A.createDynamicsCompressor();comp.connect(A.destination);
+ const master=A.createGain();master.gain.value=.9;master.connect(comp);
+ const verb=A.createConvolver();const len=Math.floor(A.sampleRate*2.8),b=A.createBuffer(2,len,A.sampleRate),rnd=seeded(7);
+ for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(rnd()*2-1)*Math.pow(1-i/len,3);}
+ verb.buffer=b;const vg=A.createGain();vg.gain.value=.32;verb.connect(vg);vg.connect(comp);
+ const tap=A.createGain();tap.connect(master);tap.connect(verb);
+ const NOISE=A.createBuffer(1,A.sampleRate*2,A.sampleRate),nd=NOISE.getChannelData(0),r2=seeded(11);for(let i=0;i<nd.length;i++)nd[i]=r2()*2-1;
+ return {A,tap,NOISE};
+}
+let BUS=null;
+function live(){
+ try{if(!BUS){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;BUS=makeBus(new C());}
+  if(BUS.A.state==='suspended')BUS.A.resume();return BUS;}catch(e){return null;}
+}
+function playSign(B,dest,s,t0,dur){
+ const A=B.A,m=s.motion;
+ const out=A.createGain();out.gain.value=.0001;
+ const mot=A.createGain();mot.gain.value=1;
+ const filt=A.createBiquadFilter();filt.type='lowpass';filt.frequency.value=5200;filt.Q.value=.7;
+ const pan=A.createStereoPanner?A.createStereoPanner():null;
+ filt.connect(mot);mot.connect(out);if(pan){out.connect(pan);pan.connect(dest);}else out.connect(dest);
+ const end=t0+dur*(s.time==='eternal'?1.35:1)+.05;
+ const peak=(s.time==='eternal'?.13:.2)/Math.sqrt(s.roots.length);
+ const g=out.gain;
+ if(s.time==='negative'){g.setValueAtTime(.0001,t0);g.exponentialRampToValueAtTime(peak,t0+dur*.88);g.linearRampToValueAtTime(.0001,t0+dur*.9);}
+ else if(s.time==='eternal'){g.setValueAtTime(.0001,t0);g.linearRampToValueAtTime(peak,t0+dur*.5);g.linearRampToValueAtTime(.0001,end);}
+ else{g.setValueAtTime(.0001,t0);g.exponentialRampToValueAtTime(peak,t0+.025);g.exponentialRampToValueAtTime(.0001,t0+dur);}
+ if(m==='pulse'){const l=A.createOscillator(),lg=A.createGain();l.frequency.value=6;lg.gain.value=.35;mot.gain.value=.65;l.connect(lg);lg.connect(mot.gain);l.start(t0);l.stop(end);}
+ if((m==='spin'||m==='orbit')&&pan){const l=A.createOscillator(),lg=A.createGain();l.frequency.value=m==='spin'?1.6:.45;lg.gain.value=.85;l.connect(lg);lg.connect(pan.pan);l.start(t0);l.stop(end);}
+ if(m==='expand'){filt.frequency.setValueAtTime(260,t0);filt.frequency.exponentialRampToValueAtTime(7000,t0+dur);}
+ else if(m==='contract'){filt.frequency.setValueAtTime(7000,t0);filt.frequency.exponentialRampToValueAtTime(260,t0+dur);}
+ else if(m==='contain'){filt.frequency.value=900;filt.Q.value=4;}
+ else if(s.light==='false'||s.neg){filt.frequency.value=650;}
+ if(m==='dissolve'){mot.gain.setValueAtTime(1,t0);mot.gain.linearRampToValueAtTime(0,t0+dur*.65);}
+ const shapeF=(param,f)=>{
+  param.setValueAtTime(f*(m==='flow'?.9:m==='invert'?4/3:1),t0);
+  if(m==='flow')param.exponentialRampToValueAtTime(f,t0+.45);
+  if(m==='invert')param.setValueAtTime(f*3/4,t0+dur*.5);
+  if(s.time==='was')param.exponentialRampToValueAtTime(f*2/3,t0+dur);
+  if(s.time==='becoming')param.exponentialRampToValueAtTime(f*1.5,t0+dur);
+ };
+ const base=s.roots.map(c=>RBY[c].hz);const freqs=base.map(f=>[f,1]);
+ if(s.time==='perpendicular')base.forEach(f=>freqs.push([f*7/5,.55]));
+ freqs.forEach(([f,amp])=>{
+  const mk=(type,mult,gain)=>{const o=A.createOscillator();o.type=type;shapeF(o.frequency,f*mult);const og=A.createGain();og.gain.value=gain*amp;o.connect(og);og.connect(filt);o.start(t0);o.stop(end);return o;};
+  switch(s.light){
+   case 'proven':mk('sine',1,.8);mk('sine',2,.22);mk('sine',3,.07);break;
+   case 'conjecture':{const o=mk('triangle',1,.9);const v=A.createOscillator(),vg=A.createGain();v.frequency.value=5.5;vg.gain.value=14;v.connect(vg);vg.connect(o.detune);v.start(t0);v.stop(end);break;}
+   case 'paradox':mk('sine',1,.7);mk('sine',1.013,.7);break;
+   case 'false':mk('square',1,.3);break;
+   case 'unknown':{const n=A.createBufferSource();n.buffer=B.NOISE;n.loop=true;const bp=A.createBiquadFilter();bp.type='bandpass';bp.Q.value=14;shapeF(bp.frequency,f);
+    const ng=A.createGain();ng.gain.value=3.2*amp;n.connect(bp);bp.connect(ng);ng.connect(filt);n.start(t0);n.stop(end);break;}
+   default:mk('sine',1,1);
+  }
+  if(m==='split'||m==='merge'){const o=A.createOscillator();o.type='sine';shapeF(o.frequency,f);
+   o.detune.setValueAtTime(m==='split'?0:50,t0);o.detune.linearRampToValueAtTime(m==='split'?50:0,t0+dur);
+   const og=A.createGain();og.gain.value=.5*amp;o.connect(og);og.connect(filt);o.start(t0);o.stop(end);}
+ });
+}
+function playVoice(B,dest,v,t0){
+ const A=B.A,map={witness:[880],prover:[660,990],doubter:[742.5],dreamer:[1155],chorus:[440,550,660]};
+ map[v].forEach((f,i)=>{const s=t0+i*.05,o=A.createOscillator(),g=A.createGain();o.type='sine';o.frequency.setValueAtTime(f,s);
+  if(v==='doubter')o.frequency.exponentialRampToValueAtTime(f*1.25,s+.25);
+  if(v==='dreamer')o.frequency.exponentialRampToValueAtTime(f*.75,s+.6);
+  g.gain.setValueAtTime(.0001,s);g.gain.exponentialRampToValueAtTime(.06,s+.01);g.gain.exponentialRampToValueAtTime(.0001,s+.55);
+  o.connect(g);g.connect(dest);o.start(s);o.stop(s+.7);});
+}
+function scheduleFrame(B,dest,layers,t0,D){
+ const voices=[...new Set(layers.map(s=>s.voice))];voices.forEach((v,i)=>playVoice(B,dest,v,t0+i*.08));
+ const dur=Math.max(.3,Math.min(2.2,D-.35));
+ layers.forEach(s=>{playSign(B,dest,s,t0+.25,dur);if(s.object)playSign(B,dest,{roots:s.object.split('+'),motion:'pulse',light:s.light,time:s.time,neg:0},t0+.95,Math.max(.8,dur-.7));});
+}
+let forgeOut=null;
+function soundSign(s,withVoice){
+ const B=live();if(!B)return;
+ try{
+  if(forgeOut){const o=forgeOut;o.gain.setTargetAtTime(0,B.A.currentTime,.05);setTimeout(()=>o.disconnect(),400);}
+  forgeOut=B.A.createGain();forgeOut.connect(B.tap);
+  const t0=B.A.currentTime+.04;
+  if(withVoice)scheduleFrame(B,forgeOut,[s],t0,2.8);else playSign(B,forgeOut,s,t0,1.6);
+ }catch(e){}
+}
+
+/* ---------- forge ---------- */
+const F={roots:['MND','TIM'],motion:'spin',light:'paradox',time:'perpendicular',voice:'dreamer',object:'',neg:0,hand:''};
+let handDraw=false;
+const fc=$('#forgeCanvas'),fx=fc.getContext('2d');let FW=0,FH=0,FD=1,fClock=performance.now(),forgeVis=true;
+function sizeCanvas(cv){const d=Math.min(2,window.devicePixelRatio||1),r=cv.getBoundingClientRect();cv.width=Math.max(1,Math.round(r.width*d));cv.height=Math.max(1,Math.round(r.height*d));return {W:r.width,H:r.height,D:d};}
+function sizeForge(){const z=sizeCanvas(fc);FW=z.W;FH=z.H;FD=z.D;drawForge(performance.now());}
+function drawForge(now){
+ if(!FW)return;const c=fx,W=FW,H=FH;c.setTransform(FD,0,0,FD,0,0);
+ const tt=REDUCED?0:now-fClock,p=REDUCED?.55:(tt%3200)/3200;
+ backdrop(c,W,H,tt,.55,.42);
+ drawBand(c,{...F,handMode:handDraw},0,0,W,H,tt,p,handDraw,true);
+}
+function optRoots(withNone,noneLabel){
+ return (withNone?`<option value="">${noneLabel}</option>`:'')+S.DOMAINS.map(d=>`<optgroup label="${d.name}">`+
+  ROOTS.filter(r=>r.dom===d.id).map(r=>`<option value="${r.code}">${r.code}  ${r.uni}  ${r.name}</option>`).join('')+'</optgroup>').join('');
+}
+$('#fRoot').innerHTML=optRoots(false);
+$('#fFuse').innerHTML=optRoots(true,'nothing');
+$('#fObj').innerHTML=optRoots(true,'nothing (stands alone)');
+$('#fMotion').innerHTML=MOTIONS.map(m=>`<option value="${m.id}">${m.id}: ${m.gist}</option>`).join('');
+$('#fLight').innerHTML=LIGHTS.map(l=>`<option value="${l.id}">${l.id} (${l.color})</option>`).join('');
+$('#fTime').innerHTML=TIMES.map(t=>`<option value="${t.id}">${t.id}</option>`).join('');
+$('#fVoice').innerHTML=VOICES.map(v=>`<option value="${v.id}">${v.name.replace('The ','')}</option>`).join('');
+function syncControls(){
+ $('#fRoot').value=F.roots[0];$('#fFuse').value=F.roots[1]||'';$('#fMotion').value=F.motion;$('#fLight').value=F.light;
+ $('#fTime').value=F.time;$('#fVoice').value=F.voice;$('#fObj').value=(F.object||'').split('+')[0];$('#fNeg').value=String(Math.min(2,F.neg||0));
+ $('#dmHand').checked=handDraw;$('#dmGeo').checked=!handDraw;
+}
+function readout(){
+ const s=S.sentence(F),col=LBY[F.light].col;
+ $('#gloss').innerHTML=`<span class="v">${esc(s.v)}</span> <span style="color:${col}">${esc(s.clause)}</span> ${esc(s.rest)}`;
+ $('#code').textContent=S.codeOf(F);
+ if(REDUCED)drawForge(0);
+}
+function restart(){fClock=performance.now();}
+['fRoot','fFuse','fMotion','fLight','fTime','fVoice','fObj','fNeg'].forEach(id=>{
+ $('#'+id).addEventListener('change',()=>{
+  const root=$('#fRoot').value,fuse=$('#fFuse').value;
+  const newRoots=fuse&&fuse!==root?[root,fuse]:[root];
+  if(newRoots.join('+')!==F.roots.join('+'))F.hand='';
+  F.roots=newRoots;F.motion=$('#fMotion').value;F.light=$('#fLight').value;F.time=$('#fTime').value;F.voice=$('#fVoice').value;
+  F.object=$('#fObj').value;F.neg=+$('#fNeg').value;
+  readout();restart();soundSign(F,true);
+ });
+});
+document.querySelectorAll('input[name=drawMode]').forEach(r=>r.addEventListener('change',()=>{handDraw=$('#dmHand').checked;if(!handDraw)F.hand='';readout();restart();}));
+$('#playBtn').addEventListener('click',()=>{restart();soundSign(F,true);});
+$('#toSeq').addEventListener('click',()=>{
+ const ta=$('#uText'),cur=ta.value.trim();ta.value=(cur?cur+'\n/ ':'')+S.codeOf(F);onUtterInput();toast('Added to the utterance. Tap to view.','#utter');
+});
+$('#readForm').addEventListener('submit',e=>{
+ e.preventDefault();const r=S.parseSign($('#readIn').value.split('/')[0]);const msg=$('#readMsg');
+ if(!r.sign){msg.textContent='No root found. Start the sign with a root code such as INF or a glyph such as ∞.';return;}
+ Object.assign(F,{hand:''},r.sign);if(F.hand)handDraw=true;syncControls();readout();restart();soundSign(F,true);
+ const notes=[];if(r.bad.length)notes.push('Skipped: '+r.bad.join(' '));if($('#readIn').value.includes('/'))notes.push('Read the first frame only; use the utterance stage for more.');
+ if(F.roots.length>2)notes.push('Three-root fusion: the Fuse menu shows the second root.');
+ msg.textContent=notes.length?notes.join(' '):'Read.';
+});
+function copyText(text,el){
+ const fallback=()=>{const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Selected. Copy it with your device.');};
+ try{navigator.clipboard.writeText(text).then(()=>toast('Copied'),fallback);}catch(e){fallback();}
+}
+$('#copyCode').addEventListener('click',()=>copyText(S.codeOf(F),$('#code')));
+
+/* ---------- toast ---------- */
+let toastT=0;const toastEl=$('#toast');
+function toast(text,target){toastEl.textContent=text;toastEl.hidden=false;toastEl.dataset.target=target||'';clearTimeout(toastT);toastT=setTimeout(()=>{toastEl.hidden=true;},2800);}
+toastEl.addEventListener('click',()=>{toastEl.hidden=true;const t=toastEl.dataset.target;if(t)$(t).scrollIntoView({behavior:REDUCED?'auto':'smooth'});});
+function toForge(label){const r=$('#forge').getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)toast(label+' is in the forge. Tap to view.','#forge');}
+
+/* ---------- utterances ---------- */
+const EXAMPLES=[
+ {name:"Hilbert's program, in five frames",text:`@prover PRF.contain.proven.eternal UNIT [proof holds the strokes: finitary signs]
+/ @witness INF+SET.expand.conjecture.becoming WHL | @dreamer LIM.flow.conjecture.becoming INF [ideal elements extend the real ones]
+/ @prover NUL+PRF.dissolve.proven.eternal [Hilbert: no proof reaches the void]
+/ @doubter WHL.contain.unknown.eternal UNIT [Gödel: can the whole check itself?]
+/ @chorus PRF.flow.proven.eternal INF+SET | @prover NUL+PRF.dissolve.proven.eternal [Gentzen: consistent, relative to ε₀]`},
+ {name:'Measurement',text:`@witness WAV.orbit.axiom.now PRT [a wave relates to a particle]
+/ @witness OBS+WAV.contract.proven.now PRT [measurement converges on a particle]
+/ @dreamer PRT+WAV.spin.conjecture.becoming | @doubter OBS.pulse.unknown.perpendicular [duality cycles on; does the observer exist apart?]`},
+ {name:'Self and other',text:`@chorus SLF.contain.axiom.eternal QST [the self contains the unknown]
+/ @witness OTH+SLF.merge.proven.now MND [relation unites with mind]
+/ @dreamer SLF.invert.conjecture.becoming OTH | @doubter MND.flow.unknown.now TIM [is the self the dual of the other? does mind give rise to time?]`},
+ {name:'A contradiction, then quarantine',text:`@witness SET.contain.axiom.now INF | INF.contain.axiom.now SET [each contains the other]
+/ @prover INF.split.proven.now SET [yet they are distinct]
+/ @prover INF.split.paradox.now SET [held as paradox instead]`},
+ {name:'Negative time and perpendicular time',text:`@witness MND.flow.proven.now TIM [mind gives rise to time]
+/ @witness MND.flow.proven.negative TIM [written while erased]
+/ @dreamer TIM.spin.conjecture.perpendicular | MND.orbit.conjecture.perpendicular TIM [a layer beside the others]`},
+];
+$('#seqEx').innerHTML=EXAMPLES.map((e,i)=>`<option value="${i}">${esc(e.name)}</option>`).join('');
+const sc=$('#seqCanvas'),sx=sc.getContext('2d');let SW=0,SH=0,SD=1;
+const SEQ={frames:[],tl:[],total:0,playing:false,t0:0,out:null,cur:0,still:0};
+function frameDur(layers){return (layers.some(s=>s.time==='eternal')?3.6:2.8)/(SEQ.tempo||1);}
+function timeline(frames){let t=0;const tl=frames.map(f=>{const d=frameDur(f),o={start:t,dur:d,layers:f};t+=d;return o;});return {tl,total:t};}
+function parseInput(text){
+ const r=S.parseUtterance(text);
+ r.frames.forEach(f=>f.forEach(s=>{if(s.hand)s.handMode=true;}));
+ return r;
+}
+function onUtterInput(){
+ const r=parseInput($('#uText').value);SEQ.frames=r.frames;const T=timeline(r.frames);SEQ.tl=T.tl;SEQ.total=T.total;
+ store.set('said.utter',$('#uText').value);
+ $('#uMsg').textContent=r.frames.length?`${r.frames.length} frame${r.frames.length>1?'s':''}, ${r.count} sign${r.count>1?'s':''}, ${T.total.toFixed(1)} s`+(r.bad.length?` · skipped: ${r.bad.slice(0,6).join(' ')}`:''):'Write a sign such as INF.contract.proven.now LIM';
+ $('#strip').innerHTML=r.frames.map((f,i)=>`<button type="button" class="chip" data-i="${i}" aria-current="${i===SEQ.cur}">${i+1} · ${esc(f.map(s=>('~'.repeat(s.neg||0))+s.roots.join('+')).join(' | '))}</button>`).join('');
+ $('#glosses').innerHTML=r.frames.map((f,i)=>`<li data-i="${i}" aria-current="${i===SEQ.cur}">${f.map(s=>esc(S.sentence(s).text)).join(' <span class="mute">|</span> ')}</li>`).join('');
+ r.frames.flat().forEach(s=>{if(s.hand){const g=glyphRec(s.hand);if(g)ensurePage(g.pg.id);}});
+ if(SEQ.cur>=r.frames.length)SEQ.cur=0;
+ if(!SEQ.playing)drawSeq(SEQ.cur,.55,performance.now());
+}
+let uT=0;$('#uText').addEventListener('input',()=>{clearTimeout(uT);uT=setTimeout(onUtterInput,250);});
+$('#strip').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;stopSeq();SEQ.cur=+b.dataset.i;markCur();drawSeq(SEQ.cur,.55,performance.now());
+ const f=SEQ.frames[SEQ.cur];if(f){const B=live();if(B){const o=B.A.createGain();o.connect(B.tap);scheduleFrame(B,o,f,B.A.currentTime+.04,frameDur(f));setTimeout(()=>o.disconnect(),5000);}}});
+function markCur(){document.querySelectorAll('#strip .chip').forEach(b=>b.setAttribute('aria-current',String(+b.dataset.i===SEQ.cur)));
+ document.querySelectorAll('#glosses li').forEach(b=>b.setAttribute('aria-current',String(+b.dataset.i===SEQ.cur)));}
+function sizeSeq(){const z=sizeCanvas(sc);SW=z.W;SH=z.H;SD=z.D;if(!SEQ.playing)drawSeq(SEQ.cur,.55,performance.now());}
+function wrapText(c,text,maxW){const words=text.split(' '),lines=[];let cur='';for(const w of words){const t=cur?cur+' '+w:w;if(c.measureText(t).width>maxW&&cur){lines.push(cur);cur=w;}else cur=t;}if(cur)lines.push(cur);return lines;}
+function renderStage(c,W,H,frameIdx,p,tt,fade){
+ backdrop(c,W,H,tt,.5,.45);
+ const f=SEQ.frames[frameIdx];
+ if(!f){c.fillStyle='rgba(236,231,246,.6)';c.font=`${Math.max(12,W*.022)}px ${BODY}`;c.textAlign='center';c.fillText('Write or load an utterance',W/2,H/2);return;}
+ const n=f.length,capH=Math.max(34,H*(n>3?.22:.17)),bh=(H-capH)/n;
+ c.save();c.globalAlpha=fade;
+ f.forEach((s,i)=>drawBand(c,s,0,i*bh,W,bh,tt+i*400,(p+i*.17)%1,!!s.handMode,true));
+ c.restore();
+ // caption
+ const fs=Math.max(10,Math.min(18,W*(n>3?.0125:.017)));c.font=`${fs}px ${BODY}`;c.textAlign='left';c.textBaseline='alphabetic';
+ const lines=(n>3?f.map(s=>S.sentence(s).text):f.flatMap(s=>wrapText(c,S.sentence(s).text,W-40))).slice(0,5);
+ c.fillStyle='rgba(11,10,22,.6)';c.fillRect(0,H-capH,W,capH);
+ c.fillStyle='rgba(236,231,246,.92)';const lh=fs*1.3,y0=H-capH+(capH-lines.length*lh)/2+fs;
+ lines.forEach((l,i)=>c.fillText(l,20,y0+i*lh));
+ c.fillStyle='rgba(167,161,194,.8)';c.font=`${Math.max(9,fs*.7)}px ${MONO}`;c.textAlign='right';c.fillText(`${frameIdx+1}/${SEQ.frames.length}`,W-14,Math.max(16,fs*1.2));
+}
+function drawSeq(i,p,now){if(!SW)return;sx.setTransform(SD,0,0,SD,0,0);renderStage(sx,SW,SH,i,p,REDUCED?0:now-SEQ.still,1);}
+function frameAt(t){for(let i=0;i<SEQ.tl.length;i++){const f=SEQ.tl[i];if(t<f.start+f.dur)return {i,p:(t-f.start)/f.dur};}return null;}
+function playSeq(from){
+ if(!SEQ.frames.length)return;const B=live();stopSeq();
+ SEQ.playing=true;const start=from?SEQ.tl[from].start:0;
+ if(B){SEQ.out=B.A.createGain();SEQ.out.connect(B.tap);const base=B.A.currentTime+.08;
+  SEQ.tl.forEach(fr=>{if(fr.start>=start)scheduleFrame(B,SEQ.out,fr.layers,base+fr.start-start,fr.dur);});
+  SEQ.t0=performance.now()-start*1000+80;}else SEQ.t0=performance.now()-start*1000;
+}
+function stopSeq(){
+ SEQ.playing=false;if(SEQ.out){const o=SEQ.out,B=BUS;try{o.gain.setTargetAtTime(0,B.A.currentTime,.05);}catch(e){}setTimeout(()=>{try{o.disconnect();}catch(e){}},400);SEQ.out=null;}
+}
+$('#seqPlay').addEventListener('click',()=>playSeq(0));
+$('#seqTempo').addEventListener('change',()=>{SEQ.tempo=+$('#seqTempo').value;stopSeq();onUtterInput();});
+$('#seqStop').addEventListener('click',()=>{stopSeq();drawSeq(SEQ.cur,.55,performance.now());});
+$('#seqEx').addEventListener('change',()=>{$('#uText').value=EXAMPLES[+$('#seqEx').value].text;SEQ.cur=0;onUtterInput();});
+$('#seqCheck').addEventListener('click',()=>{$('#cText').value=$('#uText').value;runCheck();$('#check').scrollIntoView({behavior:REDUCED?'auto':'smooth'});});
+function seqTick(now){
+ if(!SEQ.playing)return;const t=(now-SEQ.t0)/1000;
+ if(t>=SEQ.total){if($('#seqLoop').checked){playSeq(0);return;}stopSeq();SEQ.cur=Math.max(0,SEQ.frames.length-1);markCur();drawSeq(SEQ.cur,.55,now);return;}
+ const fa=frameAt(Math.max(0,t));if(!fa)return;
+ if(fa.i!==SEQ.cur){SEQ.cur=fa.i;markCur();}
+ sx.setTransform(SD,0,0,SD,0,0);const fade=Math.min(1,fa.p*SEQ.tl[fa.i].dur/.3);renderStage(sx,SW,SH,fa.i,fa.p,now-SEQ.t0,fade);
+}
+
+/* ---------- notebook rows as utterances ---------- */
+function rootOfFam(k){return HAND.binding[k];}
+function rowSigns(pg,rowN){
+ const row=pg.g.filter(g=>g[0]===rowN).sort((a,b)=>a[1]-b[1]);
+ return row.map((g,i)=>{const nx=row[i+1];return {voice:'witness',roots:[rootOfFam(g[2])],motion:MOT_IDS[g[3]],light:LIGHT_IDS[g[4]],time:TIME_IDS[g[5]],object:nx?rootOfFam(nx[2]):'',neg:0,hand:`${pg.id}-${String(g[0]).padStart(2,'0')}${String(g[1]).padStart(2,'0')}`};});
+}
+function rowUtterance(pg,rowN){return `[page ${pg.n}, row ${rowN}]\n`+rowSigns(pg,rowN).map(s=>S.codeOf(s)).join('\n/ ');}
+function fillRowSelect(){
+ const pg=pageById($('#rowPage').value);if(!pg)return;
+ $('#rowNum').innerHTML=Array.from({length:pg.rows},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+}
+$('#rowPage').addEventListener('change',fillRowSelect);
+$('#rowLoad').addEventListener('click',()=>{const pg=pageById($('#rowPage').value);if(!pg)return;$('#uText').value=rowUtterance(pg,+$('#rowNum').value);SEQ.cur=0;onUtterInput();ensurePage(pg.id).then(()=>playSeq(0));});
+
+/* ---------- hand section ---------- */
+const famCanvases=[];
+function defaultBinding(){return HAND.data.families.map(f=>f.root);}
+function drawFam(i){
+ const cv=famCanvases[i];if(!cv||!HAND.fam)return;const d=Math.min(2,window.devicePixelRatio||1),r=cv.getBoundingClientRect();if(!r.width)return;
+ cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,r.width,r.height);
+ const k=HAND.data.cellFam,n=4,w=r.width/n;
+ for(let j=0;j<n;j++){const sp={cv:HAND.fam,id:'fam',sx:j*k,sy:i*k,k};c.drawImage(tinted(sp,j?CHALK:'#f0b84a'),j*w+w*.06,r.height*.06,Math.min(w,r.height)*.88,Math.min(w,r.height)*.88);}
+}
+function buildFams(){
+ const host=$('#fams');host.innerHTML='';famCanvases.length=0;
+ const order=HAND.data.families.map((f,i)=>i).sort((a,b)=>ROOTS.findIndex(r=>r.code===HAND.binding[a])-ROOTS.findIndex(r=>r.code===HAND.binding[b]));
+ order.forEach(i=>{
+  const f=HAND.data.families[i],root=RBY[HAND.binding[i]];
+  const el=document.createElement('div');el.className='fam';
+  el.innerHTML=`<div class="fam-top"><b>${root.code} ${esc(root.uni)} <span class="mute" style="font-weight:400">${esc(root.name)}</span></b><span>${f.n.toLocaleString()} glyphs</span></div><canvas aria-hidden="true"></canvas>
+   <label class="f" for="bind${i}">Bound to<select id="bind${i}">${ROOTS.map(r=>`<option value="${r.code}"${r.code===root.code?' selected':''}>${r.code} ${esc(r.name)}</option>`).join('')}</select></label>`;
+  host.appendChild(el);famCanvases[i]=el.querySelector('canvas');
+  el.querySelector('select').addEventListener('change',e=>{
+   const want=e.target.value,other=HAND.binding.indexOf(want);HAND.binding[other]=HAND.binding[i];HAND.binding[i]=want;
+   store.set('said.binding',JSON.stringify(HAND.binding));buildFams();drawPage();toast(`Family rebound: ${want} ⇄ ${HAND.binding[other]}`);
+  });
+ });
+ requestAnimationFrame(()=>famCanvases.forEach((_,i)=>drawFam(i)));
+}
+$('#copyBinding').addEventListener('click',()=>{if(!HAND.binding)return;const t=JSON.stringify(Object.fromEntries(HAND.binding.map((r,i)=>['family'+(i+1),r])));copyText(t,$('#fams'));});
+$('#resetBinding').addEventListener('click',()=>{if(!HAND.data)return;HAND.binding=defaultBinding();store.set('said.binding',JSON.stringify(HAND.binding));buildFams();drawPage();toast('Binding reset');});
+
+const PG={id:null,sel:null,mode:'light'};
+const pc=$('#pageCanvas');
+function drawPage(){
+ const pg=pageById(PG.id);if(!pg)return;const cv=HAND.pages[pg.id];
+ const d=Math.min(2,window.devicePixelRatio||1),W=pc.parentElement.clientWidth-20;const cell=Math.max(10,Math.floor(W/pg.cols));
+ const w=cell*pg.cols,h=cell*pg.rows;pc.style.width=w+'px';pc.style.height=h+'px';pc.width=Math.round(w*d);pc.height=Math.round(h*d);
+ const c=pc.getContext('2d');c.setTransform(d,0,0,d,0,0);c.fillStyle='#0b0a16';c.fillRect(0,0,w,h);
+ if(!cv){$('#pageMsg').textContent=`Loading page ${pg.n}…`;ensurePage(pg.id);return;}
+ $('#pageMsg').textContent=`Page ${pg.n}: ${pg.g.length} glyphs in ${pg.rows} rows. Tap a glyph to read it.`;
+ const k=HAND.data.cellPage;
+ const off=document.createElement('canvas');off.width=cv.width;off.height=cv.height;const o=off.getContext('2d');
+ o.drawImage(cv,0,0);o.globalCompositeOperation='source-in';o.fillStyle=CHALK;o.fillRect(0,0,off.width,off.height);
+ if(PG.mode==='light'){o.globalCompositeOperation='source-atop';pg.g.forEach(g=>{o.fillStyle=LIGHTS[g[4]].col;o.fillRect((g[1]-1)*k,(g[0]-1)*k,k,k);});}
+ c.drawImage(off,0,0,cv.width,cv.height,0,0,w,h);
+ if(PG.sel){const g=PG.sel;c.strokeStyle='rgba(240,184,74,.35)';c.lineWidth=1;c.strokeRect(.5,(g[0]-1)*cell+.5,w-1,cell-1);
+  c.strokeStyle='#f0b84a';c.lineWidth=2;c.strokeRect((g[1]-1)*cell+1,(g[0]-1)*cell+1,cell-2,cell-2);}
+}
+onPageLoaded=id=>{if(id===PG.id)drawPage();if(!SEQ.playing)drawSeq(SEQ.cur,.55,performance.now());};
+function selectPage(id){
+ PG.id=id;PG.sel=null;store.set('said.page',id);
+ document.querySelectorAll('#pageBtns button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.id===id)));
+ const st=HAND.stats&&HAND.stats.find(x=>x.id===id),pg=pageById(id);
+ $('#pageStat').innerHTML=st?`Read as one chain, page ${pg.n} gives <b>${st.contradictions.toLocaleString()}</b> contradictions. Quarantining <b>${st.quarantined}</b> of ${st.signs} signs (${(100*st.quarantined/st.signs).toFixed(1)}%) as paradox makes it consistent.`:'';
+ $('#selId').textContent='Tap a glyph on the page.';$('#selGloss').textContent='';$('#selCode').textContent='';$('#selForge').disabled=true;$('#selRow').disabled=true;
+ drawPage();
+}
+pc.addEventListener('click',e=>{
+ const pg=pageById(PG.id);if(!pg||!HAND.pages[pg.id])return;const r=pc.getBoundingClientRect(),cell=r.width/pg.cols;
+ const col=Math.floor((e.clientX-r.left)/cell)+1,row=Math.floor((e.clientY-r.top)/cell)+1;
+ const g=pg.g.find(x=>x[0]===row&&x[1]===col);if(!g)return;PG.sel=g;drawPage();
+ const s=rowSigns(pg,row).find(x=>x.hand.endsWith(String(row).padStart(2,'0')+String(col).padStart(2,'0')));
+ $('#selId').textContent=`#${s.hand} · page ${pg.n}, row ${row}, column ${col}`;$('#selGloss').textContent=S.sentence(s).text;$('#selCode').textContent=S.codeOf(s);
+ $('#selForge').disabled=false;$('#selRow').disabled=false;soundSign({...s},false);
+});
+$('#selForge').addEventListener('click',()=>{const pg=pageById(PG.id),g=PG.sel;if(!g)return;const s=rowSigns(pg,g[0]).find(x=>x.hand.endsWith(String(g[0]).padStart(2,'0')+String(g[1]).padStart(2,'0')));
+ Object.assign(F,s);handDraw=true;syncControls();readout();restart();soundSign(F,true);$('#forge').scrollIntoView({behavior:REDUCED?'auto':'smooth'});});
+$('#selRow').addEventListener('click',()=>{const pg=pageById(PG.id),g=PG.sel;if(!g)return;$('#rowPage').value=pg.id;fillRowSelect();$('#rowNum').value=String(g[0]);
+ $('#uText').value=rowUtterance(pg,g[0]);SEQ.cur=0;onUtterInput();$('#utter').scrollIntoView({behavior:REDUCED?'auto':'smooth'});playSeq(0);});
+document.querySelectorAll('input[name=pageMode]').forEach(r=>r.addEventListener('change',()=>{PG.mode=$('#pmLight').checked?'light':'ink';drawPage();}));
+$('#pageLegend').innerHTML=LIGHTS.map(l=>`<span><span class="swatch" style="color:${l.col}"></span>${l.id}</span>`).join('');
+
+async function initHand(){
+ try{
+  const [data,stats]=await Promise.all([fetch('hand.json').then(r=>r.json()),fetch('pagestats.json').then(r=>r.json()).catch(()=>null)]);
+  HAND.data=data;HAND.stats=stats;
+  let b=null;try{b=JSON.parse(store.get('said.binding')||'null');}catch(e){}
+  HAND.binding=Array.isArray(b)&&b.length===26&&new Set(b).size===26&&b.every(x=>RBY[x])?b:defaultBinding();
+  HAND.fam=await loadMask('families.webp');HAND.ready=true;
+  const total=data.pages.reduce((a,p)=>a+p.g.length,0);
+  const q=stats?stats.reduce((a,p)=>a+p.quarantined,0):0,rows=stats?stats.flatMap(p=>p.rows):[];
+  $('#handStats').innerHTML=[[data.pages.length,'notebook pages'],[total.toLocaleString(),'glyphs read'],['26','families'],[stats?rows.filter(r=>r[1]===0).length+' / '+rows.length:'–','rows consistent on their own']].map(([b,s])=>`<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
+  buildFams();
+  $('#pageBtns').innerHTML=data.pages.map(p=>`<button type="button" data-id="${p.id}" aria-pressed="false" aria-label="Page ${p.n}">${p.n}</button>`).join('');
+  $('#pageBtns').addEventListener('click',e=>{const b=e.target.closest('button');if(b)selectPage(b.dataset.id);});
+  $('#rowPage').innerHTML=data.pages.map(p=>`<option value="${p.id}">Page ${p.n}</option>`).join('');
+  const saved=store.get('said.page');const first=pageById(saved)?saved:'p35';
+  $('#rowPage').value=first;fillRowSelect();selectPage(first);
+  if(stats)survey(stats);
+  if(handDraw)readout();
+ }catch(e){$('#fams').innerHTML='<p class="small mute">The notebook glyphs could not be loaded. The rest of the page works without them.</p>';}
+}
+
+/* ---------- inventory ---------- */
+const minis=[];
+const io='IntersectionObserver' in window?new IntersectionObserver(es=>es.forEach(e=>{const m=e.target._m;if(m)m.vis=e.isIntersecting;})):null;
+function mini(host,w,h,draw,animated){
+ const d=Math.min(2,window.devicePixelRatio||1),cv=document.createElement('canvas');
+ cv.width=Math.round(w*d);cv.height=Math.round(h*d);cv.style.width=w+'px';cv.style.height=h+'px';
+ const m={cv,c:cv.getContext('2d'),d,w,h,draw,animated,vis:true,hot:0};cv._m=m;cv.setAttribute('aria-hidden','true');
+ host.prepend(cv);minis.push(m);if(io)io.observe(cv);renderMini(m,0);return m;
+}
+function renderMini(m,t){const c=m.c;c.setTransform(m.d,0,0,m.d,0,0);c.clearRect(0,0,m.w,m.h);m.draw(c,m.w,m.h,t,m);}
+const sp=(roots,extra)=>({roots,motion:'pulse',light:'axiom',time:'now',neg:0,...extra});
+ROOTS.forEach(r=>{
+ const b=document.createElement('button');b.type='button';b.className='card';
+ b.innerHTML=`<span class="c-code">${r.code}<i>${esc(r.uni)}</i></span><span class="c-name">${r.name}</span><span class="c-meta">h${r.h} · ${r.hz.toFixed(1)} Hz</span>`;
+ b.setAttribute('aria-label',`${r.code}, ${r.name}. Load into forge`);
+ $('#g-'+r.dom).appendChild(b);
+ const m=mini(b,64,64,(c,w,h,t,mm)=>{c.save();c.translate(w/2,h/2);const R=w*.33;const hot=mm.hot>t&&t>0;
+  if(hot){const k=1+.12*Math.sin((mm.hot-t)/1400*PI);c.scale(k,k);}
+  pen(c,R,hot?'#f2c14e':CHALK,hot?.6:.2);glyph(c,[r.code],R);c.restore();},false);
+ b.addEventListener('click',()=>{F.roots=[r.code];F.hand='';syncControls();readout();restart();m.hot=performance.now()+1400;soundSign(sp([r.code]),false);toForge(r.code);});
+});
+Object.entries(FUSIONS).forEach(([k,name])=>{
+ const b=document.createElement('button');b.type='button';b.className='fuse';
+ b.innerHTML=`<b>${k}</b><span>${esc(name)}</span>`;$('#fusions').appendChild(b);
+ b.addEventListener('click',()=>{F.roots=k.split('+');F.hand='';syncControls();readout();restart();soundSign(sp(F.roots),false);toForge(k);});
+});
+MOTIONS.forEach(mo=>{
+ const b=document.createElement('button');b.type='button';b.className='card';
+ b.innerHTML=`<span class="c-code">${mo.id}</span><span class="c-meta">${mo.gist}</span><span class="c-read">A <q>${mo.trans}</q> B</span><span class="c-read mute">A <q>${mo.intr}</q></span>`;
+ $('#g-motion').appendChild(b);
+ mini(b,76,76,(c,w,h,t)=>{c.save();c.translate(w/2,h/2);drawSign(c,sp(['CHG'],{motion:mo.id}),w*.24,REDUCED?.55:(t%2400)/2400,t);c.restore();},true);
+ b.addEventListener('click',()=>{F.motion=mo.id;syncControls();readout();restart();soundSign(sp(['CHG'],{motion:mo.id}),false);toForge('Motion '+mo.id);});
+});
+LIGHTS.forEach(l=>{
+ const b=document.createElement('button');b.type='button';b.className='card';
+ b.innerHTML=`<span class="c-code"><span><span class="swatch" style="color:${l.col}"></span>${l.id}</span><i>${l.color}</i></span><span class="c-read">${l.clause} …</span><span class="c-meta">sound: ${l.sound}</span><span class="c-meta">form: ${l.form}</span>`;
+ $('#g-light').appendChild(b);
+ mini(b,76,76,(c,w,h,t)=>{c.save();c.translate(w/2,h/2);drawSign(c,sp(['TRU'],{light:l.id}),w*.24,.5,t);c.restore();},true);
+ b.addEventListener('click',()=>{F.light=l.id;syncControls();readout();restart();soundSign(sp(['TRU'],{light:l.id}),false);toForge('Light '+l.id);});
+});
+TIMES.forEach(ti=>{
+ const b=document.createElement('button');b.type='button';b.className='card';
+ b.innerHTML=`<span class="c-code">${ti.id}</span><span class="c-read">reads “${ti.adv}”</span><span class="c-meta">${ti.contour}</span>`;
+ $('#g-time').appendChild(b);
+ mini(b,110,64,(c,w,h,t)=>{const p=REDUCED?.55:(t%2400)/2400;c.save();c.translate(16,h/2);timeMark(c,ti.id,10,p,LBY.axiom.col);c.restore();contour(c,ti.id,36,8,w-40,h-16,p,LBY.conjecture.col);},true);
+ b.addEventListener('click',()=>{F.time=ti.id;syncControls();readout();restart();soundSign(sp(['TIM'],{time:ti.id}),false);toForge('Time '+ti.id);});
+});
+VOICES.forEach(v=>{
+ const b=document.createElement('button');b.type='button';b.className='card';
+ b.innerHTML=`<span class="c-code">@${v.id}</span><span class="c-read">${v.name} <q>${v.verb}</q></span><span class="c-meta">${v.role}</span>`;
+ $('#g-voice').appendChild(b);
+ mini(b,76,96,(c,w,h,t)=>{c.save();c.translate(w/2,h*.93);figure(c,v.id,h*.52,t,(t%3200)/3200,false);c.restore();},true);
+ b.addEventListener('click',()=>{F.voice=v.id;syncControls();readout();restart();const B=live();if(B)try{playVoice(B,B.tap,v.id,B.A.currentTime+.03);}catch(e){}toForge(v.name);});
+});
+
+
+/* ---------- typed grids ---------- */
+const GRIDS=[{title:'Million years old',text:`∃ ⊤ ⧗ ψ ∀ ⌖ ⟲ ⊙ ◐ Ⅰ ∅ ∞ ∷ = ↦ ⇥ ⊢ ⋈ ϟ ≋
+∿ ⁘ ⇒ ⌖ ⟲ ⊙ ◐ ∃ ⊤ ⧗ ψ ∀ Δ ? Ⅰ ∅ ∞ ∷ = ↦
+⇥ ⊢ ⋈ ϟ ≋ • ∿ ⁘ ⇒ ⌖ ⟲ ⊙ ◐ ∃ ⊤ ⧗ ψ ∀ Δ ?
+Ⅰ ∅ ∞ ∷ = ↦ ⇥ ⊢ ⋈ ϟ ≋ • ∿ ⁘ ⇒ ⌖ ⟲ ⊙ ◐ ∃
+⊤ ⧗ ψ ∀ Δ ? Ⅰ ∅ ∞ ∷ = ↦ ⇥ ⊢ ⋈ ϟ ≋ • ∿ ⁘
+⇒ ⌖ ⟲ ⊙ ◐ ∃ ⊤ ⧗ ψ ∀ Δ ? Ⅰ ∅ ∞ ∷ = ↦ ⇥ ⊢
+⋈ ϟ ≋ • ∿ ⁘ ⇒ ⌖ ⟲ ⊙ ◐ ∃ ⊤ ⧗ ψ ∀ Δ ? Ⅰ ∅
+∞ ∷ = ↦ ⇥ ⊢ ⋈ ϟ ≋ • ∿ ⁘ ⇒ ⌖ ⟲ ⊙ ◐ ∃ ⊤ ⧗
+ψ ∀ Δ ? Ⅰ ∅ ∞ ∷ = ↦ ⇥ ⊢ ⋈ ϟ ≋ • ∿ ⁘ ⇒ ⌖
+⟲ ⊙ ◐ ∃ ⊤ ⧗ ψ ∀ Δ ? Ⅰ ∅ ∞ ∷ = ↦ ⇥ ⊢ ⋈ ϟ
+≋ • ∿ ⁘ ⇒ ⌖ ⟲ ⊙ ◐ ∃ ⊤ ⧗ ψ ∀ Δ ? Ⅰ ∅ ∞ ∷
+= ↦ ⇥ ⊢ ⋈ ϟ ≋ • ∿ ⁘ ⇒ ⌖ ⟲ ⊙ ◐ ∃ ⊤ ⧗ ψ ∀
+Δ ? Ⅰ ∅ ∞ ∷ = ↦ ⇥ ⊢ ⋈ ϟ ≋ • ∿ ⁘ ⇒ ⌖ ⟲ ⊙
+◐ ∃ ⊤ ⧗ ψ ∀ Δ ? Ⅰ ∅ ∞ ∷ = ↦ ⇥ ⊢ ⋈ ϟ ≋ •
+∿ ⁘ ⇒ ⌖ ⟲ ⊙ ◐ ∃ ⊤ ⧗ ψ ∀ Δ ? Ⅰ ∅ ∞ ∷ = ↦
+⇥ ⊢ ⋈ ϟ ≋ • ∿ ⁘ ⇒ ⌖ ⟲ ⊙ ◐ ∃ ⊤ ⧗ ψ ∀ Δ ?
+Ⅰ ∅ ∞ ∷ = ↦ ⇥ ⊢ ⋈ ϟ ≋ • ∿ ⁘ ⇒ ⌖ ⟲ ⊙ ◐ ∃
+⊤ ⧗ ψ ∀ Δ ? Ⅰ ∅ ∞ ∷ = ↦ ⇥ ⊢ ⋈ ϟ ≋ • ∿ ⁘
+⇒ ⌖ ⟲ ⊙ ◐ ∃ ⊤ ⧗ ψ ∀ Δ ? Ⅰ ∅ ∞ ∷ = ↦ ⇥ ⊢
+⋈ ϟ ≋ • ∿ ⁘ ⇒ ⌖ ⟲ ⊙ ◐ ∃ ⊤ ⧗ ψ ∀ Δ ? Ⅰ ∅`},{title:'Rotational array',text:`⧗ ⊢ ∿ ⌖ ∅ = ⋈ • ∀ Δ ∃ ⊤ ? ⟲ Ⅰ ≋ ϟ ⁘ ⇒ ⊙
+⊙ Ⅰ ⟲ ∷ ↦ ∞ ⇥ ⋈ ⊤ ⌖ ⧗ ∅ ψ ∿ = ∀ ⊢ ϟ ≋ •
+= ⋈ ∀ ⟲ ∅ ⌖ ⊤ ∿ ψ ⧗ ⊢ Ⅰ ⊙ ∷ ↦ ∞ ⇥ • ϟ ≋
+ψ ⊤ ∷ • ⇥ ⧗ ⋈ ⟲ Ⅰ ∅ ⌖ ∿ = ⊢ ⊙ ∞ ↦ ϟ ≋ ∀
+⁘ ⇒ ⊙ Ⅰ ⟲ ∷ ↦ ∞ ⇥ ⋈ ⊤ ⌖ ⧗ ∅ ψ ∿ = ∀ ⊢ ϟ
+⊢ ∿ ⌖ ∅ = ⋈ • ∀ Δ ∃ ⊤ ? ⟲ Ⅰ ≋ ϟ ⁘ ⇒ ⊙ ⧗
+∞ ⇥ ⋈ ⊤ ⌖ ⧗ ∅ ψ ∿ = ∀ ⊢ ϟ ≋ • ⊙ Ⅰ ⟲ ∷ ↦
+⌖ ⊤ ∿ ψ ⧗ ⊢ Ⅰ ⊙ ∷ ↦ ∞ ⇥ • ϟ ≋ = ⋈ ∀ ⟲ ∅
+⇥ ⧗ ⋈ ⟲ Ⅰ ∅ ⌖ ∿ = ⊢ ⊙ ∞ ↦ ϟ ≋ ∀ ψ ⊤ ∷ •
+∷ ↦ ∞ ⇥ ⋈ ⊤ ⌖ ⧗ ∅ ψ ∿ = ∀ ⊢ ϟ ⁘ ⇒ ⊙ Ⅰ ⟲
+= ⋈ • ∀ Δ ∃ ⊤ ? ⟲ Ⅰ ≋ ϟ ⁘ ⇒ ⊙ ⧗ ⊢ ∿ ⌖ ∅
+⋈ ⊤ ⌖ ⧗ ∅ ψ ∿ = ∀ ⊢ ϟ ≋ • ⊙ Ⅰ ⟲ ∷ ↦ ∞ ⇥
+ψ ⧗ ⊢ Ⅰ ⊙ ∷ ↦ ∞ ⇥ • ϟ ≋ = ⋈ ∀ ⟲ ∅ ⌖ ⊤ ∿
+⟲ Ⅰ ∅ ⌖ ∿ = ⊢ ⊙ ∞ ↦ ϟ ≋ ∀ ψ ⊤ ∷ • ⇥ ⧗ ⋈
+∞ ⇥ ⋈ ⊤ ⌖ ⧗ ∅ ψ ∿ = ∀ ⊢ ϟ ⁘ ⇒ ⊙ Ⅰ ⟲ ∷ ↦
+Δ ∃ ⊤ ? ⟲ Ⅰ ≋ ϟ ⁘ ⇒ ⊙ ⧗ ⊢ ∿ ⌖ ∅ = ⋈ • ∀
+∅ ψ ∿ = ∀ ⊢ ϟ ≋ • ⊙ Ⅰ ⟲ ∷ ↦ ∞ ⇥ ⋈ ⊤ ⌖ ⧗
+⊙ ∷ ↦ ∞ ⇥ • ϟ ≋ = ⋈ ∀ ⟲ ∅ ⌖ ⊤ ∿ ψ ⧗ ⊢ Ⅰ
+= ⊢ ⊙ ∞ ↦ ϟ ≋ ∀ ψ ⊤ ∷ • ⇥ ⧗ ⋈ ⟲ Ⅰ ∅ ⌖ ∿
+⌖ ⧗ ∅ ψ ∿ = ∀ ⊢ ϟ ⁘ ⇒ ⊙ Ⅰ ⟲ ∷ ↦ ∞ ⇥ ⋈ ⊤`}];
+const GR={A:null,rows:[],mode:'harmonic',sel:null,signs:[]};
+const FAMCOL=['#ece7f6','#f2c14e','#74b9ff','#c59cff','#7fd6a4'];
+const gc=$('#gridCanvas');
+const nounList=a=>a.map(c=>RBY[c].noun);
+const andList=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];
+function gridColor(ri,ci){
+ const A=GR.A,info=A.rowInfo[ri];
+ if(A.mode==='cycle'){const run=info.runs.find(u=>ci>=u.col&&ci<u.col+u.len);return run===info.main?CHALK:'#f2c14e';}
+ if(A.mode==='rotations')return FAMCOL[info.family%5];return CHALK;
+}
+function drawGrid(){
+ if(!GR.A)return;const rows=GR.rows,cols=Math.max(...rows.map(r=>r.length));
+ const d=Math.min(2,window.devicePixelRatio||1),W=gc.parentElement.clientWidth-20,cell=Math.max(12,Math.floor(W/cols));
+ const w=cell*cols,h=cell*rows.length;gc.style.width=w+'px';gc.style.height=h+'px';gc.width=Math.round(w*d);gc.height=Math.round(h*d);
+ const c=gc.getContext('2d');c.setTransform(d,0,0,d,0,0);c.fillStyle='#0b0a16';c.fillRect(0,0,w,h);
+ rows.forEach((r,ri)=>r.forEach((g,ci)=>{c.save();c.translate((ci+.5)*cell,(ri+.5)*cell);const R=cell*.34,col=gridColor(ri,ci);pen(c,R,col,.25);c.lineWidth=Math.max(1,R*.11);glyph(c,[g],R);c.restore();}));
+ if(GR.sel){const [ri,ci]=GR.sel;c.strokeStyle='#f0b84a';c.lineWidth=2;c.strokeRect(ci*cell+1,ri*cell+1,cell-2,cell-2);}
+}
+function identityCollapse(res){
+ let best=1;const byT={};for(const f of res.facts.values()){if(f.m==='pulse'&&!f.neg&&f.o&&f.s!==f.o&&f.L>=3){(byT[f.t]=byT[f.t]||{});(byT[f.t][f.s]=byT[f.t][f.s]||new Set([f.s])).add(f.o);}}
+ Object.values(byT).forEach(m=>Object.values(m).forEach(set=>{if(set.size>best)best=set.size;}));return best;
+}
+function readGrid(){
+ const t=$('#gText').value,g=S.parseGrid(t);GR.rows=g.rows;GR.sel=null;
+ if(!g.rows.length){$('#gridText').innerHTML='<p class="small mute">Type or paste glyphs, one row per line.</p>';GR.A=null;return;}
+ const A=S.analyzeGrid(g.rows);GR.A=A;GR.mode=$('#gmHarm').checked?'harmonic':'bare';GR.signs=S.gridSigns(A,GR.mode);
+ store.set('said.grid',JSON.stringify({title:$('#gTitle').value,text:t}));
+ const R=g.rows.length,parts=[],title=$('#gTitle').value.trim();
+ const used=Object.keys(A.counts).length;
+ if(A.mode==='cycle'){
+  const cont=A.rowInfo.slice(1).filter((x,i)=>x.offset===(A.rowInfo[i].offset+g.rows[i].length)%A.period).length;
+  parts.push(`<p><b>One cycle of ${A.period} glyphs</b> runs through all ${R} rows (${(100*A.match).toFixed(1)}% of positions agree), wrapping ${(A.n/A.period).toFixed(1)} times. ${cont===R-1?'Each row starts where the last one ended, so the page is one continuous stream.':`${cont} of ${R-1} rows start where the last one ended.`} The rows on the cycle are held eternal.</p>`);
+  parts.push(`<p class="small">The cycle: ${esc(andList(nounList(A.cycle)))}.</p>`);
+  A.rowInfo.filter(x=>!x.onCycle).forEach(x=>parts.push(`<p>Row ${x.row} leaves the cycle${x.skipped.length?`: it leaves out ${esc(andList(nounList(x.skipped)))}`:''}${x.pulled.length?` and brings ${esc(andList(nounList(x.pulled)))} forward`:''}. Those glyphs are held in what was.</p>`));
+ }else if(A.mode==='rotations'){
+  parts.push(`<p><b>${A.families.length} base rows</b>, each returning as rotations: ${A.families.map((f,i)=>`<span style="color:${FAMCOL[i%5]}">${S.VBY[S.GRID_VOICES[i%5]].name.replace('The ','')}</span> in rows ${f.join(', ')}`).join('; ')}. A rotation is a shift in time, so each row takes its tense from its shift.</p>`);
+  const every=Object.entries(A.counts).filter(([k,v])=>v===R).map(([k])=>k);
+  if(every.length)parts.push(`<p class="small">${every.length} roots sound in every row: ${esc(andList(nounList(every)))}.</p>`);
+ }else parts.push(`<p>No repeating structure found; each row reads on its own.</p>`);
+ parts.push(`<p class="small">${used} of 26 roots appear.${A.missing.length?` Absent: ${esc(andList(nounList(A.missing)))}.`:' Every root is present.'}</p>`);
+ const rb=S.check(S.gridSigns(A,'bare')).first,rh=S.check(S.gridSigns(A,'harmonic')).first;
+ const col=identityCollapse(rb);
+ const mc={};S.gridSigns(A,'harmonic').forEach(x=>{if(x.object)mc[x.motion]=(mc[x.motion]||0)+1;});
+ parts.push(`<p><span class="pill ${rh.consistent?'ok':'bad'}">harmonic ${rh.consistent?'consistent':'contradiction'}</span> ${Object.entries(mc).sort((a,b)=>b[1]-a[1]).map(([m,k])=>`${k} ${S.MBY[m].trans}`).join(' · ')} (T8).</p>`);
+ parts.push(`<p><span class="pill ${rb.consistent?'ok':'bad'}">bare ${rb.consistent?'consistent':'contradiction'}</span> Every glyph is the next, so identities merge as many as ${col} of the ${used} roots into one at a single time${A.mode==='rotations'?'; rows in negative time erase many of the identities the others write':''}.</p>`);
+ $('#gridText').innerHTML=`<article>${title?`<h4>${esc(title)}</h4>`:''}${parts.join('')}</article>`;
+ const head=A.mode==='cycle'?'<tr><th>Row</th><th>Voice</th><th>Starts at</th><th>On the cycle</th></tr>':'<tr><th>Row</th><th>Voice</th><th>Shift</th><th>Tense</th></tr>';
+ $('#gRows').innerHTML=head+g.rows.map((r,ri)=>{const x=A.rowInfo[ri]||{},s0=GR.signs.find(s=>s.row===ri+1);
+  return A.mode==='cycle'?`<tr><td class="mono">${ri+1}</td><td>${esc(S.VBY[s0.voice].name)}</td><td>${esc(RBY[r[0]].noun)} (position ${x.offset+1})</td><td>${x.onCycle?'yes':'departs'}</td></tr>`
+   :`<tr><td class="mono">${ri+1}</td><td>${esc(S.VBY[s0.voice].name)}</td><td class="mono">${x.offset??'–'}</td><td>${esc(s0.time)}</td></tr>`;}).join('');
+ drawGrid();
+}
+let gT=0;$('#gText').addEventListener('input',()=>{$('#gEx').value='-1';clearTimeout(gT);gT=setTimeout(readGrid,350);});
+$('#gTitle').addEventListener('input',()=>{clearTimeout(gT);gT=setTimeout(readGrid,350);});
+document.querySelectorAll('input[name=gMode]').forEach(r=>r.addEventListener('change',readGrid));
+$('#gEx').addEventListener('change',()=>{const i=+$('#gEx').value;if(i<0)return;$('#gTitle').value=GRIDS[i].title;$('#gText').value=GRIDS[i].text;readGrid();});
+gc.addEventListener('click',e=>{
+ if(!GR.A)return;const r=gc.getBoundingClientRect(),cols=Math.max(...GR.rows.map(x=>x.length)),cell=r.width/cols;
+ const ci=Math.floor((e.clientX-r.left)/cell),ri=Math.floor((e.clientY-r.top)/cell);const s=GR.signs.find(x=>x.row===ri+1&&x.col===ci+1);if(!s)return;
+ GR.sel=[ri,ci];drawGrid();$('#gSelId').textContent=`row ${ri+1}, column ${ci+1}`;$('#gSelGloss').textContent=S.sentence(s).text;$('#gSelCode').textContent=S.codeOf(s);soundSign({...s},true);
+});
+$('#gPlay').addEventListener('click',()=>{if(!GR.A)return;$('#uText').value=S.gridUtterance(GR.A,GR.mode,$('#gTitle').value.trim());$('#seqTempo').value='2';SEQ.tempo=2;SEQ.cur=0;onUtterInput();
+ $('#utter').scrollIntoView({behavior:REDUCED?'auto':'smooth'});playSeq(0);});
+$('#gCheck').addEventListener('click',()=>{if(!GR.A)return;$('#cText').value=S.gridUtterance(GR.A,GR.mode,$('#gTitle').value.trim());runCheck();$('#check').scrollIntoView({behavior:REDUCED?'auto':'smooth'});});
+
+/* ---------- SAID-H ---------- */
+$('#signSpace').textContent=S.SIGN_SPACE.toLocaleString();
+const LA=S.lightAlgebra();$('#lightCount').textContent=LA.checked;$('#lightBad').textContent=LA.violations;
+const PRE={"domain": 2951, "schemas": [{"name": "R-SYM (and its refutations)", "checked": 43527250, "violations": 0}, {"name": "R-TRANS", "checked": 8532, "violations": 0}, {"name": "R-REFL", "checked": 2951, "violations": 0}, {"name": "R-INV", "checked": 2951, "violations": 0}, {"name": "R-ANTI", "checked": 2951, "violations": 0}, {"name": "R-SPLIT", "checked": 511184, "violations": 0}, {"name": "R-CONG (pulse is identity in H)", "checked": 2951, "violations": 0}, {"name": "R-EX (everything in H exists)", "checked": 2951, "violations": 0}], "total": 44061721, "violations": 0, "ms": 1572};
+function modelTable(m,live){
+ $('#modelTable').innerHTML=`<tr><td class="mute">Rule</td><td class="mute">instances checked</td><td class="mute">violations</td></tr>`+
+  m.schemas.map(s=>`<tr><td>${esc(s.name)}</td><td>${s.checked.toLocaleString()}</td><td>${s.violations}</td></tr>`).join('')+
+  `<tr><td><b>Total</b></td><td><b>${m.total.toLocaleString()}</b></td><td><b>${m.violations}</b></td></tr>`;
+ $('#modelMsg').innerHTML=live?`<span class="pill ${m.violations?'bad':'ok'}">${m.violations?'failed':'holds'}</span> computed here in ${m.ms} ms`:'Figures from the build run. Run it here to recompute.';
+}
+if(PRE)modelTable(PRE,false);
+$('#runModel').addEventListener('click',()=>{const b=$('#runModel');b.disabled=true;$('#modelMsg').textContent='Checking 2,951 elements…';setTimeout(()=>{const m=S.modelCheck();modelTable(m,true);b.disabled=false;},30);});
+(function harmonic(){
+ const ov=[],du=[];ROOTS.forEach(a=>ROOTS.forEach(b=>{if(a!==b&&b.h%a.h===0)ov.push(`${a.noun} contains ${b.noun}`);}));
+ ROOTS.forEach(a=>{const b=ROOTS.find(x=>x.h===41-a.h);if(a.h<b.h)du.push(`${a.noun} ⇄ ${b.noun}`);});
+ $('#overtones').innerHTML=ov.map(x=>`<span>${esc(x)}</span>`).join('');$('#duals').innerHTML=du.map(x=>`<span>${esc(x)}</span>`).join('');
+})();
+function survey(st){
+ const q=st.map(p=>p.quarantined/p.signs),rows=st.flatMap(p=>p.rows),ok=rows.filter(r=>r[1]===0).length;
+ const sorted=[...st].sort((a,b)=>a.quarantined/a.signs-b.quarantined/b.signs),lo=sorted[0],hi=sorted[sorted.length-1];
+ const n=id=>+id.slice(1);
+ $('#surveyText').innerHTML=`Read row by row, with each glyph acting on the next, ${ok} of ${rows.length} rows are consistent on their own. Read as whole pages, every one of the ${st.length} pages contains contradictions between rows, and every page becomes consistent once the signs behind them are quarantined as paradox: between ${(100*Math.min(...q)).toFixed(1)}% and ${(100*Math.max(...q)).toFixed(1)}% of a page. Page ${n(lo.id)} is nearly consistent as written. Page ${n(hi.id)}${hi.id==='p35'?', the page with the row you boxed as "Errors",':''} needs the most quarantine of all.`;
+ $('#surveyTable').innerHTML=`<tr><td class="mute">Page</td><td class="mute">signs</td><td class="mute">contradictions</td><td class="mute">quarantined</td></tr>`+
+  [...st].sort((a,b)=>n(a.id)-n(b.id)).map(p=>`<tr><td>${n(p.id)}</td><td>${p.signs}</td><td>${p.contradictions.toLocaleString()}</td><td>${p.quarantined} (${(100*p.quarantined/p.signs).toFixed(1)}%)</td></tr>`).join('');
+}
+
+/* ---------- checker ---------- */
+const CHECK_DEFAULT=`@prover INF+SET.expand.proven.eternal INF [the transfinite extends to infinity]
+/ @witness SET.contain.axiom.now INF | INF.contain.axiom.now SET [each contains the other]
+/ @prover INF.split.proven.now SET [yet they are distinct]
+/ @dreamer ~LIM.dissolve.conjecture.becoming INF [not: the limit is not infinity]
+/ @prover NUL+PRF.dissolve.proven.eternal [consistency, claimed from inside]
+/ @doubter MND.flow.unknown.now TIM`;
+function derivHTML(res,f){return `<pre class="deriv">${S.explain(res,f).map(x=>`${esc(x.code)}  <span class="r">[${esc(x.label)}]</span>`).join('\n')}</pre>`;}
+function signLabel(signs,i){return `${i+1}: <code>${esc(S.codeOf(signs[i],false))}</code>`;}
+function runCheck(){
+ const r=S.parseUtterance($('#cText').value),signs=r.frames.flat();const out=$('#cOut');
+ if(!signs.length){$('#cVerdict').innerHTML='<span class="small mute">No signs found.</span>';out.innerHTML='';return;}
+ const res=S.check(signs),a=res.first,blocks=[];
+ const verdict=a.consistent?`<span class="pill ok">consistent</span>`:`<span class="pill bad">contradiction</span> <span class="small">Consistent after quarantining ${res.quarantined.length} sign${res.quarantined.length>1?'s':''} as paradox.</span>`;
+ $('#cVerdict').innerHTML=verdict+` <span class="small mute">${signs.length} signs · ${a.real.length} facts in the closure · ${a.passes} passes</span>`;
+ if(!a.consistent){
+  const ranked=a.contradictions.slice(0,60).map(p=>({p,len:S.explain(a,p[0]).length+S.explain(a,p[1]).length+(p[0].rule==='refl'||p[1].rule==='refl'?20:0)})).sort((x,y)=>x.len-y.len);
+  const [c1,c2]=ranked[0].p;
+  blocks.push(`<div class="block"><h3>Contradiction (${a.contradictions.length} in all; the shortest)</h3><div class="vs">${derivHTML(a,c1)}${derivHTML(a,c2)}</div>
+   <p class="small">Quarantined as paradox: ${res.quarantined.map(i=>signLabel(signs,i)).join(', ')}</p></div>`);
+ }
+ const R=res.repaired||a;
+ const li=(arr,fn)=>`<ul class="list">${arr.map(fn).join('')}</ul>`;
+ if(a.boundary.length)blocks.push(`<div class="block"><h3>Gödel boundary</h3><p class="small">This utterance uses an ideal root (INF, WHL or LIM), so a consistency claim from inside it is held at unknown light (T4): ${a.boundary.map(i=>signLabel(signs,i)).join(', ')}. Say it from outside, relative to a stronger system, to hold it at proven.</p></div>`);
+ const fin=[...R.facts.values()].filter(f=>f.finitary);
+ if(fin.length&&R.consistent)blocks.push(`<div class="block"><h3>Finitary consistency</h3><p class="small">A purely real utterance claims its own consistency, and this check is the finite proof: the closure above has no contradiction.</p></div>`);
+ if(R.refuted.length)blocks.push(`<div class="block"><h3>Refuted conjectures</h3>${li(R.refuted.slice(0,8),f=>`<li><code>${esc(S.factCode(f))}</code></li>`)}</div>`);
+ if(R.tensions.length)blocks.push(`<div class="block"><h3>Open tensions (two conjectures disagree)</h3>${li(R.tensions.slice(0,6),([x,y])=>`<li><code>${esc(S.factCode(x))}</code> against <code>${esc(S.factCode(y))}</code></li>`)}</div>`);
+ if(R.decided.length)blocks.push(`<div class="block"><h3>Questions answered</h3>${li(R.decided.slice(0,8),f=>`<li><code>${esc(S.factCode(f))}</code></li>`)}</div>`);
+ if(a.retracted.length)blocks.push(`<div class="block"><h3>Erased in negative time</h3><p class="small">${a.retracted.map(i=>signLabel(signs,i)).join(', ')}</p></div>`);
+ if(a.quarantine.length)blocks.push(`<div class="block"><h3>Held as paradox in the input</h3><p class="small">${a.quarantine.map(i=>signLabel(signs,i)).join(', ')}</p></div>`);
+ const derived=R.real.filter(f=>f.rule!=='given'&&f.L>=2).slice(0,14);
+ if(derived.length)blocks.push(`<div class="block"><h3>What follows (first ${derived.length})</h3>${li(derived,f=>`<li><code>${esc(S.factCode(f))}</code> <span class="mute small">${esc(S.RULES[f.rule].split('  ')[0])}</span></li>`)}</div>`);
+ out.innerHTML=blocks.join('');
+}
+$('#cRun').addEventListener('click',runCheck);
+
+/* ---------- primer ---------- */
+const primer=S.buildPrimer();$('#primerText').textContent=primer;$('#primerSize').textContent=`${primer.length.toLocaleString()} characters`;
+$('#copyPrimer').addEventListener('click',()=>copyText(primer,$('#primerText')));
+
+/* ---------- start ---------- */
+syncControls();readout();
+$('#uText').value=store.get('said.utter')||EXAMPLES[0].text;onUtterInput();
+$('#cText').value=CHECK_DEFAULT;runCheck();
+{let gs=null;try{gs=JSON.parse(store.get('said.grid')||'null');}catch(e){}const gg=gs&&gs.text?gs:GRIDS[0];$('#gTitle').value=gg.title||'';$('#gText').value=gg.text;$('#gEx').value=gs&&gs.text&&gs.text!==GRIDS[0].text?(gs.text===GRIDS[1].text?'1':'-1'):'0';readGrid();}
+const ro='ResizeObserver' in window?new ResizeObserver(es=>es.forEach(e=>{if(e.target===fc)sizeForge();else if(e.target===sc)sizeSeq();else if(e.target===pc.parentElement)drawPage();else if(e.target===gc.parentElement)drawGrid();else famCanvases.forEach((_,i)=>drawFam(i));})):null;
+if(ro){ro.observe(fc);ro.observe(sc);ro.observe(pc.parentElement);ro.observe(gc.parentElement);ro.observe($('#fams'));}else window.addEventListener('resize',()=>{sizeForge();sizeSeq();drawPage();});
+sizeForge();sizeSeq();
+if(io){const fo=new IntersectionObserver(es=>es.forEach(e=>{forgeVis=e.isIntersecting;}));fo.observe(fc);}
+initHand();
+SEQ.still=performance.now();
+if(!REDUCED){
+ const loop=now=>{
+  if(forgeVis)drawForge(now);
+  if(SEQ.playing)seqTick(now);else if(SW&&SEQ.frames.length)drawSeq(SEQ.cur,((now-SEQ.still)%3200)/3200,now);
+  for(const m of minis){if(!m.vis)continue;if(m.animated)renderMini(m,now);else if(m.hot){if(m.hot>now)renderMini(m,now);else{m.hot=0;renderMini(m,0);}}}
+  requestAnimationFrame(loop);
+ };
+ requestAnimationFrame(loop);
+}else{
+ const slow=now=>{if(SEQ.playing)seqTick(now);requestAnimationFrame(slow);};requestAnimationFrame(slow);
+}
+
+/* ---------- offline render hooks (used to export video; harmless in the viewer) ---------- */
+window.SAID_RENDER={
+ load(text,tempo){SEQ.tempo=tempo||1;$('#uText').value=text;onUtterInput();return {frames:SEQ.frames.length,total:SEQ.total};},
+ async ready(){await Promise.all(Object.values(HAND.loading));return true;},
+ frame(t,W,H){const cv=document.createElement('canvas');cv.width=W;cv.height=H;const c=cv.getContext('2d');const fa=frameAt(Math.min(t,SEQ.total-1e-3))||{i:0,p:0};
+  renderStage(c,W,H,fa.i,fa.p,t*1000,Math.min(1,fa.p*SEQ.tl[fa.i].dur/.3));return cv.toDataURL('image/jpeg',.9);},
+ async audio(){const sr=44100,A=new OfflineAudioContext(2,Math.ceil(sr*(SEQ.total+2)),sr),B=makeBus(A);
+  SEQ.tl.forEach(fr=>scheduleFrame(B,B.tap,fr.layers,.08+fr.start,fr.dur));const buf=await A.startRendering();
+  const n=buf.length,L=buf.getChannelData(0),R=buf.getChannelData(1),dv=new DataView(new ArrayBuffer(44+n*4));
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)dv.setUint8(o+i,s.charCodeAt(i));};
+  w(0,'RIFF');dv.setUint32(4,36+n*4,true);w(8,'WAVE');w(12,'fmt ');dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,2,true);
+  dv.setUint32(24,sr,true);dv.setUint32(28,sr*4,true);dv.setUint16(32,4,true);dv.setUint16(34,16,true);w(36,'data');dv.setUint32(40,n*4,true);
+  for(let i=0;i<n;i++){dv.setInt16(44+i*4,Math.max(-1,Math.min(1,L[i]))*32767,true);dv.setInt16(46+i*4,Math.max(-1,Math.min(1,R[i]))*32767,true);}
+  const bytes=new Uint8Array(dv.buffer);let s='';for(let i=0;i<bytes.length;i+=32768)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768));return btoa(s);}
+};
+})();
+</script>
+
+</body></html>
